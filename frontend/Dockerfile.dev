@@ -1,0 +1,23 @@
+# Dockerfile.dev para desarrollo del frontend Vue.js
+FROM node:20-alpine
+
+# Configurar directorio de trabajo
+WORKDIR /app
+
+# Instalar dependencias globales
+RUN npm install -g @vue/cli
+
+# Copiar package.json y package-lock.json
+COPY package*.json ./
+
+# Instalar dependencias
+RUN npm install
+
+# Copiar código fuente
+COPY . .
+
+# Exponer puerto
+EXPOSE 8080
+
+# Comando por defecto (será sobrescrito por docker-compose)
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "8080"]
