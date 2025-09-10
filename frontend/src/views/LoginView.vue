@@ -7,7 +7,7 @@
             <!-- Marca -->
             <div class="brand-section">
               <div class="brand-logo">
-                <v-icon size="32" color="white">mdi-file-document-multiple</v-icon>
+                📄
               </div>
               <h1 class="brand-title">Recepción Facturas</h1>
               <p class="brand-subtitle">Sistema de Gestión de Pagos</p>
@@ -46,13 +46,18 @@
                 ></v-text-field>
                 
                 <div class="d-flex justify-space-between align-center mb-6">
-                  <v-checkbox
-                    v-model="rememberMe"
-                    label="Recordarme"
-                    density="compact"
-                    color="#0f172a"
-                    hide-details
-                  ></v-checkbox>
+                  <div class="checkbox-wrapper">
+                    <v-checkbox
+                      v-model="rememberMe"
+                      density="compact"
+                      color="primary"
+                      class="custom-checkbox"
+                      hide-details
+                    ></v-checkbox>
+                    <label class="checkbox-label" @click="rememberMe = !rememberMe">
+                      Recordarme
+                    </label>
+                  </div>
                   
                   <a href="#" @click.prevent="forgotPassword" class="forgot-link">
                     ¿Olvidó su contraseña?
@@ -64,8 +69,10 @@
                   :disabled="!valid"
                   type="submit"
                   block
+                  color="primary"
                   class="login-button"
                   size="large"
+                  variant="flat"
                 >
                   Iniciar Sesión
                 </v-btn>
@@ -93,7 +100,7 @@
             
             <div class="feature-item">
               <div class="feature-icon">
-                <v-icon color="white" size="24">mdi-shield-check</v-icon>
+                🔒
               </div>
               <div class="feature-content">
                 <h3>Seguridad Avanzada</h3>
@@ -103,7 +110,7 @@
             
             <div class="feature-item">
               <div class="feature-icon">
-                <v-icon color="white" size="24">mdi-chart-timeline-variant</v-icon>
+                📊
               </div>
               <div class="feature-content">
                 <h3>Trazabilidad Completa</h3>
@@ -113,7 +120,7 @@
             
             <div class="feature-item">
               <div class="feature-icon">
-                <v-icon color="white" size="24">mdi-lightning-bolt</v-icon>
+                ⚡
               </div>
               <div class="feature-content">
                 <h3>Automatización</h3>
@@ -123,7 +130,7 @@
             
             <div class="feature-item">
               <div class="feature-icon">
-                <v-icon color="white" size="24">mdi-file-chart</v-icon>
+                📈
               </div>
               <div class="feature-content">
                 <h3>Reportes Ejecutivos</h3>
@@ -174,11 +181,10 @@
       })
       
       if (result.success) {
-        toast.success('Acceso autorizado. Redirigiendo...')
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 1500)
+        // Redirigir directamente sin toast - el usuario ya sabe que fue exitoso
+        router.push('/dashboard')
       } else {
+        // Solo mostrar error si el login falló
         toast.error(result.message)
       }
       
@@ -255,6 +261,7 @@
     align-items: center;
     justify-content: center;
     color: white;
+    font-size: 28px;
   }
   
   .brand-title {
@@ -307,20 +314,85 @@
     box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
   }
   
+  /* Estilos mejorados para el checkbox */
+  .checkbox-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .checkbox-label {
+    font-size: 14px;
+    color: #1e293b;
+    font-weight: 500;
+    cursor: pointer;
+    user-select: none;
+  }
+  
+  .custom-checkbox :deep(.v-selection-control__wrapper) {
+    background: rgba(15, 23, 42, 0.08);
+    border: 2px solid #cbd5e1;
+    border-radius: 6px;
+    padding: 0;
+    width: 20px;
+    height: 20px;
+    transition: all 0.2s ease;
+  }
+  
+  .custom-checkbox :deep(.v-checkbox .v-selection-control__input) {
+    color: #0f172a;
+  }
+  
+  .custom-checkbox :deep(.v-checkbox .v-selection-control__input:hover) {
+    background: rgba(15, 23, 42, 0.12);
+  }
+  
+  .custom-checkbox :deep(.v-selection-control--dirty .v-selection-control__wrapper) {
+    background: #0f172a;
+    border-color: #0f172a;
+  }
+  
+  .custom-checkbox :deep(.v-selection-control--dirty .v-selection-control__input) {
+    color: white;
+  }
+  
+  /* Estilos mejorados para el botón */
   .login-button {
     height: 48px;
     border-radius: 8px;
-    background: #0f172a;
+    background: #0f172a !important;
+    color: white !important;
     font-weight: 600;
     font-size: 15px;
     letter-spacing: 0.025em;
     text-transform: none;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.4);
+    transition: all 0.2s ease;
+    border: none;
   }
   
   .login-button:hover {
-    background: #1e293b;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+    background: #1e293b !important;
+    box-shadow: 0 6px 24px rgba(15, 23, 42, 0.5);
+    transform: translateY(-2px);
+  }
+  
+  .login-button:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  }
+  
+  .login-button:disabled {
+    background: #64748b !important;
+    color: white !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transform: none;
+    opacity: 0.7;
+  }
+  
+  .login-button.v-btn--loading {
+    background: #0f172a !important;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.4);
   }
   
   .forgot-link {
@@ -328,6 +400,7 @@
     text-decoration: none;
     font-weight: 500;
     font-size: 14px;
+    transition: color 0.2s ease;
   }
   
   .forgot-link:hover {
@@ -356,6 +429,7 @@
     justify-content: center;
     margin-right: 16px;
     backdrop-filter: blur(10px);
+    font-size: 20px;
   }
   
   .feature-content h3 {

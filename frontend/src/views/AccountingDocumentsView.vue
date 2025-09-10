@@ -1,9 +1,18 @@
 <template>
     <div class="accounting-layout">
+      <!-- Sidebar -->
+      <AppSidebar v-model="drawer" />
+
       <!-- Header -->
       <v-app-bar app color="white" elevation="1" height="64">
-        <v-btn icon @click="goBack" color="#64748b" class="ml-2">
-          <v-icon>mdi-arrow-left</v-icon>
+        <v-btn 
+          icon 
+          @click="drawer = !drawer" 
+          color="#64748b" 
+          class="ml-2"
+          v-if="$vuetify.display.mdAndDown"
+        >
+          <v-icon>mdi-menu</v-icon>
         </v-btn>
         <div class="ml-4">
           <div class="header-title">Gestión de Documentos</div>
@@ -14,7 +23,7 @@
           <v-icon>mdi-help-circle-outline</v-icon>
         </v-btn>
       </v-app-bar>
-  
+
       <v-main class="main-content">
         <!-- Breadcrumb -->
         <div class="breadcrumb-container">
@@ -28,7 +37,7 @@
             </div>
           </v-container>
         </div>
-  
+
         <v-container class="py-8" max-width="1000">
           <!-- Información de la factura -->
           <v-card class="form-card mb-6" elevation="2">
@@ -81,7 +90,7 @@
               </v-row>
             </v-card-text>
           </v-card>
-  
+
           <!-- Gestión de documentos -->
           <v-row>
             <!-- Facturas del proveedor (descargar) -->
@@ -133,7 +142,7 @@
                 </v-card-text>
               </v-card>
             </v-col>
-  
+
             <!-- Acciones de contaduría -->
             <v-col cols="12" lg="6">
               <v-card class="document-card" elevation="2">
@@ -160,7 +169,7 @@
                       Generar
                     </v-btn>
                   </div>
-  
+
                   <!-- Subir Retención ISR -->
                   <div v-if="canUploadISR" class="action-section">
                     <v-divider class="mb-4"></v-divider>
@@ -194,7 +203,7 @@
                       </v-btn>
                     </div>
                   </div>
-  
+
                   <!-- Subir Retención IVA -->
                   <div v-if="canUploadIVA" class="action-section">
                     <v-divider class="mb-4"></v-divider>
@@ -228,7 +237,7 @@
                       </v-btn>
                     </div>
                   </div>
-  
+
                   <!-- Realizar pago (cambio de estado) -->
                   <div v-if="canMarkAsPaid" class="action-section">
                     <v-divider class="mb-4"></v-divider>
@@ -248,7 +257,7 @@
                       Marcar Pagado
                     </v-btn>
                   </div>
-  
+
                   <!-- Subir comprobante de pago -->
                   <div v-if="canUploadPaymentProof" class="action-section">
                     <v-divider class="mb-4"></v-divider>
@@ -286,7 +295,7 @@
               </v-card>
             </v-col>
           </v-row>
-  
+
           <!-- Historial de estados -->
           <v-card class="mt-6" elevation="2">
             <v-card-title class="card-title-bg">
@@ -315,7 +324,7 @@
           </v-card>
         </v-container>
       </v-main>
-  
+
       <!-- Dialog para subir archivos -->
       <v-dialog v-model="uploadDialog" max-width="600">
         <v-card>
@@ -375,305 +384,305 @@
         </v-card>
       </v-dialog>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, computed, onMounted } from 'vue'
-  import { useRouter, useRoute } from 'vue-router'
-  import { useAuthStore } from '../stores/auth'
-  import { useToast } from 'vue-toastification'
-  import axios from 'axios'
-  
-  const router = useRouter()
-  const route = useRoute()
-  const authStore = useAuthStore()
-  const toast = useToast()
-  
-  const invoice = ref(null)
-  const invoiceStates = ref([])
-  const uploadDialog = ref(false)
-  const uploadDialogTitle = ref('')
-  const uploadType = ref('')
-  const selectedFile = ref(null)
-  const uploading = ref(false)
-  const isDragging = ref(false)
-  const generatingPassword = ref(false)
-  const markingPaid = ref(false)
-  
-  // Estados computados
-  const canGeneratePassword = computed(() => {
-    return invoice.value?.status === 'en_proceso'
-  })
-  
-  const canUploadISR = computed(() => {
-    return ['en_proceso', 'contrasena_generada'].includes(invoice.value?.status)
-  })
-  
-  const canUploadIVA = computed(() => {
-    return invoice.value?.status === 'retencion_isr_generada'
-  })
-  
-  const canMarkAsPaid = computed(() => {
-    return invoice.value?.status === 'retencion_iva_generada'
-  })
-  
-  const canUploadPaymentProof = computed(() => {
-    return invoice.value?.status === 'pago_realizado'
-  })
-  
-  const hasISRFile = computed(() => {
-    return ['retencion_isr_generada', 'retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value?.status)
-  })
-  
-  const hasIVAFile = computed(() => {
-    return ['retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value?.status)
-  })
-  
-  const hasPaymentProofFile = computed(() => {
-    return invoice.value?.status === 'proceso_completado'
-  })
-  
-  const goBack = () => {
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useToast } from 'vue-toastification'
+import AppSidebar from '../components/AppSidebar.vue'
+import axios from 'axios'
+
+const router = useRouter()
+const route = useRoute()
+const authStore = useAuthStore()
+const toast = useToast()
+
+// Estados reactivos
+const drawer = ref(true)
+const invoice = ref(null)
+const invoiceStates = ref([])
+const uploadDialog = ref(false)
+const uploadDialogTitle = ref('')
+const uploadType = ref('')
+const selectedFile = ref(null)
+const uploading = ref(false)
+const isDragging = ref(false)
+const generatingPassword = ref(false)
+const markingPaid = ref(false)
+
+// Estados computados
+const canGeneratePassword = computed(() => {
+  return invoice.value?.status === 'en_proceso'
+})
+
+const canUploadISR = computed(() => {
+  return ['en_proceso', 'contrasena_generada'].includes(invoice.value?.status)
+})
+
+const canUploadIVA = computed(() => {
+  return invoice.value?.status === 'retencion_isr_generada'
+})
+
+const canMarkAsPaid = computed(() => {
+  return invoice.value?.status === 'retencion_iva_generada'
+})
+
+const canUploadPaymentProof = computed(() => {
+  return invoice.value?.status === 'pago_realizado'
+})
+
+const hasISRFile = computed(() => {
+  return ['retencion_isr_generada', 'retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value?.status)
+})
+
+const hasIVAFile = computed(() => {
+  return ['retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value?.status)
+})
+
+const hasPaymentProofFile = computed(() => {
+  return invoice.value?.status === 'proceso_completado'
+})
+
+// Resto del código JavaScript del archivo original permanece igual...
+const loadInvoice = async () => {
+  try {
+    const invoiceId = route.params.id
+    const response = await axios.get(`/api/invoices/${invoiceId}`)
+    invoice.value = response.data
+    invoiceStates.value = response.data.states || []
+  } catch (error) {
+    console.error('Error loading invoice:', error)
+    toast.error('Error al cargar la factura')
     router.push('/invoices')
   }
-  
-  const loadInvoice = async () => {
-    try {
-      const invoiceId = route.params.id
-      const response = await axios.get(`/api/invoices/${invoiceId}`)
-      invoice.value = response.data
-      invoiceStates.value = response.data.states || []
-    } catch (error) {
-      console.error('Error loading invoice:', error)
-      toast.error('Error al cargar la factura')
-      router.push('/invoices')
-    }
+}
+
+const generatePassword = async () => {
+  generatingPassword.value = true
+  try {
+    await axios.post(`/api/invoices/${invoice.value.id}/generate-password`)
+    toast.success('Contraseña generada exitosamente')
+    await loadInvoice()
+  } catch (error) {
+    toast.error('Error al generar contraseña')
+  } finally {
+    generatingPassword.value = false
   }
-  
-  const generatePassword = async () => {
-    generatingPassword.value = true
-    try {
-      await axios.post(`/api/invoices/${invoice.value.id}/generate-password`)
-      toast.success('Contraseña generada exitosamente')
-      await loadInvoice()
-    } catch (error) {
-      toast.error('Error al generar contraseña')
-    } finally {
-      generatingPassword.value = false
-    }
+}
+
+const markAsPaid = async () => {
+  markingPaid.value = true
+  try {
+    await axios.put(`/api/invoices/${invoice.value.id}/status`, {
+      status: 'pago_realizado',
+      notes: 'Pago confirmado por contaduría'
+    })
+    toast.success('Factura marcada como pagada')
+    await loadInvoice()
+  } catch (error) {
+    toast.error('Error al marcar como pagada')
+  } finally {
+    markingPaid.value = false
   }
-  
-  const markAsPaid = async () => {
-    markingPaid.value = true
-    try {
-      await axios.put(`/api/invoices/${invoice.value.id}/status`, {
-        status: 'pago_realizado',
-        notes: 'Pago confirmado por contaduría'
-      })
-      toast.success('Factura marcada como pagada')
-      await loadInvoice()
-    } catch (error) {
-      toast.error('Error al marcar como pagada')
-    } finally {
-      markingPaid.value = false
-    }
+}
+
+const openUploadDialog = (type) => {
+  uploadType.value = type
+  const titles = {
+    'isr': 'Subir Retención ISR',
+    'iva': 'Subir Retención IVA',
+    'payment_proof': 'Subir Comprobante de Pago'
   }
-  
-  const openUploadDialog = (type) => {
-    uploadType.value = type
-    const titles = {
-      'isr': 'Subir Retención ISR',
-      'iva': 'Subir Retención IVA',
-      'payment_proof': 'Subir Comprobante de Pago'
+  uploadDialogTitle.value = titles[type]
+  uploadDialog.value = true
+  selectedFile.value = null
+}
+
+const handleFileSelect = (event) => {
+  const file = event.target.files[0]
+  if (file) {
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se permiten archivos PDF')
+      return
     }
-    uploadDialogTitle.value = titles[type]
-    uploadDialog.value = true
-    selectedFile.value = null
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('El archivo no puede ser mayor a 10MB')
+      return
+    }
+    selectedFile.value = file
   }
-  
-  const handleFileSelect = (event) => {
-    const file = event.target.files[0]
-    if (file) {
-      if (file.type !== 'application/pdf') {
-        toast.error('Solo se permiten archivos PDF')
-        return
+}
+
+const handleDrop = (event) => {
+  isDragging.value = false
+  const files = Array.from(event.dataTransfer.files)
+  if (files.length > 0) {
+    handleFileSelect({ target: { files } })
+  }
+}
+
+const submitUpload = async () => {
+  if (!selectedFile.value) return
+
+  uploading.value = true
+  try {
+    const formData = new FormData()
+    formData.append('file', selectedFile.value)
+    formData.append('type', uploadType.value)
+
+    await axios.post(`/api/invoices/${invoice.value.id}/upload-document`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
       }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error('El archivo no puede ser mayor a 10MB')
-        return
-      }
-      selectedFile.value = file
-    }
+    })
+
+    toast.success('Documento subido exitosamente')
+    uploadDialog.value = false
+    await loadInvoice()
+  } catch (error) {
+    toast.error('Error al subir documento')
+  } finally {
+    uploading.value = false
   }
-  
-  const handleDrop = (event) => {
-    isDragging.value = false
-    const files = Array.from(event.dataTransfer.files)
-    if (files.length > 0) {
-      handleFileSelect({ target: { files } })
-    }
+}
+
+// Funciones de descarga (permanecen iguales)
+const downloadInvoiceFiles = async () => {
+  try {
+    const response = await axios.get(`/api/invoices/${invoice.value.id}/download-invoice`, {
+      responseType: 'blob'
+    })
+    downloadBlob(response.data, `factura-${invoice.value.number}.pdf`)
+    toast.success('Factura descargada')
+  } catch (error) {
+    toast.error('Error al descargar factura')
   }
-  
-  const submitUpload = async () => {
-    if (!selectedFile.value) return
-  
-    uploading.value = true
-    try {
-      const formData = new FormData()
-      formData.append('file', selectedFile.value)
-      formData.append('type', uploadType.value)
-  
-      await axios.post(`/api/invoices/${invoice.value.id}/upload-document`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-  
-      toast.success('Documento subido exitosamente')
-      uploadDialog.value = false
-      await loadInvoice()
-    } catch (error) {
-      toast.error('Error al subir documento')
-    } finally {
-      uploading.value = false
-    }
+}
+
+const downloadAdditionalFiles = async () => {
+  try {
+    const response = await axios.get(`/api/invoices/${invoice.value.id}/download-all-files`, {
+      responseType: 'blob'
+    })
+    downloadBlob(response.data, `documentos-${invoice.value.number}.zip`)
+    toast.success('Documentos descargados')
+  } catch (error) {
+    toast.error('Error al descargar documentos')
   }
-  
-  // Funciones de descarga
-  const downloadInvoiceFiles = async () => {
-    try {
-      const response = await axios.get(`/api/invoices/${invoice.value.id}/download-invoice`, {
-        responseType: 'blob'
-      })
-      downloadBlob(response.data, `factura-${invoice.value.number}.pdf`)
-      toast.success('Factura descargada')
-    } catch (error) {
-      toast.error('Error al descargar factura')
-    }
+}
+
+const downloadISR = async () => {
+  try {
+    const response = await axios.get(`/api/invoices/${invoice.value.id}/download-retention-isr`, {
+      responseType: 'blob'
+    })
+    downloadBlob(response.data, `retencion-isr-${invoice.value.number}.pdf`)
+  } catch (error) {
+    toast.error('Error al descargar ISR')
   }
-  
-  const downloadAdditionalFiles = async () => {
-    try {
-      const response = await axios.get(`/api/invoices/${invoice.value.id}/download-all-files`, {
-        responseType: 'blob'
-      })
-      downloadBlob(response.data, `documentos-${invoice.value.number}.zip`)
-      toast.success('Documentos descargados')
-    } catch (error) {
-      toast.error('Error al descargar documentos')
-    }
+}
+
+const downloadIVA = async () => {
+  try {
+    const response = await axios.get(`/api/invoices/${invoice.value.id}/download-retention-iva`, {
+      responseType: 'blob'
+    })
+    downloadBlob(response.data, `retencion-iva-${invoice.value.number}.pdf`)
+  } catch (error) {
+    toast.error('Error al descargar IVA')
   }
-  
-  const downloadISR = async () => {
-    try {
-      const response = await axios.get(`/api/invoices/${invoice.value.id}/download-retention-isr`, {
-        responseType: 'blob'
-      })
-      downloadBlob(response.data, `retencion-isr-${invoice.value.number}.pdf`)
-    } catch (error) {
-      toast.error('Error al descargar ISR')
-    }
+}
+
+const downloadPaymentProof = async () => {
+  try {
+    const response = await axios.get(`/api/invoices/${invoice.value.id}/download-payment-proof`, {
+      responseType: 'blob'
+    })
+    downloadBlob(response.data, `comprobante-pago-${invoice.value.number}.pdf`)
+  } catch (error) {
+    toast.error('Error al descargar comprobante')
   }
-  
-  const downloadIVA = async () => {
-    try {
-      const response = await axios.get(`/api/invoices/${invoice.value.id}/download-retention-iva`, {
-        responseType: 'blob'
-      })
-      downloadBlob(response.data, `retencion-iva-${invoice.value.number}.pdf`)
-    } catch (error) {
-      toast.error('Error al descargar IVA')
-    }
+}
+
+const downloadBlob = (blob, filename) => {
+  const url = window.URL.createObjectURL(new Blob([blob]))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  window.URL.revokeObjectURL(url)
+}
+
+// Funciones de utilidad (permanecen iguales)
+const formatCurrency = (amount) => {
+  return new Intl.NumberFormat('es-GT', {
+    style: 'currency',
+    currency: 'GTQ'
+  }).format(amount)
+}
+
+const formatDateTime = (dateString) => {
+  return new Date(dateString).toLocaleString('es-GT')
+}
+
+const formatFileSize = (bytes) => {
+  const mb = bytes / (1024 * 1024)
+  return `${mb.toFixed(1)} MB`
+}
+
+const getStatusColor = (status) => {
+  const colors = {
+    'factura_subida': 'blue',
+    'asignada_contaduria': 'orange',
+    'en_proceso': 'purple',
+    'contrasena_generada': 'indigo',
+    'retencion_isr_generada': 'cyan',
+    'retencion_iva_generada': 'teal',
+    'pago_realizado': 'green',
+    'proceso_completado': 'success',
+    'rechazada': 'error'
   }
-  
-  const downloadPaymentProof = async () => {
-    try {
-      const response = await axios.get(`/api/invoices/${invoice.value.id}/download-payment-proof`, {
-        responseType: 'blob'
-      })
-      downloadBlob(response.data, `comprobante-pago-${invoice.value.number}.pdf`)
-    } catch (error) {
-      toast.error('Error al descargar comprobante')
-    }
+  return colors[status] || 'grey'
+}
+
+const getStatusText = (status) => {
+  const texts = {
+    'factura_subida': 'Factura Subida',
+    'asignada_contaduria': 'Asignada a Contaduría',
+    'en_proceso': 'En Proceso',
+    'contrasena_generada': 'Contraseña Generada',
+    'retencion_isr_generada': 'Retención ISR',
+    'retencion_iva_generada': 'Retención IVA',
+    'pago_realizado': 'Pago Realizado',
+    'proceso_completado': 'Proceso Completado',
+    'rechazada': 'Rechazada'
   }
-  
-  const downloadBlob = (blob, filename) => {
-    const url = window.URL.createObjectURL(new Blob([blob]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = filename
-    link.click()
-    window.URL.revokeObjectURL(url)
+  return texts[status] || status
+}
+
+const getTimelineColor = (status) => {
+  const colors = {
+    'factura_subida': 'blue',
+    'asignada_contaduria': 'orange',
+    'en_proceso': 'purple',
+    'contrasena_generada': 'indigo',
+    'retencion_isr_generada': 'cyan',
+    'retencion_iva_generada': 'teal',
+    'pago_realizado': 'green',
+    'proceso_completado': 'success',
+    'rechazada': 'error'
   }
-  
-  // Funciones de utilidad
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('es-GT', {
-      style: 'currency',
-      currency: 'GTQ'
-    }).format(amount)
-  }
-  
-  const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('es-GT')
-  }
-  
-  const formatFileSize = (bytes) => {
-    const mb = bytes / (1024 * 1024)
-    return `${mb.toFixed(1)} MB`
-  }
-  
-  const getStatusColor = (status) => {
-    const colors = {
-      'factura_subida': 'blue',
-      'asignada_contaduria': 'orange',
-      'en_proceso': 'purple',
-      'contrasena_generada': 'indigo',
-      'retencion_isr_generada': 'cyan',
-      'retencion_iva_generada': 'teal',
-      'pago_realizado': 'green',
-      'proceso_completado': 'success',
-      'rechazada': 'error'
-    }
-    return colors[status] || 'grey'
-  }
-  
-  const getStatusText = (status) => {
-    const texts = {
-      'factura_subida': 'Factura Subida',
-      'asignada_contaduria': 'Asignada a Contaduría',
-      'en_proceso': 'En Proceso',
-      'contrasena_generada': 'Contraseña Generada',
-      'retencion_isr_generada': 'Retención ISR',
-      'retencion_iva_generada': 'Retención IVA',
-      'pago_realizado': 'Pago Realizado',
-      'proceso_completado': 'Proceso Completado',
-      'rechazada': 'Rechazada'
-    }
-    return texts[status] || status
-  }
-  
-  const getTimelineColor = (status) => {
-    const colors = {
-      'factura_subida': 'blue',
-      'asignada_contaduria': 'orange',
-      'en_proceso': 'purple',
-      'contrasena_generada': 'indigo',
-      'retencion_isr_generada': 'cyan',
-      'retencion_iva_generada': 'teal',
-      'pago_realizado': 'green',
-      'proceso_completado': 'success',
-      'rechazada': 'error'
-    }
-    return colors[status] || 'grey'
-  }
-  
-  onMounted(() => {
-    loadInvoice()
-  })
-  </script>
-  
-  <style scoped>
+  return colors[status] || 'grey'
+}
+
+onMounted(() => {
+  loadInvoice()
+})
+</script>
+
+<style scoped>
 .accounting-layout {
   min-height: 100vh;
   background: #f8fafc;

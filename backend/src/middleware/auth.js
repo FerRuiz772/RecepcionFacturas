@@ -82,7 +82,7 @@ const authenticate = async (req, res, next) => {
 
     // Helpers
     req.user.isProveedor = user.role === 'proveedor';
-    req.user.isContaduria = ['admin_contaduria', 'trabajador_contaduria'].includes(user.role);
+    req.user.isContaduria = ['super_admin', 'admin_contaduria', 'trabajador_contaduria'].includes(user.role);
     req.user.isAdmin = ['super_admin', 'admin_contaduria'].includes(user.role);
     req.user.isSuperAdmin = user.role === 'super_admin';
 

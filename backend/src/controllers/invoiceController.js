@@ -874,6 +874,20 @@ const invoiceController = {
             if (!['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(req.user.role)) {
                 return res.status(403).json({ error: 'Solo contaduría puede acceder' });
             }
+
+            // Función auxiliar para calcular tiempo transcurrido
+            const getTimeAgo = (date) => {
+                const now = new Date();
+                const diffMs = now - new Date(date);
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+            
+                if (diffDays > 0) return `${diffDays}d`;
+                if (diffHours > 0) return `${diffHours}h`;
+                if (diffMinutes > 0) return `${diffMinutes}m`;
+                return 'Ahora';
+            };
     
             const workQueue = [];
             const whereClause = req.user.role === 'trabajador_contaduria' 
@@ -900,7 +914,7 @@ const invoiceController = {
                     invoiceNumber: invoice.number,
                     amount: parseFloat(invoice.amount),
                     priority: 'Alta',
-                    timeAgo: this.getTimeAgo(invoice.created_at),
+                    timeAgo: getTimeAgo(invoice.created_at),
                     actionUrl: `/api/invoices/${invoice.id}/generate-password`,
                     status: invoice.status
                 });
@@ -912,7 +926,7 @@ const invoiceController = {
                     ...whereClause,
                     status: 'contrasena_generada' 
                 },
-                include: [{ model: Supplier, attributes: ['business_name'] }],
+                include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }],
                 limit: 10,
                 order: [['updated_at', 'ASC']]
             });
@@ -926,7 +940,7 @@ const invoiceController = {
                     invoiceNumber: invoice.number,
                     amount: parseFloat(invoice.amount),
                     priority: 'Media',
-                    timeAgo: this.getTimeAgo(invoice.updated_at),
+                    timeAgo: getTimeAgo(invoice.updated_at),
                     actionUrl: `/api/invoices/${invoice.id}/upload-document`,
                     status: invoice.status
                 });
@@ -938,7 +952,7 @@ const invoiceController = {
                     ...whereClause,
                     status: 'retencion_isr_generada' 
                 },
-                include: [{ model: Supplier, attributes: ['business_name'] }],
+                include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }],
                 limit: 5,
                 order: [['updated_at', 'ASC']]
             });
@@ -952,7 +966,7 @@ const invoiceController = {
                     invoiceNumber: invoice.number,
                     amount: parseFloat(invoice.amount),
                     priority: 'Media',
-                    timeAgo: this.getTimeAgo(invoice.updated_at),
+                    timeAgo: getTimeAgo(invoice.updated_at),
                     actionUrl: `/api/invoices/${invoice.id}/upload-document`,
                     status: invoice.status
                 });
@@ -1075,6 +1089,466 @@ const invoiceController = {
             return null;
         }
     },
+
+    async getDashboardStats(req, res) {
+        try {
+            const { role } = req.user;
+            let whereClause = {};
+            
+            // Filtrar por rol del usuario
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+
+            // Estadística 1: Facturas Pendientes
+            const pendingCount = await Invoice.count({
+                where: {
+                    ...whereClause,
+                    status: {
+                        [Op.notIn]: ['proceso_completado', 'rechazada']
+                    }
+                }
+            });
+
+            // Estadística 2: Pagos Completados (último mes)
+            const lastMonth = new Date();
+            lastMonth.setMonth(lastMonth.getMonth() - 1);
+            
+            const completedPayments = await Invoice.findAll({
+                where: {
+                    ...whereClause,
+                    status: 'proceso_completado',
+                    updated_at: {
+                        [Op.gte]: lastMonth
+                    }
+                },
+                attributes: ['amount']
+            });
+            
+            const totalCompleted = completedPayments.reduce((sum, invoice) => 
+                sum + parseFloat(invoice.amount), 0
+            );
+
+            // Estadística 3: Proveedores Activos
+            let suppliersCount;
+            if (role === 'proveedor') {
+                suppliersCount = 1; // Solo el proveedor actual
+            } else {
+                suppliersCount = await Supplier.count({
+                    where: { is_active: true }
+                });
+            }
+
+            // Estadística 4: Tiempo Promedio de Proceso
+            const completedInvoices = await Invoice.findAll({
+                where: {
+                    ...whereClause,
+                    status: 'proceso_completado'
+                },
+                include: [{
+                    model: InvoiceState,
+                    as: 'states',
+                    where: {
+                        to_state: 'proceso_completado'
+                    },
+                    order: [['timestamp', 'DESC']],
+                    limit: 1
+                }],
+                limit: 50,
+                order: [['updated_at', 'DESC']]
+            });
+
+            let averageTime = 0;
+            if (completedInvoices.length > 0) {
+                const times = completedInvoices.map(invoice => {
+                    const completedDate = new Date(invoice.states[0].timestamp);
+                    const createdDate = new Date(invoice.created_at);
+                    return (completedDate - createdDate) / (1000 * 60 * 60 * 24); // días
+                });
+                averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
+            }
+
+            // Calcular tendencias (comparar con mes anterior)
+            const twoMonthsAgo = new Date();
+            twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
+            
+            const previousPendingCount = await Invoice.count({
+                where: {
+                    ...whereClause,
+                    status: {
+                        [Op.notIn]: ['proceso_completado', 'rechazada']
+                    },
+                    created_at: {
+                        [Op.between]: [twoMonthsAgo, lastMonth]
+                    }
+                }
+            });
+
+            const previousCompletedPayments = await Invoice.findAll({
+                where: {
+                    ...whereClause,
+                    status: 'proceso_completado',
+                    updated_at: {
+                        [Op.between]: [twoMonthsAgo, lastMonth]
+                    }
+                },
+                attributes: ['amount']
+            });
+            
+            const previousTotal = previousCompletedPayments.reduce((sum, invoice) => 
+                sum + parseFloat(invoice.amount), 0
+            );
+
+            // Calcular porcentajes de cambio
+            const pendingChange = previousPendingCount > 0 
+                ? ((pendingCount - previousPendingCount) / previousPendingCount * 100).toFixed(1)
+                : '+100.0';
+
+            const paymentsChange = previousTotal > 0 
+                ? ((totalCompleted - previousTotal) / previousTotal * 100).toFixed(1)
+                : '+100.0';
+
+            res.json({
+                stats: [
+                    {
+                        title: 'Facturas Pendientes',
+                        value: pendingCount.toString(),
+                        emoji: '⏳',
+                        icon: 'mdi-clock-outline',
+                        colorClass: 'warning',
+                        change: `${pendingChange > 0 ? '+' : ''}${pendingChange}% vs mes anterior`,
+                        trend: pendingChange > 0 ? 'up' : 'down'
+                    },
+                    {
+                        title: 'Pagos Completados',
+                        value: `Q${totalCompleted.toLocaleString('es-GT', { minimumFractionDigits: 0 })}`,
+                        emoji: '💰',
+                        icon: 'mdi-check-circle-outline',
+                        colorClass: 'success',
+                        change: `${paymentsChange > 0 ? '+' : ''}${paymentsChange}% vs mes anterior`,
+                        trend: paymentsChange > 0 ? 'up' : 'down'
+                    },
+                    {
+                        title: role === 'proveedor' ? 'Mi Empresa' : 'Proveedores Activos',
+                        value: suppliersCount.toString(),
+                        emoji: '🏢',
+                        icon: 'mdi-account-outline',
+                        colorClass: 'info',
+                        change: role === 'proveedor' ? 'Activo' : `${suppliersCount} activos`,
+                        trend: 'up'
+                    },
+                    {
+                        title: 'Tiempo Promedio',
+                        value: `${averageTime.toFixed(1)} días`,
+                        emoji: '⚡',
+                        icon: 'mdi-timer-outline',
+                        colorClass: 'primary',
+                        change: averageTime < 5 ? 'Excelente' : averageTime < 10 ? 'Bueno' : 'Mejorable',
+                        trend: averageTime < 5 ? 'down' : 'up'
+                    }
+                ],
+                summary: {
+                    total_invoices: await Invoice.count({ where: whereClause }),
+                    user_role: role,
+                    generated_at: new Date().toISOString()
+                }
+            });
+        } catch (error) {
+            console.error('Error getting dashboard stats:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    async getInvoiceStatusStats(req, res) {
+        try {
+            const { role } = req.user;
+            let whereClause = {};
+            
+            // Filtrar por rol del usuario
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+
+            // Contar por estado
+            const statusCounts = await Invoice.findAll({
+                where: whereClause,
+                attributes: [
+                    'status',
+                    [sequelize.fn('COUNT', sequelize.col('id')), 'count']
+                ],
+                group: ['status'],
+                raw: true
+            });
+
+            const total = statusCounts.reduce((sum, item) => sum + parseInt(item.count), 0);
+
+            // Mapear estados a nombres amigables con emojis
+            const statusMapping = {
+                'factura_subida': { name: 'Pendientes', emoji: '📤', class: 'pending' },
+                'asignada_contaduria': { name: 'Asignadas', emoji: '👥', class: 'assigned' },
+                'en_proceso': { name: 'En Proceso', emoji: '⚙️', class: 'processing' },
+                'contrasena_generada': { name: 'Con Contraseña', emoji: '🔐', class: 'password' },
+                'retencion_isr_generada': { name: 'Con ISR', emoji: '📊', class: 'isr' },
+                'retencion_iva_generada': { name: 'Con IVA', emoji: '📈', class: 'iva' },
+                'pago_realizado': { name: 'Pagadas', emoji: '💳', class: 'paid' },
+                'proceso_completado': { name: 'Completadas', emoji: '✅', class: 'completed' },
+                'rechazada': { name: 'Rechazadas', emoji: '❌', class: 'rejected' }
+            };
+
+            const formattedStatus = statusCounts.map(item => {
+                const mapping = statusMapping[item.status] || { 
+                    name: item.status, 
+                    emoji: '📄', 
+                    class: 'default' 
+                };
+                
+                return {
+                    status: item.status,
+                    name: mapping.name,
+                    emoji: mapping.emoji,
+                    count: parseInt(item.count),
+                    percentage: total > 0 ? Math.round((parseInt(item.count) / total) * 100) : 0,
+                    class: mapping.class
+                };
+            });
+
+            // Agregar estados faltantes con count 0
+            Object.keys(statusMapping).forEach(status => {
+                if (!formattedStatus.find(item => item.status === status)) {
+                    const mapping = statusMapping[status];
+                    formattedStatus.push({
+                        status,
+                        name: mapping.name,
+                        emoji: mapping.emoji,
+                        count: 0,
+                        percentage: 0,
+                        class: mapping.class
+                    });
+                }
+            });
+
+            // Ordenar por count descendente
+            formattedStatus.sort((a, b) => b.count - a.count);
+
+            res.json({
+                invoiceStatus: formattedStatus.slice(0, 6), // Top 6 estados
+                summary: {
+                    total_invoices: total,
+                    most_common_status: formattedStatus[0]?.name || 'Ninguno',
+                    user_role: role
+                }
+            });
+        } catch (error) {
+            console.error('Error getting invoice status stats:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    async getPaymentTrends(req, res) {
+        try {
+            const { role } = req.user;
+            let whereClause = {};
+            
+            // Filtrar por rol del usuario
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+
+            // Obtener últimos 6 meses
+            const trends = [];
+            const now = new Date();
+            
+            for (let i = 5; i >= 0; i--) {
+                const startDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const endDate = new Date(now.getFullYear(), now.getMonth() - i + 1, 0, 23, 59, 59);
+                
+                const monthlyPayments = await Invoice.findAll({
+                    where: {
+                        ...whereClause,
+                        status: 'proceso_completado',
+                        updated_at: {
+                            [Op.between]: [startDate, endDate]
+                        }
+                    },
+                    attributes: ['amount', 'updated_at']
+                });
+
+                const monthTotal = monthlyPayments.reduce((sum, invoice) => 
+                    sum + parseFloat(invoice.amount), 0
+                );
+
+                trends.push({
+                    month: startDate.toLocaleDateString('es-GT', { 
+                        year: 'numeric', 
+                        month: 'short' 
+                    }),
+                    amount: monthTotal,
+                    count: monthlyPayments.length,
+                    formatted_amount: `Q${monthTotal.toLocaleString('es-GT')}`
+                });
+            }
+
+            res.json({
+                trends,
+                summary: {
+                    total_6_months: trends.reduce((sum, month) => sum + month.amount, 0),
+                    average_monthly: trends.reduce((sum, month) => sum + month.amount, 0) / 6,
+                    highest_month: trends.reduce((max, month) => 
+                        month.amount > max.amount ? month : max, trends[0]
+                    ),
+                    user_role: role
+                }
+            });
+        } catch (error) {
+            console.error('Error getting payment trends:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    async getNotifications(req, res) {
+        try {
+            const { role } = req.user;
+            
+            // Por ahora, retornamos notificaciones mock básicas
+            // En el futuro se puede implementar un sistema completo de notificaciones
+            const mockNotifications = [
+                {
+                    id: 1,
+                    type: 'invoice_uploaded',
+                    title: 'Nueva factura subida',
+                    message: 'Se ha subido una nueva factura para procesamiento',
+                    created_at: new Date(Date.now() - 1000 * 60 * 30), // 30 minutos atrás
+                    read: false
+                },
+                {
+                    id: 2,
+                    type: 'payment_completed',
+                    title: 'Pago completado',
+                    message: 'El pago de la factura #12345 ha sido procesado exitosamente',
+                    created_at: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 horas atrás
+                    read: false
+                },
+                {
+                    id: 3,
+                    type: 'system',
+                    title: 'Mantenimiento programado',
+                    message: 'El sistema tendrá mantenimiento el próximo domingo',
+                    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 día atrás
+                    read: true
+                }
+            ];
+
+            res.json({
+                notifications: mockNotifications,
+                total: mockNotifications.length,
+                unread: mockNotifications.filter(n => !n.read).length
+            });
+        } catch (error) {
+            console.error('Error getting notifications:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    async getRecentInvoices(req, res) {
+        try {
+            const { role } = req.user;
+            const { limit = 8 } = req.query;
+            let whereClause = {};
+            
+            // Función auxiliar para formatear estados
+            const formatStatus = (status) => {
+                const statusMap = {
+                    'factura_subida': 'Pendiente',
+                    'asignada_contaduria': 'Asignada',
+                    'en_proceso': 'En Proceso',
+                    'contrasena_generada': 'Contraseña Lista',
+                    'retencion_isr_generada': 'ISR Generado',
+                    'retencion_iva_generada': 'IVA Generado',
+                    'pago_realizado': 'Pagado',
+                    'proceso_completado': 'Completada',
+                    'rechazada': 'Rechazada'
+                };
+                return statusMap[status] || status;
+            };
+            
+            // Filtrar por rol del usuario
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+
+            const invoices = await Invoice.findAll({
+                where: whereClause,
+                include: [
+                    {
+                        model: Supplier,
+                        as: 'supplier',
+                        attributes: ['business_name', 'nit']
+                    },
+                    {
+                        model: User,
+                        as: 'assignedUser',
+                        attributes: ['name'],
+                        required: false
+                    }
+                ],
+                order: [['created_at', 'DESC']],
+                limit: parseInt(limit)
+            });
+
+            const formattedInvoices = invoices.map(invoice => ({
+                id: invoice.id,
+                number: invoice.number,
+                supplier: invoice.supplier.business_name,
+                amount: parseFloat(invoice.amount),
+                status: formatStatus(invoice.status),
+                date: invoice.created_at.toISOString().split('T')[0],
+                rawStatus: invoice.status,
+                assigned_to: invoice.assignedUser?.name || 'Sin asignar',
+                canEdit: role === 'proveedor' && invoice.status === 'factura_subida',
+                detailUrl: `/invoices/${invoice.id}`
+            }));
+
+            res.json({
+                invoices: formattedInvoices,
+                summary: {
+                    total: formattedInvoices.length,
+                    total_amount: formattedInvoices.reduce((sum, inv) => sum + inv.amount, 0),
+                    user_role: role
+                }
+            });
+        } catch (error) {
+            console.error('Error getting recent invoices:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    // Método auxiliar para formatear estados
+    formatStatus(status) {
+        const statusMap = {
+            'factura_subida': 'Pendiente',
+            'asignada_contaduria': 'Asignada',
+            'en_proceso': 'En Proceso',
+            'contrasena_generada': 'Contraseña Lista',
+            'retencion_isr_generada': 'ISR Generado',
+            'retencion_iva_generada': 'IVA Generado',
+            'pago_realizado': 'Pagado',
+            'proceso_completado': 'Completada',
+            'rechazada': 'Rechazada'
+        };
+        return statusMap[status] || status;
+    },
     
     getTimeAgo(date) {
         const now = new Date();
@@ -1087,11 +1561,27 @@ const invoiceController = {
         if (diffHours > 0) return `${diffHours}h`;
         if (diffMinutes > 0) return `${diffMinutes}m`;
         return 'Ahora';
-    }, async getPendingInvoices(req, res) {
+    },
+
+    async getPendingInvoices(req, res) {
         try {
             if (!['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(req.user.role)) {
                 return res.status(403).json({ error: 'Solo contaduría puede acceder' });
             }
+
+            // Función auxiliar para calcular tiempo transcurrido
+            const getTimeAgo = (date) => {
+                const now = new Date();
+                const diffMs = now - new Date(date);
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffHours / 24);
+            
+                if (diffDays > 0) return `${diffDays}d`;
+                if (diffHours > 0) return `${diffHours}h`;
+                if (diffMinutes > 0) return `${diffMinutes}m`;
+                return 'Ahora';
+            };
     
             let whereClause = {
                 status: {
@@ -1134,7 +1624,7 @@ const invoiceController = {
                 assigned_to: invoice.assignedUser ? invoice.assignedUser.name : 'Sin asignar',
                 created_at: invoice.created_at,
                 due_date: invoice.due_date,
-                timeAgo: this.getTimeAgo(invoice.created_at),
+                timeAgo: getTimeAgo(invoice.created_at),
                 detailUrl: `/api/invoices/${invoice.id}`,
                 canEdit: invoice.status === 'factura_subida'
             }));
@@ -1164,8 +1654,41 @@ const invoiceController = {
             console.error('Error getting pending invoices:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
+    },
+
+    // Marcar una notificación como leída
+    markNotificationAsRead: async (req, res) => {
+        try {
+            const { id } = req.params;
+            
+            // En un sistema real, aquí actualizarías la base de datos
+            // Por ahora retornamos éxito
+            res.json({
+                success: true,
+                message: 'Notificación marcada como leída',
+                notificationId: id
+            });
+        } catch (error) {
+            console.error('Error marking notification as read:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    // Marcar todas las notificaciones como leídas
+    markAllNotificationsAsRead: async (req, res) => {
+        try {
+            // En un sistema real, aquí actualizarías todas las notificaciones del usuario
+            // Por ahora retornamos éxito
+            res.json({
+                success: true,
+                message: 'Todas las notificaciones marcadas como leídas',
+                userId: req.user.id
+            });
+        } catch (error) {
+            console.error('Error marking all notifications as read:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
     }
-    
-    };
-    
-    module.exports = invoiceController;
+};
+
+module.exports = invoiceController;

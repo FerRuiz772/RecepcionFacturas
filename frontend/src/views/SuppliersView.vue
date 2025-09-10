@@ -1,9 +1,18 @@
 <template>
     <div class="suppliers-layout">
+      <!-- Sidebar -->
+      <AppSidebar v-model="drawer" />
+
       <!-- Header -->
       <v-app-bar app color="white" elevation="1" height="64">
-        <v-btn icon @click="goBack" color="#64748b" class="ml-2">
-          <v-icon>mdi-arrow-left</v-icon>
+        <v-btn 
+          icon 
+          @click="drawer = !drawer" 
+          color="#64748b" 
+          class="ml-2"
+          v-if="$vuetify.display.mdAndDown"
+        >
+          <v-icon>mdi-menu</v-icon>
         </v-btn>
         <div class="ml-4">
           <div class="header-title">Proveedores</div>
@@ -19,7 +28,7 @@
           Nuevo Proveedor
         </v-btn>
       </v-app-bar>
-  
+
       <v-main class="main-content">
         <v-container class="py-8">
           <!-- Filtros -->
@@ -61,7 +70,7 @@
               </v-row>
             </v-card-text>
           </v-card>
-  
+
           <!-- Tabla de proveedores -->
           <v-card elevation="2">
             <v-card-title class="d-flex align-center justify-space-between pa-6">
@@ -83,11 +92,11 @@
               <template v-slot:item.business_name="{ item }">
                 <div class="supplier-name">{{ item.business_name }}</div>
               </template>
-  
+
               <template v-slot:item.nit="{ item }">
                 <div class="nit-cell">{{ item.nit }}</div>
               </template>
-  
+
               <template v-slot:item.contact_info="{ item }">
                 <div class="contact-info">
                   <div v-if="item.contact_email" class="contact-email">
@@ -100,7 +109,7 @@
                   </div>
                 </div>
               </template>
-  
+
               <template v-slot:item.users_count="{ item }">
                 <v-chip
                   :color="item.Users?.length > 0 ? 'success' : 'grey'"
@@ -109,7 +118,7 @@
                   {{ item.Users?.length || 0 }} usuario(s)
                 </v-chip>
               </template>
-  
+
               <template v-slot:item.is_active="{ item }">
                 <v-chip
                   :color="item.is_active ? 'success' : 'error'"
@@ -118,11 +127,11 @@
                   {{ item.is_active ? 'Activo' : 'Inactivo' }}
                 </v-chip>
               </template>
-  
+
               <template v-slot:item.created_at="{ item }">
                 <div class="date-cell">{{ formatDate(item.created_at) }}</div>
               </template>
-  
+
               <template v-slot:item.actions="{ item }">
                 <div class="actions-cell">
                   <v-btn
@@ -156,11 +165,11 @@
                   </v-btn>
                 </div>
               </template>
-  
+
               <template v-slot:loading>
                 <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
               </template>
-  
+
               <template v-slot:no-data>
                 <div class="no-data">
                   <v-icon size="64" color="grey-lighten-2">mdi-account-group-outline</v-icon>
@@ -172,7 +181,7 @@
           </v-card>
         </v-container>
       </v-main>
-  
+
       <!-- Dialog para crear/editar proveedor -->
       <v-dialog v-model="supplierDialog" max-width="800" persistent>
         <v-card>
@@ -250,64 +259,64 @@
         </v-card>
       </v-dialog>
     </div>
-  </template>
-  
-  <script setup>
-  import { ref, computed, onMounted } from 'vue'
-  import { useRouter } from 'vue-router'
-  import { useAuthStore } from '../stores/auth'
-  import { useToast } from 'vue-toastification'
-  import axios from 'axios'
-  
-  const router = useRouter()
-  const authStore = useAuthStore()
-  const toast = useToast()
-  
-  const loading = ref(false)
-  const saving = ref(false)
-  const suppliers = ref([])
-  const totalSuppliers = ref(0)
-  const itemsPerPage = ref(10)
-  const search = ref('')
-  const activeFilter = ref('all')
-  const supplierDialog = ref(false)
-  const editMode = ref(false)
-  const formValid = ref(false)
-  
-  const supplierForm = ref({
-    business_name: '',
-    nit: '',
-    contact_email: '',
-    contact_phone: '',
-    address: '',
-    is_active: true
-  })
-  
-  const activeOptions = [
-    { title: 'Todos', value: 'all' },
-    { title: 'Activos', value: 'true' },
-    { title: 'Inactivos', value: 'false' }
-  ]
-  
-  const headers = [
-    { title: 'Razón Social', key: 'business_name', width: '250px' },
-    { title: 'NIT', key: 'nit', width: '120px' },
-    { title: 'Contacto', key: 'contact_info', width: '200px' },
-    { title: 'Usuarios', key: 'users_count', width: '120px' },
-    { title: 'Estado', key: 'is_active', width: '100px' },
-    { title: 'Fecha Registro', key: 'created_at', width: '140px' },
-    { title: 'Acciones', key: 'actions', sortable: false, width: '120px' }
-  ]
-  
-  const emailRules = [
-    v => !v || /.+@.+\..+/.test(v) || 'Email debe ser válido'
-  ]
-  
-  const goBack = () => {
-    router.push('/dashboard')
-  }
-  
-  const loadSuppliers = async (options = {}) => {
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useToast } from 'vue-toastification'
+import AppSidebar from '../components/AppSidebar.vue'
+import axios from 'axios'
+
+const router = useRouter()
+const authStore = useAuthStore()
+const toast = useToast()
+
+// Estados reactivos
+const drawer = ref(true)
+const loading = ref(false)
+const saving = ref(false)
+const suppliers = ref([])
+const totalSuppliers = ref(0)
+const itemsPerPage = ref(10)
+const search = ref('')
+const activeFilter = ref('all')
+const supplierDialog = ref(false)
+const editMode = ref(false)
+const formValid = ref(false)
+
+const supplierForm = ref({
+  business_name: '',
+  nit: '',
+  contact_email: '',
+  contact_phone: '',
+  address: '',
+  is_active: true
+})
+
+const activeOptions = [
+  { title: 'Todos', value: 'all' },
+  { title: 'Activos', value: 'true' },
+  { title: 'Inactivos', value: 'false' }
+]
+
+const headers = [
+  { title: 'Razón Social', key: 'business_name', width: '250px' },
+  { title: 'NIT', key: 'nit', width: '120px' },
+  { title: 'Contacto', key: 'contact_info', width: '200px' },
+  { title: 'Usuarios', key: 'users_count', width: '120px' },
+  { title: 'Estado', key: 'is_active', width: '100px' },
+  { title: 'Fecha Registro', key: 'created_at', width: '140px' },
+  { title: 'Acciones', key: 'actions', sortable: false, width: '120px' }
+]
+
+const emailRules = [
+  v => !v || /.+@.+\..+/.test(v) || 'Email debe ser válido'
+]
+
+// Resto de funciones permanecen iguales...
+const loadSuppliers = async (options = {}) => {
   loading.value = true
   try {
     const params = {

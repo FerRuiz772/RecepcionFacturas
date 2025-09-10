@@ -46,6 +46,7 @@ axios.interceptors.request.use(
 axios.interceptors.response.use(
   (response) => {
     console.log('✅ Response:', response.status, response.config.url)
+    // ✅ REMOVIDO: No mostrar toasts automáticos para respuestas exitosas
     return response
   },
   async (error) => {
@@ -139,15 +140,16 @@ axios.interceptors.response.use(
       }
     }
 
-    // Mostrar errores toast solo si no es 401 (para evitar spam)
+    // ✅ MEJORADO: Solo mostrar toasts para errores críticos y no del tipo 401
     if (error.response?.status !== 401) {
-      if (error.response?.data?.error) {
-        toast.error(error.response.data.error)
-      } else if (error.message === 'Network Error') {
+      // Solo mostrar errores de red o del servidor, no errores de validación
+      if (error.message === 'Network Error') {
         toast.error('Error de conexión. Verifica que el servidor esté ejecutándose.')
-      } else {
-        toast.error('Error inesperado')
+      } else if (error.response?.status >= 500) {
+        toast.error('Error del servidor. Intente nuevamente.')
       }
+      // ✅ REMOVIDO: No mostrar automáticamente error.response.data.error
+      // Esto permite que cada componente maneje sus propios mensajes de error
     }
 
     return Promise.reject(error)

@@ -96,9 +96,12 @@ app.use(cors({
 }));
 
 // Rate limiting
+const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW) || 15; // 15 minutos por defecto
+const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || 100; // 100 peticiones por defecto
+
 const limiter = rateLimit({
-    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW) * 60 * 1000,
-    max: parseInt(process.env.RATE_LIMIT_MAX),
+    windowMs: windowMs * 60 * 1000, // Convertir minutos a milisegundos
+    max: maxRequests,
     message: 'Demasiadas peticiones, intente nuevamente más tarde'
 });
 app.use('/api/', limiter);
