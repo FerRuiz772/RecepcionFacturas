@@ -1,11 +1,12 @@
 const { validationResult } = require('express-validator');
-const { Invoice, Supplier, User, InvoiceState, Payment } = require('../models');
+const { Invoice, Supplier, User, InvoiceState, Payment, sequelize } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
 const crypto = require('crypto');
 const sharp = require('sharp');
 const zlib = require('zlib');
+const { Op } = require('sequelize');
 
 // Configuración de multer para upload de archivos
 const storage = multer.diskStorage({
@@ -39,24 +40,47 @@ const upload = multer({
     }
 });
 
+// Validación de transiciones de estado
+const VALID_STATE_TRANSITIONS = {
+    'factura_subida': ['asignada_contaduria', 'rechazada'],
+    'asignada_contaduria': ['en_proceso', 'rechazada'],
+    'en_proceso': ['contrasena_generada', 'rechazada'],
+    'contrasena_generada': ['retencion_isr_generada', 'rechazada'],
+    'retencion_isr_generada': ['retencion_iva_generada', 'rechazada'],
+    'retencion_iva_generada': ['pago_realizado', 'rechazada'],
+    'pago_realizado': ['proceso_completado', 'rechazada'],
+    'proceso_completado': [],
+    'rechazada': ['factura_subida']
+};
+
 const invoiceController = {
     // Middleware para upload
     uploadMiddleware: upload.array('files', 5),
 
     async getAllInvoices(req, res) {
         try {
-            const { status, supplier_id, assigned_to, page = 1, limit = 10 } = req.query;
+            const { status, supplier_id, assigned_to, page = 1, limit = 10, search } = req.query;
             const offset = (page - 1) * limit;
 
             const where = {};
             if (status) where.status = status;
-            if (supplier_id) where.supplier_id = supplier_id;
-            if (assigned_to) where.assigned_to = assigned_to;
+            if (supplier_id) where.supplier_id = parseInt(supplier_id);
+            if (assigned_to) where.assigned_to = parseInt(assigned_to);
+
+            // Búsqueda por número de factura o descripción
+            if (search) {
+                where[Op.or] = [
+                    { number: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } }
+                ];
+            }
 
             // Filtrar por rol del usuario
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 where.supplier_id = user.supplier_id;
+            } else if (req.user.role === 'trabajador_contaduria') {
+                where.assigned_to = req.user.userId;
             }
 
             const invoices = await Invoice.findAndCountAll({
@@ -64,6 +88,7 @@ const invoiceController = {
                 include: [
                     {
                         model: Supplier,
+                        as: 'supplier',
                         attributes: ['id', 'business_name', 'nit']
                     },
                     {
@@ -87,7 +112,9 @@ const invoiceController = {
                 invoices: invoices.rows,
                 total: invoices.count,
                 page: parseInt(page),
-                totalPages: Math.ceil(invoices.count / limit)
+                totalPages: Math.ceil(invoices.count / limit),
+                hasNext: offset + parseInt(limit) < invoices.count,
+                hasPrev: parseInt(page) > 1
             });
         } catch (error) {
             console.error('Error al obtener facturas:', error);
@@ -98,11 +125,12 @@ const invoiceController = {
     async getInvoiceById(req, res) {
         try {
             const { id } = req.params;
-            const invoice = await Invoice.findByPk(id, {
+            const invoice = await Invoice.findByPk(parseInt(id), {
                 include: [
                     {
                         model: Supplier,
-                        attributes: ['id', 'business_name', 'nit', 'contact_email']
+                        as: 'supplier',
+                        attributes: ['id', 'business_name', 'nit', 'contact_email', 'contact_phone']
                     },
                     {
                         model: User,
@@ -136,7 +164,11 @@ const invoiceController = {
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (invoice.supplier_id !== user.supplier_id) {
-                    return res.status(403).json({ error: 'No tiene permisos para ver esta factura' });
+                    return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
+                }
+            } else if (req.user.role === 'trabajador_contaduria') {
+                if (invoice.assigned_to !== req.user.userId) {
+                    return res.status(403).json({ error: 'Solo puede ver facturas asignadas a usted' });
                 }
             }
 
@@ -148,28 +180,42 @@ const invoiceController = {
     },
 
     async createInvoice(req, res) {
+        const transaction = await sequelize.transaction();
+        
         try {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
+                await transaction.rollback();
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { number, amount, description, due_date } = req.body;
+            const { number, amount, description, due_date, priority = 'media' } = req.body;
 
-            // Solo proveedores pueden crear facturas
             if (req.user.role !== 'proveedor') {
+                await transaction.rollback();
                 return res.status(403).json({ error: 'Solo proveedores pueden crear facturas' });
             }
 
-            const user = await User.findByPk(req.user.userId);
+            const user = await User.findByPk(req.user.userId, { transaction });
             if (!user.supplier_id) {
+                await transaction.rollback();
                 return res.status(400).json({ error: 'Usuario proveedor no tiene empresa asignada' });
             }
 
             // Verificar que el número de factura no exista
-            const existingInvoice = await Invoice.findOne({ where: { number } });
+            const existingInvoice = await Invoice.findOne({ 
+                where: { number },
+                transaction 
+            });
             if (existingInvoice) {
+                await transaction.rollback();
                 return res.status(400).json({ error: 'El número de factura ya existe' });
+            }
+
+            // Validar monto
+            if (parseFloat(amount) <= 0) {
+                await transaction.rollback();
+                return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
             }
 
             // Procesar archivos subidos
@@ -182,20 +228,28 @@ const invoiceController = {
                         filename: compressedFile.filename,
                         path: compressedFile.path,
                         size: compressedFile.size,
-                        mimetype: file.mimetype
+                        mimetype: file.mimetype,
+                        uploadedAt: new Date()
                     });
                 }
             }
 
+            // Crear factura
             const invoice = await Invoice.create({
                 number,
                 supplier_id: user.supplier_id,
-                amount,
+                amount: parseFloat(amount),
                 description,
                 due_date,
+                priority,
                 uploaded_files: uploadedFiles,
-                status: 'factura_subida'
-            });
+                status: 'factura_subida',
+                processing_data: {
+                    created_by: req.user.userId,
+                    created_at: new Date(),
+                    ip_address: req.ip
+                }
+            }, { transaction });
 
             // Crear registro de estado inicial
             await InvoiceState.create({
@@ -204,34 +258,56 @@ const invoiceController = {
                 to_state: 'factura_subida',
                 user_id: req.user.userId,
                 notes: 'Factura creada por proveedor'
-            });
+            }, { transaction });
 
             // Auto-asignar a contaduría
-            await this.autoAssignInvoice(invoice.id);
+            const assignedUserId = await this.autoAssignInvoice();
+            if (assignedUserId) {
+                await invoice.update({
+                    assigned_to: assignedUserId,
+                    status: 'asignada_contaduria'
+                }, { transaction });
 
+                await InvoiceState.create({
+                    invoice_id: invoice.id,
+                    from_state: 'factura_subida',
+                    to_state: 'asignada_contaduria',
+                    user_id: assignedUserId,
+                    notes: 'Auto-asignación por sistema'
+                }, { transaction });
+            }
+
+            await transaction.commit();
+
+            // Obtener factura completa para respuesta
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    {
-                        model: Supplier,
-                        attributes: ['id', 'business_name', 'nit']
-                    }
+                    { model: Supplier, attributes: ['id', 'business_name', 'nit'] },
+                    { model: User, as: 'assignedUser', attributes: ['id', 'name'], required: false }
                 ]
             });
 
-            res.status(201).json(createdInvoice);
+            res.status(201).json({
+                message: 'Factura creada exitosamente',
+                invoice: createdInvoice
+            });
         } catch (error) {
+            await transaction.rollback();
             console.error('Error al crear factura:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
 
     async updateInvoice(req, res) {
+        const transaction = await sequelize.transaction();
+        
         try {
             const { id } = req.params;
-            const { amount, description, due_date } = req.body;
+            const { amount, description, due_date, priority } = req.body;
 
-            const invoice = await Invoice.findByPk(id);
+            const invoice = await Invoice.findByPk(parseInt(id), { transaction });
             if (!invoice) {
+                await transaction.rollback();
                 return res.status(404).json({ error: 'Factura no encontrada' });
             }
 
@@ -239,201 +315,271 @@ const invoiceController = {
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (invoice.supplier_id !== user.supplier_id) {
-                    return res.status(403).json({ error: 'No tiene permisos para editar esta factura' });
+                    await transaction.rollback();
+                    return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
                 }
                 
                 // Solo permitir editar si está en estado inicial
                 if (invoice.status !== 'factura_subida') {
+                    await transaction.rollback();
                     return res.status(400).json({ error: 'No puede editar facturas en proceso' });
                 }
             }
 
-            await invoice.update({
-                amount,
-                description,
-                due_date
-            });
+            // Preparar datos de actualización
+            const updateData = {};
+            if (amount !== undefined) updateData.amount = parseFloat(amount);
+            if (description !== undefined) updateData.description = description;
+            if (due_date !== undefined) updateData.due_date = due_date;
+            if (priority !== undefined) updateData.priority = priority;
 
-            res.json(invoice);
+            await invoice.update(updateData, { transaction });
+
+            // Registrar cambio si es significativo
+            if (Object.keys(updateData).length > 0) {
+                await InvoiceState.create({
+                    invoice_id: invoice.id,
+                    from_state: invoice.status,
+                    to_state: invoice.status,
+                    user_id: req.user.userId,
+                    notes: `Factura actualizada: ${Object.keys(updateData).join(', ')}`
+                }, { transaction });
+            }
+
+            await transaction.commit();
+            res.json({
+                message: 'Factura actualizada exitosamente',
+                invoice
+            });
         } catch (error) {
+            await transaction.rollback();
             console.error('Error al actualizar factura:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
 
     async updateInvoiceStatus(req, res) {
+        const transaction = await sequelize.transaction();
+        
         try {
             const { id } = req.params;
             const { status, notes } = req.body;
 
-            const invoice = await Invoice.findByPk(id);
+            const invoice = await Invoice.findByPk(parseInt(id), { transaction });
             if (!invoice) {
+                await transaction.rollback();
                 return res.status(404).json({ error: 'Factura no encontrada' });
             }
 
             // Solo personal de contaduría puede cambiar estados
             if (!['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(req.user.role)) {
-                return res.status(403).json({ error: 'No tiene permisos para cambiar el estado' });
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
             }
 
-            const previousStatus = invoice.status;
-            await invoice.update({ status });
+            // Validar que trabajador solo cambie sus facturas asignadas
+            if (req.user.role === 'trabajador_contaduria' && invoice.assigned_to !== req.user.userId) {
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Solo puede cambiar estado de facturas asignadas a usted' });
+            }
+
+            // Validar transición de estado
+            const currentStatus = invoice.status;
+            const validNextStates = VALID_STATE_TRANSITIONS[currentStatus] || [];
+            
+            if (!validNextStates.includes(status)) {
+                await transaction.rollback();
+                return res.status(400).json({ 
+                    error: `Transición inválida de '${currentStatus}' a '${status}'`,
+                    validStates: validNextStates,
+                    currentStatus
+                });
+            }
+
+            await invoice.update({ status }, { transaction });
 
             // Crear registro de cambio de estado
             await InvoiceState.create({
                 invoice_id: invoice.id,
-                from_state: previousStatus,
+                from_state: currentStatus,
                 to_state: status,
                 user_id: req.user.userId,
-                notes
-            });
+                notes: notes || `Estado cambiado a ${status}`
+            }, { transaction });
 
-            res.json(invoice);
+            await transaction.commit();
+            
+            res.json({
+                message: 'Estado actualizado exitosamente',
+                invoice,
+                previousStatus: currentStatus,
+                newStatus: status
+            });
         } catch (error) {
+            await transaction.rollback();
             console.error('Error al actualizar estado:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
 
     async generatePassword(req, res) {
+        const transaction = await sequelize.transaction();
+        
         try {
             const { id } = req.params;
-            const invoice = await Invoice.findByPk(id);
+            const invoice = await Invoice.findByPk(parseInt(id), { transaction });
 
             if (!invoice) {
+                await transaction.rollback();
                 return res.status(404).json({ error: 'Factura no encontrada' });
             }
 
             // Solo contaduría puede generar contraseñas
             if (!['admin_contaduria', 'trabajador_contaduria'].includes(req.user.role)) {
-                return res.status(403).json({ error: 'No tiene permisos para generar contraseñas' });
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
+            }
+
+            // Validar que trabajador solo genere para sus facturas
+            if (req.user.role === 'trabajador_contaduria' && invoice.assigned_to !== req.user.userId) {
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Solo puede generar contraseñas para facturas asignadas a usted' });
             }
 
             if (invoice.status !== 'en_proceso') {
-                return res.status(400).json({ error: 'La factura debe estar en proceso para generar contraseña' });
+                await transaction.rollback();
+                return res.status(400).json({ 
+                    error: 'La factura debe estar en proceso para generar contraseña',
+                    currentStatus: invoice.status 
+                });
             }
 
             // Generar contraseña única
             const password = crypto.randomBytes(4).toString('hex').toUpperCase();
 
             // Crear o actualizar registro de pago
-            let payment = await Payment.findOne({ where: { invoice_id: id } });
+            let payment = await Payment.findOne({ 
+                where: { invoice_id: parseInt(id) },
+                transaction 
+            });
+
             if (payment) {
-                await payment.update({ password_generated: password });
+                await payment.update({ password_generated: password }, { transaction });
             } else {
                 payment = await Payment.create({
-                    invoice_id: id,
+                    invoice_id: parseInt(id),
                     password_generated: password
-                });
+                }, { transaction });
             }
 
             // Actualizar estado de la factura
-            await invoice.update({ status: 'contrasena_generada' });
+            await invoice.update({ status: 'contrasena_generada' }, { transaction });
 
             // Registrar cambio de estado
             await InvoiceState.create({
-                invoice_id: id,
+                invoice_id: parseInt(id),
                 from_state: 'en_proceso',
                 to_state: 'contrasena_generada',
                 user_id: req.user.userId,
                 notes: `Contraseña generada: ${password}`
-            });
+            }, { transaction });
 
-            res.json({ message: 'Contraseña generada exitosamente', password });
+            await transaction.commit();
+            
+            res.json({ 
+                message: 'Contraseña generada exitosamente', 
+                password,
+                invoiceId: parseInt(id),
+                newStatus: 'contrasena_generada'
+            });
         } catch (error) {
+            await transaction.rollback();
             console.error('Error al generar contraseña:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
 
-    async uploadDocument(req, res) {
+    async uploadDocument(req, res, next) {
         try {
-            const { id } = req.params;
+            const { invoice } = req;
             const { type } = req.body;
+            const file = req.file;
 
-            const invoice = await Invoice.findByPk(id);
-            if (!invoice) {
-                return res.status(404).json({ error: 'Factura no encontrada' });
+            if (!file) {
+                return res.status(400).json({
+                    error: 'No se ha proporcionado ningún archivo',
+                    code: 'NO_FILE_PROVIDED'
+                });
             }
 
-            // Solo contaduría puede subir documentos
-            if (!['admin_contaduria', 'trabajador_contaduria'].includes(req.user.role)) {
-                return res.status(403).json({ error: 'No tiene permisos para subir documentos' });
+            const validTypes = ['retention_isr', 'retention_iva', 'payment_proof'];
+            if (!validTypes.includes(type)) {
+                return res.status(400).json({
+                    error: 'Tipo de documento no válido',
+                    code: 'INVALID_DOCUMENT_TYPE'
+                });
             }
 
-            if (!req.file) {
-                return res.status(400).json({ error: 'No se proporcionó archivo' });
+            // Crear directorio de uploads si no existe
+            const uploadsDir = path.join(__dirname, '..', 'uploads');
+            await fs.promises.mkdir(uploadsDir, { recursive: true });
+
+            const originalName = file.originalname;
+            const extension = path.extname(originalName);
+            const newFileName = `${invoice.id}-${type}${extension}`;
+            const uploadPath = path.join(uploadsDir, newFileName);
+
+            // Si el archivo existe, lo eliminamos primero
+            try {
+                await fs.promises.unlink(uploadPath);
+            } catch (err) {
+                // Ignoramos el error si el archivo no existe
             }
 
-            // Validar tipo de documento y estado de factura
-            const validStates = {
-                'retention_isr': ['en_proceso', 'contrasena_generada'],
-                'retention_iva': ['retencion_isr_generada'],
-                'payment_proof': ['pago_realizado']
+            await fs.promises.rename(file.path, uploadPath);
+
+            // Actualizar la factura con la nueva información del documento
+            const updateData = {
+                [`${type}_path`]: newFileName,
+                [`${type}_date`]: new Date()
             };
 
-            if (!validStates[type] || !validStates[type].includes(invoice.status)) {
-                return res.status(400).json({ error: 'Estado de factura no válido para este tipo de documento' });
-            }
+            await invoice.update(updateData);
 
-            // Comprimir archivo
-            const compressedFile = await this.compressFile(req.file);
-
-            // Obtener o crear registro de pago
-            let payment = await Payment.findOne({ where: { invoice_id: id } });
-            if (!payment) {
-                payment = await Payment.create({ invoice_id: id });
-            }
-
-            // Actualizar registro según el tipo
-            const updateData = {};
-            let newStatus = '';
-
-            switch (type) {
-                case 'retention_isr':
-                    updateData.isr_retention_file = compressedFile.path;
-                    newStatus = 'retencion_isr_generada';
-                    break;
-                case 'retention_iva':
-                    updateData.iva_retention_file = compressedFile.path;
-                    newStatus = 'retencion_iva_generada';
-                    break;
-                case 'payment_proof':
-                    updateData.payment_proof_file = compressedFile.path;
-                    newStatus = 'proceso_completado';
-                    break;
-            }
-
-            await payment.update(updateData);
-
-            // Actualizar estado de factura
-            const previousStatus = invoice.status;
-            await invoice.update({ status: newStatus });
-
-            // Registrar cambio de estado
-            await InvoiceState.create({
-                invoice_id: id,
-                from_state: previousStatus,
-                to_state: newStatus,
-                user_id: req.user.userId,
-                notes: `Documento ${type} subido: ${req.file.originalname}`
+            // Registrar la acción en el log del sistema
+            const SystemLog = require('../models/SystemLog');
+            await SystemLog.create({
+                action: 'DOCUMENT_UPLOAD',
+                userId: req.user.id,
+                details: JSON.stringify({
+                    invoiceId: invoice.id,
+                    documentType: type,
+                    fileName: newFileName
+                })
             });
 
-            res.json({ 
-                message: 'Documento subido exitosamente', 
-                filename: compressedFile.filename,
-                newStatus
+            res.json({
+                message: 'Documento subido correctamente',
+                invoice
             });
+
         } catch (error) {
-            console.error('Error al subir documento:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
+            // Si hay un error, intentamos limpiar el archivo temporal
+            if (req.file && req.file.path) {
+                try {
+                    await fs.promises.unlink(req.file.path);
+                } catch (err) {
+                    // Ignoramos errores al limpiar
+                }
+            }
+            next(error);
         }
     },
 
     async downloadInvoiceFiles(req, res) {
         try {
             const { id } = req.params;
-            const invoice = await Invoice.findByPk(id);
+            const invoice = await Invoice.findByPk(parseInt(id));
 
             if (!invoice) {
                 return res.status(404).json({ error: 'Factura no encontrada' });
@@ -443,7 +589,7 @@ const invoiceController = {
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (invoice.supplier_id !== user.supplier_id) {
-                    return res.status(403).json({ error: 'No tiene permisos para descargar esta factura' });
+                    return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
                 }
             }
 
@@ -451,7 +597,6 @@ const invoiceController = {
                 return res.status(404).json({ error: 'No hay archivos disponibles' });
             }
 
-            // Si es un solo archivo, enviarlo directamente
             if (invoice.uploaded_files.length === 1) {
                 const file = invoice.uploaded_files[0];
                 const filePath = path.join(__dirname, '../uploads', id.toString(), file.filename);
@@ -463,7 +608,6 @@ const invoiceController = {
                     res.status(404).json({ error: 'Archivo no encontrado' });
                 }
             } else {
-                // Múltiples archivos: crear ZIP
                 const zipPath = await this.createZipFromFiles(invoice.uploaded_files, id);
                 res.download(zipPath, `factura-${invoice.number}.zip`);
             }
@@ -477,7 +621,7 @@ const invoiceController = {
         try {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
-                where: { invoice_id: id },
+                where: { invoice_id: parseInt(id) },
                 include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
@@ -485,7 +629,7 @@ const invoiceController = {
                 return res.status(404).json({ error: 'Retención ISR no disponible' });
             }
 
-            // Verificar permisos para proveedores
+            // Verificar permisos
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (payment.Invoice.supplier_id !== user.supplier_id) {
@@ -493,8 +637,13 @@ const invoiceController = {
                 }
             }
 
-            const filename = `retencion-isr-${payment.Invoice.number}.pdf`;
-            res.download(payment.isr_retention_file, filename);
+            try {
+                await fs.access(payment.isr_retention_file);
+                const filename = `retencion-isr-${payment.Invoice.number}.pdf`;
+                res.download(payment.isr_retention_file, filename);
+            } catch (error) {
+                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
+            }
         } catch (error) {
             console.error('Error al descargar ISR:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
@@ -505,7 +654,7 @@ const invoiceController = {
         try {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
-                where: { invoice_id: id },
+                where: { invoice_id: parseInt(id) },
                 include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
@@ -513,7 +662,6 @@ const invoiceController = {
                 return res.status(404).json({ error: 'Retención IVA no disponible' });
             }
 
-            // Verificar permisos para proveedores
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (payment.Invoice.supplier_id !== user.supplier_id) {
@@ -521,8 +669,13 @@ const invoiceController = {
                 }
             }
 
-            const filename = `retencion-iva-${payment.Invoice.number}.pdf`;
-            res.download(payment.iva_retention_file, filename);
+            try {
+                await fs.access(payment.iva_retention_file);
+                const filename = `retencion-iva-${payment.Invoice.number}.pdf`;
+                res.download(payment.iva_retention_file, filename);
+            } catch (error) {
+                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
+            }
         } catch (error) {
             console.error('Error al descargar IVA:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
@@ -533,7 +686,7 @@ const invoiceController = {
         try {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
-                where: { invoice_id: id },
+                where: { invoice_id: parseInt(id) },
                 include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
@@ -541,7 +694,6 @@ const invoiceController = {
                 return res.status(404).json({ error: 'Comprobante de pago no disponible' });
             }
 
-            // Verificar permisos para proveedores
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (payment.Invoice.supplier_id !== user.supplier_id) {
@@ -549,8 +701,13 @@ const invoiceController = {
                 }
             }
 
-            const filename = `comprobante-pago-${payment.Invoice.number}.pdf`;
-            res.download(payment.payment_proof_file, filename);
+            try {
+                await fs.access(payment.payment_proof_file);
+                const filename = `comprobante-pago-${payment.Invoice.number}.pdf`;
+                res.download(payment.payment_proof_file, filename);
+            } catch (error) {
+                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
+            }
         } catch (error) {
             console.error('Error al descargar comprobante:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
@@ -558,51 +715,281 @@ const invoiceController = {
     },
 
     async deleteInvoice(req, res) {
+        const transaction = await sequelize.transaction();
+        
         try {
             const { id } = req.params;
-            const invoice = await Invoice.findByPk(id);
+            const invoice = await Invoice.findByPk(parseInt(id), { transaction });
 
             if (!invoice) {
+                await transaction.rollback();
                 return res.status(404).json({ error: 'Factura no encontrada' });
             }
 
             // Solo super admin puede eliminar
             if (req.user.role !== 'super_admin') {
-                return res.status(403).json({ error: 'No tiene permisos para eliminar facturas' });
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
             }
 
             // Eliminar archivos físicos
             if (invoice.uploaded_files && invoice.uploaded_files.length > 0) {
                 for (const file of invoice.uploaded_files) {
                     try {
-                        await fs.unlink(file.path);
+                        if (file.path && await fs.access(file.path).then(() => true).catch(() => false)) {
+                            await fs.unlink(file.path);
+                        }
                     } catch (error) {
                         console.warn(`No se pudo eliminar archivo: ${file.path}`);
                     }
                 }
             }
 
-            await invoice.destroy();
-            res.json({ message: 'Factura eliminada exitosamente' });
+            // Eliminar archivos de pagos asociados
+            const payment = await Payment.findOne({ 
+                where: { invoice_id: parseInt(id) },
+                transaction 
+            });
+            
+            if (payment) {
+                const fileFields = ['isr_retention_file', 'iva_retention_file', 'payment_proof_file'];
+                for (const field of fileFields) {
+                    if (payment[field]) {
+                        try {
+                            await fs.unlink(payment[field]);
+                        } catch (error) {
+                            console.warn(`No se pudo eliminar archivo: ${payment[field]}`);
+                        }
+                    }
+                }
+            }
+
+            await invoice.destroy({ transaction });
+            await transaction.commit();
+            
+            res.json({ 
+                message: 'Factura eliminada exitosamente',
+                deletedInvoiceId: parseInt(id)
+            });
         } catch (error) {
+            await transaction.rollback();
             console.error('Error al eliminar factura:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
-
-    // Método auxiliar para comprimir archivos
+    
+    // ================== RUTAS DE DASHBOARD ==================
+    
+    async getAvailableDocuments(req, res) {
+        try {
+            if (req.user.role !== 'proveedor') {
+                return res.status(403).json({ error: 'Solo proveedores pueden acceder' });
+            }
+    
+            const user = await User.findByPk(req.user.userId);
+            if (!user.supplier_id) {
+                return res.json({ documents: [], total: 0 });
+            }
+    
+            const invoices = await Invoice.findAll({
+                where: { 
+                    supplier_id: user.supplier_id,
+                    status: {
+                        [Op.in]: [
+                            'retencion_isr_generada', 
+                            'retencion_iva_generada', 
+                            'proceso_completado'
+                        ]
+                    }
+                },
+                include: [{ model: Payment, as: 'payment', required: false }],
+                order: [['updated_at', 'DESC']]
+            });
+    
+            const documents = [];
+            
+            invoices.forEach(invoice => {
+                if (invoice.payment) {
+                    if (invoice.payment.isr_retention_file) {
+                        documents.push({
+                            id: `isr-${invoice.id}`,
+                            type: 'retention_isr',
+                            title: 'Retención ISR',
+                            invoiceId: invoice.id,
+                            invoiceNumber: invoice.number,
+                            amount: parseFloat(invoice.amount),
+                            date: invoice.payment.created_at,
+                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-isr`,
+                            status: invoice.status
+                        });
+                    }
+    
+                    if (invoice.payment.iva_retention_file) {
+                        documents.push({
+                            id: `iva-${invoice.id}`,
+                            type: 'retention_iva',
+                            title: 'Retención IVA',
+                            invoiceId: invoice.id,
+                            invoiceNumber: invoice.number,
+                            amount: parseFloat(invoice.amount),
+                            date: invoice.payment.created_at,
+                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-iva`,
+                            status: invoice.status
+                        });
+                    }
+    
+                    if (invoice.payment.payment_proof_file && invoice.status === 'proceso_completado') {
+                        documents.push({
+                            id: `proof-${invoice.id}`,
+                            type: 'payment_proof',
+                            title: 'Comprobante de Pago',
+                            invoiceId: invoice.id,
+                            invoiceNumber: invoice.number,
+                            amount: parseFloat(invoice.amount),
+                            date: invoice.payment.completion_date || invoice.payment.updated_at,
+                            downloadUrl: `/api/invoices/${invoice.id}/download-payment-proof`,
+                            status: invoice.status
+                        });
+                    }
+                }
+            });
+    
+            res.json({ 
+                documents,
+                total: documents.length,
+                summary: {
+                    isr_count: documents.filter(d => d.type === 'retention_isr').length,
+                    iva_count: documents.filter(d => d.type === 'retention_iva').length,
+                    proof_count: documents.filter(d => d.type === 'payment_proof').length
+                }
+            });
+        } catch (error) {
+            console.error('Error getting available documents:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+    
+    async getWorkQueue(req, res) {
+        try {
+            if (!['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(req.user.role)) {
+                return res.status(403).json({ error: 'Solo contaduría puede acceder' });
+            }
+    
+            const workQueue = [];
+            const whereClause = req.user.role === 'trabajador_contaduria' 
+                ? { assigned_to: req.user.userId }
+                : {};
+    
+            // Facturas que necesitan generar contraseña
+            const needPassword = await Invoice.findAll({
+                where: { 
+                    ...whereClause,
+                    status: 'en_proceso' 
+                },
+                include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }],
+                limit: 10,
+                order: [['created_at', 'ASC']]
+            });
+    
+            needPassword.forEach(invoice => {
+                workQueue.push({
+                    id: `password-${invoice.id}`,
+                    invoiceId: invoice.id,
+                    action: 'Generar Contraseña',
+                    supplier: invoice.supplier.business_name,
+                    invoiceNumber: invoice.number,
+                    amount: parseFloat(invoice.amount),
+                    priority: 'Alta',
+                    timeAgo: this.getTimeAgo(invoice.created_at),
+                    actionUrl: `/api/invoices/${invoice.id}/generate-password`,
+                    status: invoice.status
+                });
+            });
+    
+            // Facturas que necesitan retención ISR
+            const needISR = await Invoice.findAll({
+                where: { 
+                    ...whereClause,
+                    status: 'contrasena_generada' 
+                },
+                include: [{ model: Supplier, attributes: ['business_name'] }],
+                limit: 10,
+                order: [['updated_at', 'ASC']]
+            });
+    
+            needISR.forEach(invoice => {
+                workQueue.push({
+                    id: `isr-${invoice.id}`,
+                    invoiceId: invoice.id,
+                    action: 'Subir Retención ISR',
+                    supplier: invoice.supplier.business_name,
+                    invoiceNumber: invoice.number,
+                    amount: parseFloat(invoice.amount),
+                    priority: 'Media',
+                    timeAgo: this.getTimeAgo(invoice.updated_at),
+                    actionUrl: `/api/invoices/${invoice.id}/upload-document`,
+                    status: invoice.status
+                });
+            });
+    
+            // Facturas que necesitan retención IVA
+            const needIVA = await Invoice.findAll({
+                where: { 
+                    ...whereClause,
+                    status: 'retencion_isr_generada' 
+                },
+                include: [{ model: Supplier, attributes: ['business_name'] }],
+                limit: 5,
+                order: [['updated_at', 'ASC']]
+            });
+    
+            needIVA.forEach(invoice => {
+                workQueue.push({
+                    id: `iva-${invoice.id}`,
+                    invoiceId: invoice.id,
+                    action: 'Subir Retención IVA',
+                    supplier: invoice.supplier.business_name,
+                    invoiceNumber: invoice.number,
+                    amount: parseFloat(invoice.amount),
+                    priority: 'Media',
+                    timeAgo: this.getTimeAgo(invoice.updated_at),
+                    actionUrl: `/api/invoices/${invoice.id}/upload-document`,
+                    status: invoice.status
+                });
+            });
+    
+            // Ordenar por prioridad
+            const priorityOrder = { 'Alta': 3, 'Media': 2, 'Baja': 1 };
+            workQueue.sort((a, b) => priorityOrder[b.priority] - priorityOrder[a.priority]);
+    
+            res.json({ 
+                tasks: workQueue.slice(0, 15),
+                summary: {
+                    total_pending: workQueue.length,
+                    high_priority: workQueue.filter(t => t.priority === 'Alta').length,
+                    by_action: workQueue.reduce((acc, task) => {
+                        acc[task.action] = (acc[task.action] || 0) + 1;
+                        return acc;
+                    }, {})
+                }
+            });
+        } catch (error) {
+            console.error('Error getting work queue:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+    
+    // ================== MÉTODOS AUXILIARES ==================
+    
     async compressFile(file) {
         try {
             const inputPath = file.path;
             const outputPath = inputPath.replace(path.extname(inputPath), '_compressed' + path.extname(inputPath));
-
+    
             if (file.mimetype === 'application/pdf') {
-                // Para PDFs, usar compresión gzip
                 const input = await fs.readFile(inputPath);
                 const compressed = zlib.gzipSync(input);
                 await fs.writeFile(outputPath + '.gz', compressed);
-                
-                // Eliminar archivo original
                 await fs.unlink(inputPath);
                 
                 return {
@@ -611,7 +998,6 @@ const invoiceController = {
                     size: compressed.length
                 };
             } else if (file.mimetype.startsWith('image/')) {
-                // Para imágenes, usar Sharp
                 await sharp(inputPath)
                     .resize(1920, 1920, { 
                         fit: 'inside',
@@ -620,9 +1006,7 @@ const invoiceController = {
                     .jpeg({ quality: 85 })
                     .toFile(outputPath);
                 
-                // Eliminar archivo original
                 await fs.unlink(inputPath);
-                
                 const stats = await fs.stat(outputPath);
                 return {
                     filename: path.basename(outputPath),
@@ -630,8 +1014,7 @@ const invoiceController = {
                     size: stats.size
                 };
             }
-
-            // Si no necesita compresión, devolver original
+    
             const stats = await fs.stat(inputPath);
             return {
                 filename: path.basename(inputPath),
@@ -640,7 +1023,6 @@ const invoiceController = {
             };
         } catch (error) {
             console.error('Error al comprimir archivo:', error);
-            // En caso de error, devolver archivo original
             const stats = await fs.stat(file.path);
             return {
                 filename: path.basename(file.path),
@@ -649,112 +1031,141 @@ const invoiceController = {
             };
         }
     },
-
-    // Método auxiliar para crear ZIP
-    async createZipFromFiles(files, invoiceId) {
-        const archiver = require('archiver');
-        const zipPath = path.join(__dirname, '../uploads', 'temp', `factura-${invoiceId}-${Date.now()}.zip`);
-        
-        // Asegurar que el directorio temp existe
-        await fs.mkdir(path.dirname(zipPath), { recursive: true });
-        
-        const output = require('fs').createWriteStream(zipPath);
-        const archive = archiver('zip', { zlib: { level: 9 } });
-        
-        return new Promise((resolve, reject) => {
-            output.on('close', () => resolve(zipPath));
-            archive.on('error', reject);
-            
-            archive.pipe(output);
-            
-            files.forEach(file => {
-                const filePath = path.join(__dirname, '../uploads', invoiceId.toString(), file.filename);
-                archive.file(filePath, { name: file.originalName });
-            });
-            
-            archive.finalize();
-        });
-    },
-
-    async autoAssignInvoice(invoiceId) {
+    
+    async autoAssignInvoice() {
         try {
-            // Buscar trabajador de contaduría con menos facturas asignadas
             const workers = await User.findAll({
                 where: { 
                     role: 'trabajador_contaduria',
                     is_active: true 
                 }
             });
-
+    
             if (workers.length === 0) {
-                // Si no hay trabajadores, asignar a admin de contaduría
                 const admin = await User.findOne({
                     where: { 
                         role: 'admin_contaduria',
                         is_active: true 
                     }
                 });
-
-                if (admin) {
-                    await Invoice.update(
-                        { 
-                            assigned_to: admin.id,
-                            status: 'asignada_contaduria'
-                        },
-                        { where: { id: invoiceId } }
-                    );
-
-                    await InvoiceState.create({
-                        invoice_id: invoiceId,
-                        from_state: 'factura_subida',
-                        to_state: 'asignada_contaduria',
-                        user_id: admin.id,
-                        notes: 'Auto-asignación a admin de contaduría'
-                    });
-                }
-                return;
+                return admin ? admin.id : null;
             }
-
-            // Contar facturas asignadas por trabajador
+    
             const workersWithCount = await Promise.all(
                 workers.map(async (worker) => {
                     const count = await Invoice.count({
                         where: { 
                             assigned_to: worker.id,
-                            status: { 
-                                [require('sequelize').Op.notIn]: ['proceso_completado', 'rechazada'] 
+                            status: {
+                                [Op.notIn]: ['proceso_completado', 'rechazada']
                             }
                         }
                     });
                     return { worker, count };
                 })
             );
-
-            // Asignar al trabajador con menos facturas
+    
             const selectedWorker = workersWithCount.reduce((min, current) => 
                 current.count < min.count ? current : min
             ).worker;
-
-            await Invoice.update(
-                { 
-                    assigned_to: selectedWorker.id,
-                    status: 'asignada_contaduria'
-                },
-                { where: { id: invoiceId } }
-            );
-
-            await InvoiceState.create({
-                invoice_id: invoiceId,
-                from_state: 'factura_subida',
-                to_state: 'asignada_contaduria',
-                user_id: selectedWorker.id,
-                notes: 'Auto-asignación por sistema'
-            });
-
+    
+            return selectedWorker.id;
         } catch (error) {
             console.error('Error en auto-asignación:', error);
+            return null;
+        }
+    },
+    
+    getTimeAgo(date) {
+        const now = new Date();
+        const diffMs = now - new Date(date);
+        const diffMinutes = Math.floor(diffMs / (1000 * 60));
+        const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const diffDays = Math.floor(diffHours / 24);
+    
+        if (diffDays > 0) return `${diffDays}d`;
+        if (diffHours > 0) return `${diffHours}h`;
+        if (diffMinutes > 0) return `${diffMinutes}m`;
+        return 'Ahora';
+    }, async getPendingInvoices(req, res) {
+        try {
+            if (!['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(req.user.role)) {
+                return res.status(403).json({ error: 'Solo contaduría puede acceder' });
+            }
+    
+            let whereClause = {
+                status: {
+                    [Op.notIn]: ['proceso_completado', 'rechazada']
+                }
+            };
+    
+            // Si es trabajador, solo sus facturas asignadas
+            if (req.user.role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+    
+            const invoices = await Invoice.findAll({
+                where: whereClause,
+                include: [
+                    { 
+                        model: Supplier,
+                        as: 'supplier',
+                        attributes: ['business_name', 'nit'] 
+                    },
+                    {
+                        model: User,
+                        as: 'assignedUser',
+                        attributes: ['name'],
+                        required: false
+                    }
+                ],
+                order: [['created_at', 'DESC']],
+                limit: 50
+            });
+    
+            const formattedInvoices = invoices.map(invoice => ({
+                id: invoice.id,
+                number: invoice.number,
+                supplier: invoice.supplier.business_name,
+                supplier_nit: invoice.supplier.nit,
+                amount: parseFloat(invoice.amount),
+                status: invoice.status,
+                priority: invoice.priority,
+                assigned_to: invoice.assignedUser ? invoice.assignedUser.name : 'Sin asignar',
+                created_at: invoice.created_at,
+                due_date: invoice.due_date,
+                timeAgo: this.getTimeAgo(invoice.created_at),
+                detailUrl: `/api/invoices/${invoice.id}`,
+                canEdit: invoice.status === 'factura_subida'
+            }));
+    
+            // Calcular estadísticas
+            const statusCounts = invoices.reduce((acc, invoice) => {
+                acc[invoice.status] = (acc[invoice.status] || 0) + 1;
+                return acc;
+            }, {});
+    
+            const priorityCounts = invoices.reduce((acc, invoice) => {
+                acc[invoice.priority] = (acc[invoice.priority] || 0) + 1;
+                return acc;
+            }, {});
+    
+            res.json({ 
+                invoices: formattedInvoices,
+                summary: {
+                    total: formattedInvoices.length,
+                    by_status: statusCounts,
+                    by_priority: priorityCounts,
+                    total_amount: invoices.reduce((sum, inv) => sum + parseFloat(inv.amount), 0),
+                    user_role: req.user.role
+                }
+            });
+        } catch (error) {
+            console.error('Error getting pending invoices:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
         }
     }
-};
-
-module.exports = invoiceController;
+    
+    };
+    
+    module.exports = invoiceController;

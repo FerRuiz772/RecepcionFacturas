@@ -1,17 +1,38 @@
 const { validationResult } = require('express-validator');
-const { User, Supplier } = require('../models');
+const { User, Supplier, Op } = require('../models');
 
 const userController = {
     async getAllUsers(req, res) {
         try {
-            const users = await User.findAll({
+            const { page = 1, limit = 10, search = '', role } = req.query;
+            const offset = (page - 1) * limit;
+            
+            const where = {};
+            if (role) where.role = role;
+            if (search) {
+                where.name = { [Op.like]: `%${search}%` };
+            }
+
+            const users = await User.findAndCountAll({
+                where,
                 attributes: { exclude: ['password_hash'] },
                 include: [{
                     model: Supplier,
+                    as: 'supplier',
+                    attributes: ['id', 'business_name', 'nit'],
                     required: false
-                }]
+                }],
+                order: [['created_at', 'DESC']],
+                limit: parseInt(limit),
+                offset: parseInt(offset)
             });
-            res.json(users);
+
+            res.json({
+                users: users.rows,
+                total: users.count,
+                page: parseInt(page),
+                totalPages: Math.ceil(users.count / limit)
+            });
         } catch (error) {
             console.error('Error al obtener usuarios:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
@@ -25,6 +46,7 @@ const userController = {
                 attributes: { exclude: ['password_hash'] },
                 include: [{
                     model: Supplier,
+                    as: 'supplier',
                     required: false
                 }]
             });

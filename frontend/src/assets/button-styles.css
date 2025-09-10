@@ -1,0 +1,77 @@
+/* Estilos globales para botones */
+.v-btn {
+  /* Asegurarse que los botones tengan suficiente contraste */
+  &.v-btn--variant-outlined {
+    border-width: 1.5px !important;
+    background-color: white !important;
+  }
+
+  &.v-btn--variant-text {
+    background: rgba(0, 0, 0, 0.04) !important;
+  }
+
+  /* Mejorar contraste para botones con fondo oscuro */
+  &.v-btn--variant-elevated,
+  &.v-btn--variant-flat {
+    &.bg-primary,
+    &.bg-secondary,
+    &.bg-dark {
+      color: white !important;
+    }
+  }
+
+  /* Asegurar que los botones de acción tengan buen contraste */
+  &.action-button {
+    background: #0f172a !important;
+    color: white !important;
+    &:hover {
+      background: #1e293b !important;
+    }
+  }
+
+  /* Botones de navegación */
+  &.nav-button {
+    color: #64748b !important;
+    &:hover {
+      background: rgba(0, 0, 0, 0.04) !important;
+    }
+  }
+
+  /* Botones de exportación */
+  &.export-btn {
+    border-color: #64748b !important;
+    color: #64748b !important;
+    &:hover {
+      background: #f1f5f9 !important;
+    }
+  }
+
+  /* Botones de login */
+  &.login-button {
+    background: #0f172a !important;
+    color: white !important;
+    font-weight: 600;
+    &:hover {
+      background: #1e293b !important;
+    }
+  }
+}
+
+/* Botones específicos */
+.new-invoice-btn,
+.new-user-btn,
+.manage-btn {
+  background: #0f172a !important;
+  color: white !important;
+  &:hover {
+    background: #1e293b !important;
+  }
+}
+
+/* Chips de estado */
+.v-chip {
+  font-weight: 600 !important;
+  &.status-chip {
+    color: white !important;
+  }
+}

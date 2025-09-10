@@ -1,4 +1,6 @@
 const sequelize = require('../config/database');
+const { Op } = require('sequelize');
+
 const User = require('./User');
 const Supplier = require('./Supplier');
 const Invoice = require('./Invoice');
@@ -6,328 +8,139 @@ const InvoiceState = require('./InvoiceState');
 const Payment = require('./Payment');
 const SystemLog = require('./SystemLog');
 
-// ========== ASOCIACIONES PRINCIPALES ==========
+// ========== RELACIONES ==========
 
-// Usuario - Proveedor (Muchos usuarios pueden pertenecer a un proveedor)
-Supplier.hasMany(User, { 
-  foreignKey: 'supplier_id', 
-  as: 'users',
-  onDelete: 'SET NULL'
-});
-User.belongsTo(Supplier, { 
-  foreignKey: 'supplier_id', 
-  as: 'supplier',
-  allowNull: true
-});
+// Supplier - Users
+Supplier.hasMany(User, { foreignKey: 'supplier_id', as: 'users', onDelete: 'SET NULL' });
+User.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier', allowNull: true });
 
-// Usuario - Facturas Asignadas (Un usuario puede tener muchas facturas asignadas)
-User.hasMany(Invoice, { 
-  foreignKey: 'assigned_to', 
-  as: 'assignedInvoices',
-  onDelete: 'SET NULL'
-});
-Invoice.belongsTo(User, { 
-  foreignKey: 'assigned_to', 
-  as: 'assignedUser',
-  allowNull: true
-});
+// User - Assigned Invoices
+User.hasMany(Invoice, { foreignKey: 'assigned_to', as: 'assignedInvoices', onDelete: 'SET NULL' });
+Invoice.belongsTo(User, { foreignKey: 'assigned_to', as: 'assignedUser', allowNull: true });
 
-// Proveedor - Facturas (Un proveedor puede tener muchas facturas)
-Supplier.hasMany(Invoice, { 
-  foreignKey: 'supplier_id',
-  as: 'invoices',
-  onDelete: 'CASCADE'
-});
-Invoice.belongsTo(Supplier, { 
-  foreignKey: 'supplier_id',
-  as: 'Supplier',
-  allowNull: false
-});
+// Supplier - Invoices
+Supplier.hasMany(Invoice, { foreignKey: 'supplier_id', as: 'invoices', onDelete: 'CASCADE' });
+Invoice.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier', allowNull: false });
 
-// ========== ASOCIACIONES DE AUDITORÍA ==========
+// Invoice - InvoiceStates
+Invoice.hasMany(InvoiceState, { foreignKey: 'invoice_id', as: 'states', onDelete: 'CASCADE' });
+InvoiceState.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'invoice', allowNull: false });
 
-// Factura - Estados (Una factura puede tener muchos cambios de estado)
-Invoice.hasMany(InvoiceState, { 
-  foreignKey: 'invoice_id', 
-  as: 'states',
-  onDelete: 'CASCADE'
-});
-InvoiceState.belongsTo(Invoice, { 
-  foreignKey: 'invoice_id',
-  as: 'invoice',
-  allowNull: false
-});
+// User - InvoiceStates
+User.hasMany(InvoiceState, { foreignKey: 'user_id', as: 'stateChanges', onDelete: 'CASCADE' });
+InvoiceState.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: false });
 
-// Usuario - Estados (Un usuario puede hacer muchos cambios de estado)
-User.hasMany(InvoiceState, { 
-  foreignKey: 'user_id', 
-  as: 'stateChanges',
-  onDelete: 'CASCADE'
-});
-InvoiceState.belongsTo(User, { 
-  foreignKey: 'user_id', 
-  as: 'user',
-  allowNull: false
-});
+// Invoice - Payment
+Invoice.hasOne(Payment, { foreignKey: 'invoice_id', as: 'payment', onDelete: 'CASCADE' });
+Payment.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'Invoice', allowNull: false });
 
-// ========== ASOCIACIONES DE PAGOS ==========
+// User - SystemLog
+User.hasMany(SystemLog, { foreignKey: 'user_id', as: 'logs', onDelete: 'SET NULL' });
+SystemLog.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: true });
 
-// Factura - Pago (Una factura tiene un pago)
-Invoice.hasOne(Payment, { 
-  foreignKey: 'invoice_id',
-  as: 'payment',
-  onDelete: 'CASCADE'
-});
-Payment.belongsTo(Invoice, { 
-  foreignKey: 'invoice_id',
-  as: 'Invoice',
-  allowNull: false
-});
+// ========== SCOPES ==========
 
-// ========== ASOCIACIONES DE LOGS ==========
+// User
+User.addScope('active', { where: { is_active: true } });
+User.addScope('byRole', (role) => ({ where: { role } }));
+User.addScope('contaduria', { where: { role: { [Op.in]: ['admin_contaduria','trabajador_contaduria'] } } });
 
-// Usuario - Logs (Un usuario puede generar muchos logs)
-User.hasMany(SystemLog, { 
-  foreignKey: 'user_id', 
-  as: 'logs',
-  onDelete: 'SET NULL'
-});
-SystemLog.belongsTo(User, { 
-  foreignKey: 'user_id', 
-  as: 'user',
-  allowNull: true
-});
-
-// ========== HOOKS PARA AUDITORÍA AUTOMÁTICA ==========
-
-// Hook para crear logs automáticamente en cambios importantes
-const createAuditLog = async (instance, action, userId = null, details = {}) => {
-  try {
-    await SystemLog.create({
-      user_id: userId,
-      action: action,
-      entity_type: instance.constructor.name,
-      entity_id: instance.id,
-      details: {
-        ...details,
-        changes: instance.changed() || [],
-        previous: instance._previousDataValues || {}
-      }
-    });
-  } catch (error) {
-    console.error('Error creating audit log:', error);
-  }
-};
-
-// Hooks para Invoice
-Invoice.afterCreate((invoice, options) => {
-  const userId = options.userId || options.transaction?.userId;
-  createAuditLog(invoice, 'INVOICE_CREATED', userId, {
-    number: invoice.number,
-    amount: invoice.amount,
-    supplier_id: invoice.supplier_id
-  });
-});
-
-Invoice.afterUpdate((invoice, options) => {
-  const userId = options.userId || options.transaction?.userId;
-  createAuditLog(invoice, 'INVOICE_UPDATED', userId, {
-    number: invoice.number,
-    status: invoice.status
-  });
-});
-
-// Hooks para Payment
-Payment.afterCreate((payment, options) => {
-  const userId = options.userId || options.transaction?.userId;
-  createAuditLog(payment, 'PAYMENT_CREATED', userId, {
-    invoice_id: payment.invoice_id,
-    has_password: !!payment.password_generated
-  });
-});
-
-Payment.afterUpdate((payment, options) => {
-  const userId = options.userId || options.transaction?.userId;
-  createAuditLog(payment, 'PAYMENT_UPDATED', userId, {
-    invoice_id: payment.invoice_id,
-    files_uploaded: {
-      isr: !!payment.isr_retention_file,
-      iva: !!payment.iva_retention_file,
-      proof: !!payment.payment_proof_file
-    }
-  });
-});
-
-// ========== SCOPES ÚTILES ==========
-
-// Scopes para User
-User.addScope('active', {
-  where: { is_active: true }
-});
-
-User.addScope('byRole', (role) => ({
-  where: { role: role }
-}));
-
-User.addScope('contaduria', {
-  where: {
-    role: ['admin_contaduria', 'trabajador_contaduria']
-  }
-});
-
-// Scopes para Invoice
-Invoice.addScope('pending', {
-  where: {
-    status: {
-      [sequelize.Sequelize.Op.notIn]: ['proceso_completado', 'rechazada']
-    }
-  }
-});
-
-Invoice.addScope('byStatus', (status) => ({
-  where: { status: status }
-}));
-
+// Invoice
+Invoice.addScope('pending', { where: { status: { [Op.notIn]: ['proceso_completado','rechazada'] } } });
+Invoice.addScope('byStatus', (status) => ({ where: { status } }));
 Invoice.addScope('withDetails', {
-  include: [
-    {
-      model: Supplier,
-      as: 'Supplier',
-      attributes: ['id', 'business_name', 'nit']
-    },
-    {
-      model: User,
-      as: 'assignedUser',
-      attributes: ['id', 'name', 'email'],
-      required: false
-    },
-    {
-      model: Payment,
-      as: 'payment',
-      required: false
-    }
-  ]
-});
-
-Invoice.addScope('withHistory', {
-  include: [
-    {
-      model: InvoiceState,
-      as: 'states',
-      include: [{
-        model: User,
-        as: 'user',
-        attributes: ['id', 'name']
-      }],
-      order: [['timestamp', 'DESC']]
-    }
-  ]
-});
-
-// Scopes para Supplier
-Supplier.addScope('active', {
-  where: { is_active: true }
-});
-
-Supplier.addScope('withStats', {
-  include: [{
-    model: Invoice,
-    as: 'invoices',
-    attributes: []
-  }],
-  attributes: {
     include: [
-      [
-        sequelize.fn('COUNT', sequelize.col('invoices.id')),
-        'total_invoices'
-      ],
-      [
-        sequelize.fn('SUM', 
-          sequelize.literal('CASE WHEN invoices.status = "proceso_completado" THEN invoices.amount ELSE 0 END')
-        ),
-        'total_paid'
-      ]
+        { model: Supplier, as: 'supplier', attributes: ['id','business_name','nit'] },
+        { model: User, as: 'assignedUser', attributes: ['id','name','email'], required: false },
+        { model: Payment, as: 'payment', required: false }
     ]
-  },
-  group: ['Supplier.id']
+});
+Invoice.addScope('withHistory', {
+    include: [{
+        model: InvoiceState, as: 'states',
+        include: [{ model: User, as: 'user', attributes: ['id','name'] }],
+        order: [['timestamp', 'DESC']]
+    }]
 });
 
-// ========== MÉTODOS DE CLASE ÚTILES ==========
+// Supplier
+Supplier.addScope('active', { where: { is_active: true } });
+Supplier.addScope('withStats', {
+    include: [{ model: Invoice, as: 'invoices', attributes: [] }],
+    attributes: {
+        include: [
+            [sequelize.fn('COUNT', sequelize.col('invoices.id')), 'total_invoices'],
+            [sequelize.fn('SUM', sequelize.literal('CASE WHEN invoices.status = "proceso_completado" THEN invoices.amount ELSE 0 END')), 'total_paid']
+        ]
+    },
+    group: ['Supplier.id']
+});
 
-// Método para obtener estadísticas del dashboard
-Invoice.getDashboardStats = async function(userId = null, role = null) {
-  const whereClause = {};
-  
-  // Filtrar por usuario si es trabajador
-  if (role === 'trabajador_contaduria' && userId) {
-    whereClause.assigned_to = userId;
-  }
-  
-  // Filtrar por proveedor si es proveedor
-  if (role === 'proveedor' && userId) {
-    const user = await User.findByPk(userId);
-    if (user && user.supplier_id) {
-      whereClause.supplier_id = user.supplier_id;
+// ========== MÉTODOS ÚTILES ==========
+
+// Auto-asignación de facturas
+Invoice.autoAssign = async function(invoiceId) {
+    const workers = await User.scope('active').findAll({ where: { role: 'trabajador_contaduria' } });
+    if (!workers.length) {
+        const admin = await User.scope('active').findOne({ where: { role: 'admin_contaduria' } });
+        return admin ? admin.id : null;
     }
-  }
-
-  const stats = await Invoice.findAll({
-    where: whereClause,
-    attributes: [
-      'status',
-      [sequelize.fn('COUNT', sequelize.col('id')), 'count'],
-      [sequelize.fn('SUM', sequelize.col('amount')), 'total_amount']
-    ],
-    group: ['status'],
-    raw: true
-  });
-
-  return stats;
+    const workersWithCount = await Promise.all(workers.map(async (w) => {
+        const count = await Invoice.count({ where: { assigned_to: w.id, status: { [Op.notIn]: ['proceso_completado','rechazada'] } } });
+        return { worker: w, count };
+    }));
+    return workersWithCount.reduce((min,c) => c.count < min.count ? c : min).worker.id;
 };
 
-// Método para auto-asignar facturas
-Invoice.autoAssign = async function(invoiceId) {
-  const workers = await User.scope('active').findAll({
-    where: { role: 'trabajador_contaduria' }
-  });
+// Validación de transición de estado
+Invoice.validateStateTransition = function(fromState, toState) {
+    const validTransitions = {
+        'factura_subida': ['asignada_contaduria','rechazada'],
+        'asignada_contaduria': ['en_proceso','rechazada'],
+        'en_proceso': ['contrasena_generada','rechazada'],
+        'contrasena_generada': ['retencion_isr_generada','rechazada'],
+        'retencion_isr_generada': ['retencion_iva_generada','rechazada'],
+        'retencion_iva_generada': ['pago_realizado','rechazada'],
+        'pago_realizado': ['proceso_completado','rechazada'],
+        'proceso_completado': [],
+        'rechazada': ['factura_subida']
+    };
+    return validTransitions[fromState]?.includes(toState) || false;
+};
 
-  if (workers.length === 0) {
-    // Asignar a admin si no hay trabajadores
-    const admin = await User.scope('active').findOne({
-      where: { role: 'admin_contaduria' }
-    });
-    return admin ? admin.id : null;
-  }
+Invoice.getNextValidStates = function(currentState) {
+    const validTransitions = {
+        'factura_subida': ['asignada_contaduria','rechazada'],
+        'asignada_contaduria': ['en_proceso','rechazada'],
+        'en_proceso': ['contrasena_generada','rechazada'],
+        'contrasena_generada': ['retencion_isr_generada','rechazada'],
+        'retencion_isr_generada': ['retencion_iva_generada','rechazada'],
+        'retencion_iva_generada': ['pago_realizado','rechazada'],
+        'pago_realizado': ['proceso_completado','rechazada'],
+        'proceso_completado': [],
+        'rechazada': ['factura_subida']
+    };
+    return validTransitions[currentState] || [];
+};
 
-  // Contar facturas asignadas por trabajador
-  const workersWithCount = await Promise.all(
-    workers.map(async (worker) => {
-      const count = await Invoice.count({
-        where: { 
-          assigned_to: worker.id,
-          status: {
-            [sequelize.Sequelize.Op.notIn]: ['proceso_completado', 'rechazada']
-          }
-        }
-      });
-      return { worker, count };
-    })
-  );
-
-  // Seleccionar el trabajador con menos facturas
-  const selectedWorker = workersWithCount.reduce((min, current) => 
-    current.count < min.count ? current : min
-  ).worker;
-
-  return selectedWorker.id;
+// ========== EXPORTACIÓN ==========
+const syncDatabase = async (force = false) => {
+    await Supplier.sync({ force });
+    await User.sync({ force });
+    await Invoice.sync({ force });
+    await InvoiceState.sync({ force });
+    await Payment.sync({ force });
+    await SystemLog.sync({ force });
 };
 
 module.exports = {
-  sequelize,
-  User,
-  Supplier,
-  Invoice,
-  InvoiceState,
-  Payment,
-  SystemLog
+    sequelize,
+    Op,
+    User,
+    Supplier,
+    Invoice,
+    InvoiceState,
+    Payment,
+    SystemLog,
+    syncDatabase
 };

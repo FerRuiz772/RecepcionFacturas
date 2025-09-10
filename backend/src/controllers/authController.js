@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
 const { User, Supplier, SystemLog } = require('../models');
+const { Op } = require('sequelize'); // AÑADIDO: Para operadores Sequelize
 
 const authController = {
   async login(req, res) {
@@ -302,7 +303,7 @@ const authController = {
       const resetToken = crypto.randomBytes(32).toString('hex');
       const resetExpires = new Date(Date.now() + 3600000); // 1 hora
 
-      // Guardar token en profile_data (temporal)
+      // CORREGIDO: Usar operador JSON para buscar en profile_data
       await user.update({
         profile_data: {
           ...user.profile_data,
@@ -355,12 +356,12 @@ const authController = {
         });
       }
 
-      // Buscar usuario con el token
+      // CORREGIDO: Usar operador JSON de Sequelize para buscar en profile_data
       const user = await User.findOne({
         where: {
           is_active: true,
           profile_data: {
-            reset_token: token
+            [Op.contains]: { reset_token: token }
           }
         }
       });

@@ -1,21 +1,30 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { authenticate } = require('../middleware/auth');
+const { authenticate, authorize } = require('../middleware/auth');
 const { body } = require('express-validator');
 
-// Proteger todas las rutas
+// Todas las rutas protegidas
 router.use(authenticate);
 
-router.get('/', userController.getAllUsers);
-router.get('/:id', userController.getUserById);
-router.post('/', [
-    body('email').isEmail().normalizeEmail(),
-    body('password').isLength({ min: 6 }),
-    body('name').notEmpty().trim(),
-    body('role').isIn(['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'])
+// Solo super_admin y admin_contaduria pueden listar
+router.get('/', authorize(['super_admin', 'admin_contaduria']), userController.getAllUsers);
+
+// Solo super_admin y admin_contaduria pueden ver detalles
+router.get('/:id', authorize(['super_admin', 'admin_contaduria']), userController.getUserById);
+
+// Solo super_admin puede crear
+router.post('/', authorize(['super_admin']), [
+  body('email').isEmail().normalizeEmail(),
+  body('password').isLength({ min: 6 }),
+  body('name').notEmpty().trim(),
+  body('role').isIn(['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'])
 ], userController.createUser);
-router.put('/:id', userController.updateUser);
-router.delete('/:id', userController.deleteUser);
+
+// Actualizar (admin_contaduria o super_admin)
+router.put('/:id', authorize(['super_admin', 'admin_contaduria']), userController.updateUser);
+
+// Eliminar (solo super_admin)
+router.delete('/:id', authorize(['super_admin']), userController.deleteUser);
 
 module.exports = router;

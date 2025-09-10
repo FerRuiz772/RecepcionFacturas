@@ -143,7 +143,7 @@
                       variant="text"
                       color="primary"
                       @click="viewInvoice(item)"
-                      title="Ver detalles"
+                      title="Ver detalles de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-eye-outline</v-icon>
                     </v-btn>
@@ -155,7 +155,7 @@
                       variant="text"
                       color="success"
                       @click="downloadInvoiceFiles(item)"
-                      title="Descargar mis facturas"
+                      title="Descargar factura #${item.number} en formato PDF"
                     >
                       <v-icon size="18">mdi-download</v-icon>
                     </v-btn>
@@ -168,7 +168,7 @@
                       variant="text"
                       color="blue"
                       @click="downloadRetentionISR(item)"
-                      title="Descargar Retención ISR"
+                      title="Descargar constancia de retención ISR de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-file-download-outline</v-icon>
                     </v-btn>
@@ -181,7 +181,7 @@
                       variant="text"
                       color="cyan"
                       @click="downloadRetentionIVA(item)"
-                      title="Descargar Retención IVA"
+                      title="Descargar constancia de retención IVA de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-file-certificate-outline</v-icon>
                     </v-btn>
@@ -194,7 +194,7 @@
                       variant="text"
                       color="green"
                       @click="downloadPaymentProof(item)"
-                      title="Descargar Comprobante de Pago"
+                      title="Descargar comprobante de pago de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-check-circle-outline</v-icon>
                     </v-btn>
@@ -209,7 +209,7 @@
                       variant="text"
                       color="primary"
                       @click="viewInvoice(item)"
-                      title="Ver detalles"
+                      title="Ver todos los detalles de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-eye-outline</v-icon>
                     </v-btn>
@@ -221,7 +221,7 @@
                       variant="text"
                       color="success"
                       @click="downloadInvoiceFiles(item)"
-                      title="Descargar facturas del proveedor"
+                      title="Descargar factura #${item.number} del proveedor ${item.Supplier?.business_name}"
                     >
                       <v-icon size="18">mdi-download</v-icon>
                     </v-btn>
@@ -234,7 +234,7 @@
                       variant="text"
                       color="blue"
                       @click="uploadRetentionISR(item)"
-                      title="Subir Retención ISR"
+                      title="Subir constancia de retención ISR para la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-file-upload-outline</v-icon>
                     </v-btn>
@@ -247,7 +247,7 @@
                       variant="text"
                       color="cyan"
                       @click="uploadRetentionIVA(item)"
-                      title="Subir Retención IVA"
+                      title="Subir constancia de retención IVA para la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-file-certificate</v-icon>
                     </v-btn>
@@ -260,7 +260,7 @@
                       variant="text"
                       color="green"
                       @click="uploadPaymentProof(item)"
-                      title="Subir Comprobante de Pago"
+                      title="Subir comprobante de pago para la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-receipt-text</v-icon>
                     </v-btn>
@@ -273,7 +273,7 @@
                       variant="text"
                       color="warning"
                       @click="changeStatus(item)"
-                      title="Cambiar estado"
+                      title="Modificar el estado actual de la factura #${item.number}"
                     >
                       <v-icon size="18">mdi-swap-horizontal</v-icon>
                     </v-btn>
@@ -296,19 +296,19 @@
                       <v-list-item @click="viewInvoiceHistory(item)">
                         <v-list-item-title>
                           <v-icon class="mr-2">mdi-history</v-icon>
-                          Ver Historial
+                          Ver historial de cambios de la factura #${item.number}
                         </v-list-item-title>
                       </v-list-item>
                       <v-list-item v-if="authStore.isContaduria && canGeneratePassword(item)" @click="generatePassword(item)">
                         <v-list-item-title>
                           <v-icon class="mr-2">mdi-key</v-icon>
-                          Generar Contraseña
+                          Generar contraseña para la factura #${item.number}
                         </v-list-item-title>
                       </v-list-item>
                       <v-list-item v-if="authStore.isAdmin" @click="reassignInvoice(item)">
                         <v-list-item-title>
                           <v-icon class="mr-2">mdi-account-switch</v-icon>
-                          Reasignar
+                          Reasignar factura #${item.number} a otro usuario
                         </v-list-item-title>
                       </v-list-item>
                     </v-list>
@@ -453,7 +453,7 @@
       { title: 'Monto', key: 'amount', width: '120px' },
       { title: 'Estado', key: 'status', width: '150px' },
       { title: 'Fecha', key: 'created_at', width: '120px' },
-      { title: 'Acciones', key: 'actions', sortable: false, width: '200px' }
+      { title: 'Acciones', key: 'actions', sortable: false, width: '280px' }
     ]
   
     if (!authStore.isProveedor) {
@@ -493,15 +493,18 @@
   
   // Funciones para verificar permisos de subida (CONTADURÍA)
   const canUploadRetentionISR = (invoice) => {
+    // Se puede subir ISR cuando está en proceso o tiene contraseña generada
     return ['en_proceso', 'contrasena_generada'].includes(invoice.status)
   }
   
   const canUploadRetentionIVA = (invoice) => {
-    return ['retencion_isr_generada'].includes(invoice.status)
+    // Se puede subir IVA cuando ya tiene ISR o está en un estado posterior
+    return ['retencion_isr_generada', 'retencion_iva_generada', 'pago_realizado'].includes(invoice.status)
   }
   
   const canUploadPaymentProof = (invoice) => {
-    return ['pago_realizado'].includes(invoice.status)
+    // Se puede subir el comprobante cuando tiene ambas retenciones o está en pago realizado
+    return ['retencion_iva_generada', 'pago_realizado'].includes(invoice.status)
   }
   
   const canChangeStatus = (invoice) => {
@@ -879,13 +882,19 @@
   font-size: 14px;
 }
 
-.actions-cell {
-  display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
-}
+  .actions-cell {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 4px 0;
 
-.no-data {
+    .v-btn {
+      background-color: rgba(0, 0, 0, 0.05) !important;
+      &:hover {
+        background-color: rgba(0, 0, 0, 0.1) !important;
+      }
+    }
+  }.no-data {
   text-align: center;
   padding: 40px;
   color: #64748b;

@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiting para autenticación
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // máximo 5 intentos por IP
+  max: 10, // máximo 10 intentos por IP
   message: { error: 'Demasiados intentos de autenticación' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -14,18 +14,15 @@ const authRateLimit = rateLimit({
 // Middleware principal de autenticación
 const authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
+    const token = req.header('Authorization')?.replace('Bearer ', '');
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!token) {
       return res.status(401).json({ 
-        error: 'Token de autorización requerido',
+        error: 'Token de acceso requerido',
         code: 'NO_TOKEN' 
       });
     }
 
-    const token = authHeader.substring(7);
-
-    // Verificar el token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Validar estructura del token
@@ -36,7 +33,7 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Buscar el usuario en la base de datos con datos del proveedor si aplica
+    // Buscar usuario en la base de datos con datos del proveedor si aplica
     const user = await User.findByPk(decoded.userId, {
       attributes: { exclude: ['password_hash'] },
       include: [{
@@ -72,19 +69,18 @@ const authenticate = async (req, res, next) => {
     // Agregar datos completos del usuario al request
     req.user = {
       userId: user.id,
-      id: user.id, // Para compatibilidad
+      id: user.id, // compatibilidad
       email: user.email,
       name: user.name,
       role: user.role,
       supplier_id: user.supplier_id,
-      // Datos del proveedor si aplica
       ...(user.supplier && {
         supplier_name: user.supplier.business_name,
         supplier_nit: user.supplier.nit
       })
     };
 
-    // Agregar métodos de utilidad
+    // Helpers
     req.user.isProveedor = user.role === 'proveedor';
     req.user.isContaduria = ['admin_contaduria', 'trabajador_contaduria'].includes(user.role);
     req.user.isAdmin = ['super_admin', 'admin_contaduria'].includes(user.role);
@@ -122,18 +118,12 @@ const authorize = (allowedRoles = []) => {
       });
     }
 
-    // Si no se especifican roles, permitir a todos los autenticados
-    if (allowedRoles.length === 0) {
-      return next();
-    }
+    if (allowedRoles.length === 0) return next();
 
-    // Verificar si el usuario tiene alguno de los roles permitidos
     if (!allowedRoles.includes(req.user.role)) {
       return res.status(403).json({ 
-        error: `Acceso denegado. Roles requeridos: ${allowedRoles.join(', ')}`,
-        code: 'INSUFFICIENT_PRIVILEGES',
-        required_roles: allowedRoles,
-        user_role: req.user.role
+        error: 'Acceso denegado',
+        code: 'ACCESS_DENIED'
       });
     }
 
@@ -145,8 +135,8 @@ const authorize = (allowedRoles = []) => {
 const requireProveedor = (req, res, next) => {
   if (!req.user.isProveedor) {
     return res.status(403).json({ 
-      error: 'Solo proveedores pueden acceder',
-      code: 'PROVEEDOR_REQUIRED' 
+      error: 'Acceso denegado',
+      code: 'ACCESS_DENIED' 
     });
   }
   next();
@@ -156,8 +146,8 @@ const requireProveedor = (req, res, next) => {
 const requireContaduria = (req, res, next) => {
   if (!req.user.isContaduria) {
     return res.status(403).json({ 
-      error: 'Solo personal de contaduría puede acceder',
-      code: 'CONTADURIA_REQUIRED' 
+      error: 'Acceso denegado',
+      code: 'ACCESS_DENIED' 
     });
   }
   next();
@@ -167,8 +157,8 @@ const requireContaduria = (req, res, next) => {
 const requireAdmin = (req, res, next) => {
   if (!req.user.isAdmin) {
     return res.status(403).json({ 
-      error: 'Solo administradores pueden acceder',
-      code: 'ADMIN_REQUIRED' 
+      error: 'Acceso denegado',
+      code: 'ACCESS_DENIED' 
     });
   }
   next();
@@ -198,32 +188,28 @@ const validateInvoiceAccess = async (req, res, next) => {
       });
     }
 
-    // Super admin puede acceder a todo
-    if (req.user.isSuperAdmin) {
-      return next();
+    if (req.user.isSuperAdmin) return next();
+
+    if (req.user.isProveedor && invoice.supplier_id !== req.user.supplier_id) {
+      return res.status(403).json({ 
+        error: 'Acceso denegado',
+        code: 'ACCESS_DENIED' 
+      });
     }
 
-    // Proveedores solo pueden acceder a sus propias facturas
-    if (req.user.isProveedor) {
-      if (invoice.supplier_id !== req.user.supplier_id) {
-        return res.status(403).json({ 
-          error: 'No puede acceder a facturas de otros proveedores',
-          code: 'INVOICE_ACCESS_DENIED' 
-        });
-      }
-    }
-
-    // Trabajadores de contaduría solo pueden acceder a facturas asignadas
+    // Los trabajadores de contaduría pueden acceder a facturas asignadas y también subir documentos
     if (req.user.role === 'trabajador_contaduria') {
-      if (invoice.assigned_to !== req.user.userId) {
+      const isUploadEndpoint = req.path.includes('/upload-document');
+      const isAssigned = invoice.assigned_to === req.user.userId;
+      
+      if (!isAssigned && !isUploadEndpoint) {
         return res.status(403).json({ 
-          error: 'No puede acceder a facturas no asignadas',
-          code: 'INVOICE_NOT_ASSIGNED' 
+          error: 'Acceso denegado',
+          code: 'ACCESS_DENIED' 
         });
       }
     }
 
-    // Admin de contaduría puede acceder a todas las facturas
     req.invoice = invoice;
     next();
   } catch (error) {
@@ -243,9 +229,8 @@ const logAccess = (req, res, next) => {
   next();
 };
 
-// Middleware para detectar cambios de contraseña forzosos
+// Middleware para detectar cambios de contraseña forzosos (placeholder)
 const checkPasswordChange = async (req, res, next) => {
-  // Implementar lógica si necesitas forzar cambio de contraseña
   next();
 };
 

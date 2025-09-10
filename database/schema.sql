@@ -1,9 +1,13 @@
+-- Schema actualizado para IDs numéricos (Opción A)
 -- Crear base de datos y configurar
+CREATE DATABASE IF NOT EXISTS recepcion_facturas 
+CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
 USE recepcion_facturas;
 
 -- Tabla de Proveedores
 CREATE TABLE IF NOT EXISTS suppliers (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  id INT AUTO_INCREMENT PRIMARY KEY,
   business_name VARCHAR(255) NOT NULL,
   nit VARCHAR(20) UNIQUE NOT NULL,
   contact_email VARCHAR(255),
@@ -17,12 +21,12 @@ CREATE TABLE IF NOT EXISTS suppliers (
 
 -- Tabla de Usuarios
 CREATE TABLE IF NOT EXISTS users (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  id INT AUTO_INCREMENT PRIMARY KEY,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
   role ENUM('super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor') NOT NULL,
-  supplier_id VARCHAR(36) NULL,
+  supplier_id INT NULL,
   profile_data JSON DEFAULT ('{}'),
   is_active BOOLEAN DEFAULT TRUE,
   last_login TIMESTAMP NULL,
@@ -33,10 +37,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Tabla de Facturas
 CREATE TABLE IF NOT EXISTS invoices (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
+  id INT AUTO_INCREMENT PRIMARY KEY,
   number VARCHAR(100) UNIQUE NOT NULL,
-  supplier_id VARCHAR(36) NOT NULL,
-  assigned_to VARCHAR(36) NULL,
+  supplier_id INT NOT NULL,
+  assigned_to INT NULL,
   amount DECIMAL(15, 2) NOT NULL,
   description TEXT,
   due_date DATE,
@@ -62,11 +66,11 @@ CREATE TABLE IF NOT EXISTS invoices (
 
 -- Tabla de Estados de Factura (para auditoría)
 CREATE TABLE IF NOT EXISTS invoice_states (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-  invoice_id VARCHAR(36) NOT NULL,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  invoice_id INT NOT NULL,
   from_state VARCHAR(50),
   to_state VARCHAR(50) NOT NULL,
-  user_id VARCHAR(36) NOT NULL,
+  user_id INT NOT NULL,
   timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   notes TEXT,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
@@ -75,8 +79,8 @@ CREATE TABLE IF NOT EXISTS invoice_states (
 
 -- Tabla de Pagos
 CREATE TABLE IF NOT EXISTS payments (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-  invoice_id VARCHAR(36) NOT NULL UNIQUE,
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  invoice_id INT NOT NULL UNIQUE,
   password_generated VARCHAR(255),
   isr_retention_file VARCHAR(500),
   iva_retention_file VARCHAR(500),
@@ -89,11 +93,11 @@ CREATE TABLE IF NOT EXISTS payments (
 
 -- Tabla de Logs del Sistema (para auditoría completa)
 CREATE TABLE IF NOT EXISTS system_logs (
-  id VARCHAR(36) PRIMARY KEY DEFAULT (UUID()),
-  user_id VARCHAR(36),
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
   action VARCHAR(100) NOT NULL,
   entity_type VARCHAR(50),
-  entity_id VARCHAR(36),
+  entity_id INT,
   ip_address VARCHAR(45),
   user_agent TEXT,
   details JSON DEFAULT ('{}'),
@@ -106,6 +110,7 @@ CREATE INDEX idx_invoices_supplier ON invoices(supplier_id);
 CREATE INDEX idx_invoices_assigned ON invoices(assigned_to);
 CREATE INDEX idx_invoices_status ON invoices(status);
 CREATE INDEX idx_invoices_created ON invoices(created_at);
+CREATE INDEX idx_invoices_number ON invoices(number);
 CREATE INDEX idx_invoice_states_invoice ON invoice_states(invoice_id);
 CREATE INDEX idx_invoice_states_timestamp ON invoice_states(timestamp);
 CREATE INDEX idx_users_role ON users(role);
@@ -114,11 +119,6 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_payments_invoice ON payments(invoice_id);
 CREATE INDEX idx_system_logs_user ON system_logs(user_id);
 CREATE INDEX idx_system_logs_timestamp ON system_logs(timestamp);
-
--- Datos iniciales
-INSERT IGNORE INTO suppliers (id, business_name, nit, contact_email, is_active) VALUES
-(UUID(), 'Sistema Interno', '00000000-0', 'sistema@empresa.com', TRUE);
-
--- Usuario Super Admin inicial
-INSERT IGNORE INTO users (id, email, password_hash, name, role, is_active) VALUES
-(UUID(), 'admin@sistema.com', '$2b$12$example_hash_here', 'Administrador Sistema', 'super_admin', TRUE);
+CREATE INDEX idx_system_logs_action ON system_logs(action);
+CREATE INDEX idx_suppliers_nit ON suppliers(nit);
+CREATE INDEX idx_suppliers_active ON suppliers(is_active);

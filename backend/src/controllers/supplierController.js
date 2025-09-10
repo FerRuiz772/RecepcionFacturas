@@ -14,6 +14,7 @@ const supplierController = {
                 where,
                 include: [{
                     model: User,
+                    as: 'users',
                     attributes: ['id', 'name', 'email', 'is_active'],
                     required: false
                 }],
@@ -29,7 +30,6 @@ const supplierController = {
                 totalPages: Math.ceil(suppliers.count / limit)
             });
         } catch (error) {
-            console.error('Error al obtener proveedores:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
@@ -40,6 +40,7 @@ const supplierController = {
             const supplier = await Supplier.findByPk(id, {
                 include: [{
                     model: User,
+                    as: 'users',
                     attributes: ['id', 'name', 'email', 'is_active'],
                     required: false
                 }]
@@ -51,7 +52,6 @@ const supplierController = {
 
             res.json(supplier);
         } catch (error) {
-            console.error('Error al obtener proveedor:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
@@ -61,11 +61,6 @@ const supplierController = {
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
                 return res.status(400).json({ errors: errors.array() });
-            }
-
-            // Solo admins pueden crear proveedores
-            if (!['super_admin', 'admin_contaduria'].includes(req.user.role)) {
-                return res.status(403).json({ error: 'No tiene permisos para crear proveedores' });
             }
 
             const { business_name, nit, contact_email, contact_phone, address, bank_details } = req.body;
@@ -87,7 +82,6 @@ const supplierController = {
 
             res.status(201).json(supplier);
         } catch (error) {
-            console.error('Error al crear proveedor:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
@@ -96,11 +90,6 @@ const supplierController = {
         try {
             const { id } = req.params;
             const { business_name, contact_email, contact_phone, address, bank_details, is_active } = req.body;
-
-            // Solo admins pueden actualizar proveedores
-            if (!['super_admin', 'admin_contaduria'].includes(req.user.role)) {
-                return res.status(403).json({ error: 'No tiene permisos para actualizar proveedores' });
-            }
 
             const supplier = await Supplier.findByPk(id);
             if (!supplier) {
@@ -118,7 +107,6 @@ const supplierController = {
 
             res.json(supplier);
         } catch (error) {
-            console.error('Error al actualizar proveedor:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
@@ -126,12 +114,6 @@ const supplierController = {
     async deleteSupplier(req, res) {
         try {
             const { id } = req.params;
-
-            // Solo super admin puede eliminar proveedores
-            if (req.user.role !== 'super_admin') {
-                return res.status(403).json({ error: 'No tiene permisos para eliminar proveedores' });
-            }
-
             const supplier = await Supplier.findByPk(id);
             if (!supplier) {
                 return res.status(404).json({ error: 'Proveedor no encontrado' });
@@ -150,7 +132,6 @@ const supplierController = {
             await supplier.update({ is_active: false });
             res.json({ message: 'Proveedor desactivado exitosamente' });
         } catch (error) {
-            console.error('Error al eliminar proveedor:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     }
