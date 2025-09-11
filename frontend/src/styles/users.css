@@ -1,0 +1,224 @@
+/* UsersView Styles */
+.users-layout {
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.breadcrumb-container {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 12px 0;
+}
+
+.breadcrumb-item {
+  color: #64748b;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.breadcrumb-item.active {
+  color: #0f172a;
+}
+
+.page-header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 32px 0;
+  margin-bottom: 32px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: #64748b;
+  margin: 0;
+}
+
+.users-section {
+  background: white;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.section-header {
+  padding: 24px 24px 0 24px;
+  border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 0;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 24px;
+}
+
+.filters-row {
+  margin-bottom: 24px;
+}
+
+.users-table {
+  margin: 0;
+}
+
+.table-container {
+  overflow-x: auto;
+}
+
+.user-row {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.user-row:hover {
+  background: #f8fafc;
+}
+
+.user-name {
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.user-email {
+  color: #64748b;
+  font-size: 13px;
+  margin-top: 2px;
+}
+
+.role-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.role-super-admin {
+  background: rgba(147, 51, 234, 0.1);
+  color: #9333ea;
+}
+
+.role-admin {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.role-worker {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.role-supplier {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.status-chip {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.status-inactive {
+  background: rgba(107, 114, 128, 0.1);
+  color: #6b7280;
+}
+
+.supplier-info {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-edit {
+  background: #f59e0b !important;
+  color: white !important;
+  font-size: 12px;
+  min-width: auto;
+}
+
+.btn-toggle {
+  font-size: 12px;
+  min-width: auto;
+}
+
+.btn-toggle.activate {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+.btn-toggle.deactivate {
+  background: #ef4444 !important;
+  color: white !important;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  color: #64748b;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #64748b;
+}
+
+.empty-icon {
+  font-size: 48px;
+  color: #cbd5e1;
+  margin-bottom: 16px;
+}
+
+.pagination-container {
+  padding: 20px 24px;
+  border-top: 1px solid #f1f5f9;
+  background: #f8fafc;
+}
+
+.last-login {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .page-header .d-flex {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  
+  .filters-row .d-flex {
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .users-section {
+    margin: 0 -8px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+}

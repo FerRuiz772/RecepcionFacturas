@@ -1,0 +1,243 @@
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '../stores/auth'
+import { useToast } from 'vue-toastification'
+import axios from 'axios'
+
+export function useInvoiceDetail() {
+  const route = useRoute()
+  const router = useRouter()
+  const authStore = useAuthStore()
+  const toast = useToast()
+
+  // Estados reactivos
+  const loading = ref(false)
+  const invoice = ref(null)
+
+  // Computed properties
+  const canManage = computed(() => {
+    return authStore.isContaduria || authStore.isAdmin
+  })
+
+  // Cargar datos de la factura
+  const loadInvoice = async () => {
+    loading.value = true
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}`)
+      invoice.value = response.data
+    } catch (error) {
+      console.error('Error loading invoice:', error)
+      toast.error('Error al cargar la factura')
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // Verificar disponibilidad de documentos
+  const hasDocument = (type) => {
+    if (!invoice.value) return false
+    
+    switch (type) {
+      case 'isr':
+        return ['retencion_isr_generada', 'retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value.status)
+      case 'iva':
+        return ['retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value.status)
+      case 'proof':
+        return invoice.value.status === 'proceso_completado'
+      default:
+        return false
+    }
+  }
+
+  const hasAnyDocuments = () => {
+    return hasDocument('isr') || hasDocument('iva') || hasDocument('proof')
+  }
+
+  // Funciones de descarga
+  const downloadOriginalFile = async (file) => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-invoice`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = file.originalName
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Archivo descargado')
+    } catch (error) {
+      toast.error('Error al descargar archivo')
+    }
+  }
+
+  const downloadISR = async () => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-retention-isr`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `retencion-isr-${invoice.value.number}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Retención ISR descargada')
+    } catch (error) {
+      toast.error('Error al descargar retención ISR')
+    }
+  }
+
+  const downloadIVA = async () => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-retention-iva`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `retencion-iva-${invoice.value.number}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Retención IVA descargada')
+    } catch (error) {
+      toast.error('Error al descargar retención IVA')
+    }
+  }
+
+  const downloadProof = async () => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-payment-proof`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `comprobante-pago-${invoice.value.number}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Comprobante descargado')
+    } catch (error) {
+      toast.error('Error al descargar comprobante')
+    }
+  }
+
+  // Funciones de utilidad
+  const getStatusColor = (status) => {
+    const colors = {
+      'factura_subida': 'blue',
+      'asignada_contaduria': 'orange',
+      'en_proceso': 'purple',
+      'contrasena_generada': 'indigo',
+      'retencion_isr_generada': 'cyan',
+      'retencion_iva_generada': 'teal',
+      'pago_realizado': 'green',
+      'proceso_completado': 'success',
+      'rechazada': 'error'
+    }
+    return colors[status] || 'grey'
+  }
+
+  const getStatusText = (status) => {
+    const texts = {
+      'factura_subida': 'Factura Subida',
+      'asignada_contaduria': 'Asignada a Contaduría',
+      'en_proceso': 'En Proceso',
+      'contrasena_generada': 'Contraseña Generada',
+      'retencion_isr_generada': 'Retención ISR Generada',
+      'retencion_iva_generada': 'Retención IVA Generada',
+      'pago_realizado': 'Pago Realizado',
+      'proceso_completado': 'Proceso Completado',
+      'rechazada': 'Rechazada'
+    }
+    return texts[status] || status
+  }
+
+  const getPriorityColor = (priority) => {
+    const colors = {
+      'baja': 'success',
+      'media': 'warning',
+      'alta': 'error',
+      'urgente': 'purple'
+    }
+    return colors[priority] || 'grey'
+  }
+
+  const getPriorityText = (priority) => {
+    const texts = {
+      'baja': 'Baja',
+      'media': 'Media',
+      'alta': 'Alta',
+      'urgente': 'Urgente'
+    }
+    return texts[priority] || priority
+  }
+
+  const getFileIcon = (mimetype) => {
+    if (mimetype === 'application/pdf') return 'mdi-file-pdf-box'
+    if (mimetype?.startsWith('image/')) return 'mdi-file-image'
+    return 'mdi-file'
+  }
+
+  const formatNumber = (number) => {
+    return new Intl.NumberFormat('es-GT').format(number)
+  }
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('es-GT', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  }
+
+  const formatDateTime = (dateString) => {
+    return new Date(dateString).toLocaleString('es-GT', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+  }
+
+  const formatFileSize = (bytes) => {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    if (bytes === 0) return '0 Bytes'
+    const i = Math.floor(Math.log(bytes) / Math.log(1024))
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i]
+  }
+
+  // Función de inicialización
+  const initializeInvoiceDetail = async () => {
+    await loadInvoice()
+  }
+
+  return {
+    // Reactive state
+    loading,
+    invoice,
+    
+    // Computed properties
+    canManage,
+    
+    // Functions
+    loadInvoice,
+    hasDocument,
+    hasAnyDocuments,
+    downloadOriginalFile,
+    downloadISR,
+    downloadIVA,
+    downloadProof,
+    getStatusColor,
+    getStatusText,
+    getPriorityColor,
+    getPriorityText,
+    getFileIcon,
+    formatNumber,
+    formatDate,
+    formatDateTime,
+    formatFileSize,
+    initializeInvoiceDetail
+  }
+}

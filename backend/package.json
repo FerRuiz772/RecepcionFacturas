@@ -31,7 +31,8 @@
     "path": "^0.12.7",
     "sequelize": "^6.37.5",
     "sharp": "^0.32.6",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "pdfkit": "^0.17.2"
   },
   "description": "Backend para sistema de recepción de facturas"
 }

@@ -7,6 +7,290 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 const zlib = require('zlib');
 const { Op } = require('sequelize');
+const PDFDocument = require('pdfkit');
+
+async function exportToPDF(req, res) {
+    try {
+        const { role } = req.user;
+        const { status, supplier_id, assigned_to, search, start_date, end_date } = req.query;
+        
+        let whereClause = {};
+        
+        // Aplicar filtros del frontend
+        if (status) whereClause.status = status;
+        if (supplier_id) whereClause.supplier_id = parseInt(supplier_id);
+        if (assigned_to) whereClause.assigned_to = parseInt(assigned_to);
+        
+        if (search) {
+            whereClause[Op.or] = [
+                { number: { [Op.like]: `%${search}%` } },
+                { description: { [Op.like]: `%${search}%` } }
+            ];
+        }
+        
+        // Filtros de fecha
+        if (start_date || end_date) {
+            whereClause.created_at = {};
+            if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+            if (end_date) {
+                const endDate = new Date(end_date);
+                endDate.setHours(23, 59, 59, 999);
+                whereClause.created_at[Op.lte] = endDate;
+            }
+        }
+        
+        // Aplicar filtros por rol
+        if (role === 'proveedor') {
+            const user = await User.findByPk(req.user.userId);
+            whereClause.supplier_id = user.supplier_id;
+        } else if (role === 'trabajador_contaduria') {
+            whereClause.assigned_to = req.user.userId;
+        }
+
+        // Obtener datos
+        const invoices = await Invoice.findAll({
+            where: whereClause,
+            include: [
+                {
+                    model: Supplier,
+                    as: 'supplier',
+                    attributes: ['business_name', 'nit', 'contact_email']
+                },
+                {
+                    model: User,
+                    as: 'assignedUser',
+                    attributes: ['name', 'email'],
+                    required: false
+                },
+                {
+                    model: Payment,
+                    as: 'payment',
+                    required: false
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        // Calcular estadísticas
+        const totalAmount = invoices.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+        const statusStats = {};
+        const supplierStats = {};
+        const monthlyStats = {};
+
+        invoices.forEach(invoice => {
+            // Stats por estado
+            statusStats[invoice.status] = (statusStats[invoice.status] || 0) + 1;
+            
+            // Stats por proveedor (solo para admin/contaduría)
+            if (role !== 'proveedor' && invoice.supplier) {
+                const supplierName = invoice.supplier.business_name;
+                if (!supplierStats[supplierName]) {
+                    supplierStats[supplierName] = { count: 0, amount: 0 };
+                }
+                supplierStats[supplierName].count++;
+                supplierStats[supplierName].amount += parseFloat(invoice.amount);
+            }
+            
+            // Stats mensuales
+            const month = new Date(invoice.created_at).toLocaleDateString('es-GT', { 
+                year: 'numeric', 
+                month: 'short' 
+            });
+            if (!monthlyStats[month]) {
+                monthlyStats[month] = { count: 0, amount: 0 };
+            }
+            monthlyStats[month].count++;
+            monthlyStats[month].amount += parseFloat(invoice.amount);
+        });
+
+        // Crear PDF
+        const doc = new PDFDocument({ margin: 50, size: 'A4' });
+        const fileName = `reporte_facturas_${Date.now()}.pdf`;
+        const filePath = path.join(__dirname, '../uploads/temp', fileName);
+        
+        // Crear directorio si no existe
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        
+        const stream = require('fs').createWriteStream(filePath);
+        doc.pipe(stream);
+
+        // Header del documento
+        doc.fontSize(20)
+           .fillColor('#1976d2')
+           .text('REPORTE DE FACTURAS', 50, 50);
+           
+        doc.fontSize(12)
+           .fillColor('#666666')
+           .text(`Generado el: ${new Date().toLocaleDateString('es-GT', { 
+               year: 'numeric', 
+               month: 'long', 
+               day: 'numeric',
+               hour: '2-digit',
+               minute: '2-digit'
+           })}`, 50, 80);
+
+        // Información del usuario
+        const currentUser = await User.findByPk(req.user.userId, {
+            include: [{ model: Supplier, as: 'supplier', required: false }]
+        });
+        
+        doc.text(`Usuario: ${currentUser.name} (${currentUser.role})`, 50, 95);
+        if (role === 'proveedor' && currentUser.supplier) {
+            doc.text(`Empresa: ${currentUser.supplier.business_name}`, 50, 110);
+        }
+
+        // Resumen ejecutivo
+        let yPosition = 140;
+        doc.fontSize(16)
+           .fillColor('#1976d2')
+           .text('RESUMEN EJECUTIVO', 50, yPosition);
+
+        yPosition += 30;
+        doc.fontSize(12)
+           .fillColor('#000000');
+
+        const summaryData = [
+            ['Total de Facturas:', invoices.length.toString()],
+            ['Monto Total:', `Q${totalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`],
+            ['Monto Promedio:', `Q${(totalAmount / invoices.length || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`],
+            ['Período:', start_date && end_date ? `${start_date} a ${end_date}` : 'Todas las fechas']
+        ];
+
+        summaryData.forEach(([label, value]) => {
+            doc.text(label, 50, yPosition, { width: 150, continued: true })
+               .text(value, 200, yPosition);
+            yPosition += 20;
+        });
+
+        // Estadísticas por estado
+        yPosition += 20;
+        doc.fontSize(14)
+           .fillColor('#1976d2')
+           .text('DISTRIBUCIÓN POR ESTADO', 50, yPosition);
+
+        yPosition += 25;
+        doc.fontSize(10)
+           .fillColor('#000000');
+
+        const statusNames = {
+            'factura_subida': 'Facturas Subidas',
+            'asignada_contaduria': 'Asignadas a Contaduría',
+            'en_proceso': 'En Proceso',
+            'contrasena_generada': 'Con Contraseña',
+            'retencion_isr_generada': 'Con Retención ISR',
+            'retencion_iva_generada': 'Con Retención IVA',
+            'pago_realizado': 'Pagos Realizados',
+            'proceso_completado': 'Procesos Completados',
+            'rechazada': 'Rechazadas'
+        };
+
+        Object.entries(statusStats).forEach(([status, count]) => {
+            const percentage = ((count / invoices.length) * 100).toFixed(1);
+            const statusName = statusNames[status] || status;
+            
+            doc.text(`${statusName}:`, 50, yPosition, { width: 200, continued: true })
+               .text(`${count} (${percentage}%)`, 250, yPosition);
+            yPosition += 15;
+        });
+
+        // Nueva página para tabla de facturas
+        doc.addPage();
+        yPosition = 50;
+
+        doc.fontSize(16)
+           .fillColor('#1976d2')
+           .text('DETALLE DE FACTURAS', 50, yPosition);
+
+        yPosition += 30;
+
+        // Headers de tabla
+        const headers = ['No.', 'Proveedor', 'Monto', 'Estado', 'Fecha'];
+        const columnWidths = [60, 150, 80, 120, 80];
+        let xPosition = 50;
+
+        doc.fontSize(10)
+           .fillColor('#1976d2');
+
+        headers.forEach((header, index) => {
+            doc.text(header, xPosition, yPosition, { width: columnWidths[index] });
+            xPosition += columnWidths[index];
+        });
+
+        // Línea separadora
+        yPosition += 15;
+        doc.strokeColor('#cccccc')
+           .lineWidth(1)
+           .moveTo(50, yPosition)
+           .lineTo(550, yPosition)
+           .stroke();
+
+        yPosition += 10;
+
+        // Datos de tabla
+        doc.fillColor('#000000');
+        const maxRowsPerPage = 25;
+        let rowCount = 0;
+
+        for (const invoice of invoices.slice(0, 100)) { // Limitar a 100 facturas para el PDF
+            if (rowCount >= maxRowsPerPage) {
+                doc.addPage();
+                yPosition = 50;
+                rowCount = 0;
+            }
+
+            xPosition = 50;
+            const rowData = [
+                invoice.number.substring(0, 12),
+                (invoice.supplier?.business_name || 'N/A').substring(0, 25),
+                `Q${parseFloat(invoice.amount).toLocaleString('es-GT')}`,
+                (statusNames[invoice.status] || invoice.status).substring(0, 18),
+                new Date(invoice.created_at).toLocaleDateString('es-GT')
+            ];
+
+            rowData.forEach((data, index) => {
+                doc.text(data.toString(), xPosition, yPosition, { width: columnWidths[index] });
+                xPosition += columnWidths[index];
+            });
+
+            yPosition += 15;
+            rowCount++;
+        }
+
+        // Footer
+        const pageCount = doc.bufferedPageRange().count;
+        for (let i = 0; i < pageCount; i++) {
+            doc.switchToPage(i);
+            doc.fontSize(8)
+               .fillColor('#666666')
+               .text(`Página ${i + 1} de ${pageCount}`, 50, 750, { align: 'center', width: 500 });
+        }
+
+        doc.end();
+
+        // Esperar a que termine de escribir el archivo
+        await new Promise((resolve, reject) => {
+            stream.on('finish', resolve);
+            stream.on('error', reject);
+        });
+
+        // Enviar archivo y limpiarlo después
+        res.download(filePath, `reporte_facturas_${new Date().toISOString().slice(0, 10)}.pdf`, async (err) => {
+            if (err) {
+                console.error('Error sending PDF:', err);
+            }
+            // Limpiar archivo temporal
+            try {
+                await fs.unlink(filePath);
+            } catch (cleanupError) {
+                console.warn('Error cleaning up PDF file:', cleanupError);
+            }
+        });
+
+    } catch (error) {
+        console.error('Error generating PDF report:', error);
+        res.status(500).json({ error: 'Error al generar reporte PDF' });
+    }
+}
 
 // Configuración de multer para upload de archivos
 const storage = multer.diskStorage({
@@ -1687,6 +1971,112 @@ const invoiceController = {
         } catch (error) {
             console.error('Error marking all notifications as read:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    // Exportar a PDF
+    exportToPDF: async (req, res) => {
+        try {
+            const { role } = req.user;
+            const { status, supplier_id, assigned_to, search, start_date, end_date } = req.query;
+            
+            let whereClause = {};
+            
+            // Aplicar filtros del frontend
+            if (status) whereClause.status = status;
+            if (supplier_id) whereClause.supplier_id = parseInt(supplier_id);
+            if (assigned_to) whereClause.assigned_to = parseInt(assigned_to);
+            
+            if (search) {
+                whereClause[Op.or] = [
+                    { number: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } }
+                ];
+            }
+            
+            // Filtros de fecha
+            if (start_date || end_date) {
+                whereClause.created_at = {};
+                if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+                if (end_date) {
+                    const endDate = new Date(end_date);
+                    endDate.setHours(23, 59, 59, 999);
+                    whereClause.created_at[Op.lte] = endDate;
+                }
+            }
+            
+            // Aplicar filtros por rol
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
+
+            // Obtener datos
+            const invoices = await Invoice.findAll({
+                where: whereClause,
+                include: [
+                    {
+                        model: Supplier,
+                        as: 'supplier',
+                        attributes: ['business_name', 'nit', 'contact_email']
+                    },
+                    {
+                        model: User,
+                        as: 'assignedUser',
+                        attributes: ['name', 'email'],
+                        required: false
+                    },
+                    {
+                        model: Payment,
+                        as: 'payment',
+                        required: false
+                    }
+                ],
+                order: [['created_at', 'DESC']]
+            });
+
+            // Crear PDF simple
+            const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            const fileName = `reporte_facturas_${Date.now()}.pdf`;
+            const filePath = path.join(__dirname, '../uploads/temp', fileName);
+            
+            // Crear directorio si no existe
+            await fs.mkdir(path.dirname(filePath), { recursive: true });
+            
+            const stream = require('fs').createWriteStream(filePath);
+            doc.pipe(stream);
+
+            // Header del documento
+            doc.fontSize(20).text('REPORTE DE FACTURAS', 50, 50);
+            doc.fontSize(12).text(`Generado el: ${new Date().toLocaleDateString('es-GT')}`, 50, 80);
+            doc.text(`Total de facturas: ${invoices.length}`, 50, 110);
+
+            doc.end();
+
+            // Esperar a que termine de escribir el archivo
+            await new Promise((resolve, reject) => {
+                stream.on('finish', resolve);
+                stream.on('error', reject);
+            });
+
+            // Enviar archivo
+            res.download(filePath, `reporte_facturas_${new Date().toISOString().slice(0, 10)}.pdf`, async (err) => {
+                if (err) {
+                    console.error('Error sending PDF:', err);
+                }
+                // Limpiar archivo temporal
+                try {
+                    await fs.unlink(filePath);
+                } catch (cleanupError) {
+                    console.warn('Error cleaning up PDF file:', cleanupError);
+                }
+            });
+
+        } catch (error) {
+            console.error('Error generating PDF report:', error);
+            res.status(500).json({ error: 'Error al generar reporte PDF' });
         }
     }
 };

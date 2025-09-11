@@ -97,5 +97,6 @@ router.get('/:id/download-all-files', validateInvoiceAccess, invoiceController.d
 router.get('/:id/download-retention-isr', validateInvoiceAccess, invoiceController.downloadRetentionISR);
 router.get('/:id/download-retention-iva', validateInvoiceAccess, invoiceController.downloadRetentionIVA);
 router.get('/:id/download-payment-proof', validateInvoiceAccess, invoiceController.downloadPaymentProof);
+router.get('/export/pdf', invoiceController.exportToPDF);
 
 module.exports = router;

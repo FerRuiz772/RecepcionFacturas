@@ -5,7 +5,6 @@
     class="sidebar" 
     width="280"
     :permanent="$vuetify.display.lgAndUp"
-    :temporary="$vuetify.display.mdAndDown"
   >
     <div class="sidebar-header">
       <div class="sidebar-brand">

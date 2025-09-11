@@ -1,42 +1,48 @@
 <template>
   <div class="invoices-layout">
-    <!-- Sidebar -->
-    <AppSidebar v-model="drawer" />
-
-    <!-- Header -->
-    <v-app-bar app color="white" elevation="1" height="64">
-      <v-btn 
-        icon 
-        @click="drawer = !drawer" 
-        color="#64748b" 
-        class="ml-2"
-        v-if="$vuetify.display.mdAndDown"
-      >
-        <v-icon>mdi-menu</v-icon>
-      </v-btn>
-      <div class="ml-4">
-        <div class="header-title">Facturas</div>
-        <div class="header-subtitle">Gestión de facturas del sistema</div>
+    <!-- Breadcrumb -->
+    <div class="breadcrumb-container">
+        <v-container>
+          <div class="d-flex align-center">
+            <router-link to="/dashboard" class="breadcrumb-item">Dashboard</router-link>
+            <v-icon size="16" color="#cbd5e1" class="mx-2">mdi-chevron-right</v-icon>
+            <span class="breadcrumb-item active">Facturas</span>
+          </div>
+        </v-container>
       </div>
-      <v-spacer></v-spacer>
-      <v-btn 
-        v-if="authStore.isProveedor"
-        color="primary" 
-        @click="$router.push('/invoices/new')"
-        prepend-icon="mdi-plus"
-        class="new-invoice-btn"
-      >
-        Nueva Factura
-      </v-btn>
-    </v-app-bar>
 
-    <v-main class="main-content">
+      <!-- Header de página -->
+      <div class="page-header">
+        <v-container>
+          <div class="d-flex align-center justify-space-between">
+            <div>
+              <h1 class="page-title">Gestión de Facturas</h1>
+              <p class="page-subtitle">Administra todas las facturas del sistema</p>
+            </div>
+            <div v-if="authStore.isProveedor">
+              <v-btn 
+                color="primary" 
+                @click="$router.push('/invoices/new')"
+                prepend-icon="mdi-plus"
+                class="new-invoice-btn"
+              >
+                Nueva Factura
+              </v-btn>
+            </div>
+          </div>
+        </v-container>
+      </div>
+
       <v-container class="py-8">
         <!-- Filtros -->
         <v-card class="filter-card mb-6" elevation="2">
+          <v-card-title class="card-title-bg">
+            <v-icon class="mr-2">mdi-filter-outline</v-icon>
+            Filtros de Búsqueda
+          </v-card-title>
           <v-card-text class="pa-6">
             <v-row>
-              <v-col cols="12" md="3">
+              <v-col cols="12" md="2">
                 <v-select
                   v-model="filters.status"
                   :items="statusOptions"
@@ -45,9 +51,10 @@
                   density="comfortable"
                   clearable
                   @update:model-value="applyFilters"
+                  prepend-inner-icon="mdi-flag-outline"
                 ></v-select>
               </v-col>
-              <v-col cols="12" md="3" v-if="!authStore.isProveedor">
+              <v-col cols="12" md="2" v-if="!authStore.isProveedor">
                 <v-select
                   v-model="filters.supplier_id"
                   :items="suppliers"
@@ -58,9 +65,24 @@
                   density="comfortable"
                   clearable
                   @update:model-value="applyFilters"
+                  prepend-inner-icon="mdi-domain"
                 ></v-select>
               </v-col>
-              <v-col cols="12" md="3">
+              <v-col cols="12" md="2" v-if="!authStore.isProveedor">
+                <v-select
+                  v-model="filters.assigned_to"
+                  :items="users"
+                  item-title="name"
+                  item-value="id"
+                  label="Asignado a"
+                  variant="outlined"
+                  density="comfortable"
+                  clearable
+                  @update:model-value="applyFilters"
+                  prepend-inner-icon="mdi-account"
+                ></v-select>
+              </v-col>
+              <v-col cols="12" md="2">
                 <v-text-field
                   v-model="filters.search"
                   label="Buscar por número"
@@ -71,27 +93,121 @@
                   @input="debounceSearch"
                 ></v-text-field>
               </v-col>
-              <v-col cols="12" md="3">
-                <v-btn
-                  color="primary"
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.start_date"
+                  label="Fecha desde"
+                  type="date"
                   variant="outlined"
-                  @click="exportInvoices"
-                  prepend-icon="mdi-download"
-                  class="export-btn"
-                >
-                  Exportar
-                </v-btn>
+                  density="comfortable"
+                  @update:model-value="applyFilters"
+                  prepend-inner-icon="mdi-calendar-start"
+                ></v-text-field>
+              </v-col>
+              <v-col cols="12" md="2">
+                <v-text-field
+                  v-model="filters.end_date"
+                  label="Fecha hasta"
+                  type="date"
+                  variant="outlined"
+                  density="comfortable"
+                  @update:model-value="applyFilters"
+                  prepend-inner-icon="mdi-calendar-end"
+                ></v-text-field>
               </v-col>
             </v-row>
+              <v-row class="mt-2">
+                <v-col cols="12" class="d-flex gap-2 flex-wrap align-center">
+                  <v-btn
+                    color="secondary"
+                    variant="outlined"
+                    @click="resetFilters"
+                    prepend-icon="mdi-filter-off"
+                    class="reset-btn"
+                  >
+                    Limpiar Filtros
+                  </v-btn>
+                  
+                  <!-- Botón CSV (reemplaza Excel) -->
+                  <v-btn
+                    color="success"
+                    variant="outlined"
+                    @click="exportToCSV"
+                    prepend-icon="mdi-file-delimited-outline"
+                    class="export-btn"
+                    :loading="exportingCSV"
+                    title="Exportar a CSV (Compatible con Excel)"
+                  >
+                    Exportar CSV
+                  </v-btn>
+                  
+                  <!-- Botón JSON -->
+                  <v-btn
+                    color="info"
+                    variant="outlined"
+                    @click="exportToJSON"
+                    prepend-icon="mdi-code-json"
+                    class="export-btn"
+                    :loading="exportingJSON"
+                    title="Exportar en formato JSON"
+                  >
+                    Exportar JSON
+                  </v-btn>
+                  
+                  <!-- Botón PDF -->
+                  <v-btn
+                    color="error"
+                    variant="outlined"
+                    @click="exportToPDF"
+                    prepend-icon="mdi-file-pdf-box"
+                    class="export-btn"
+                    :loading="exportingPDF"
+                    title="Generar reporte PDF para imprimir"
+                  >
+                    Reporte PDF
+                  </v-btn>
+                  
+                  <!-- Badge de conteo y información -->
+                  <v-chip
+                    v-if="totalInvoices > 0"
+                    color="primary"
+                    variant="outlined"
+                    size="small"
+                    class="ml-2"
+                  >
+                    Total: {{ totalInvoices }} facturas
+                  </v-chip>
+                  
+                  <v-chip
+                    v-if="hasActiveFilters"
+                    color="warning"
+                    variant="outlined"
+                    size="small"
+                    class="ml-1"
+                  >
+                    Filtros activos
+                  </v-chip>
+                </v-col>
+              </v-row>
           </v-card-text>
         </v-card>
 
         <!-- Tabla de facturas -->
         <v-card elevation="2">
-          <v-card-title class="d-flex align-center justify-space-between pa-6">
-            <div class="card-title">
-              <v-icon class="mr-2">mdi-receipt-text-outline</v-icon>
-              Lista de Facturas ({{ totalInvoices }})
+          <v-card-title class="card-title-bg">
+            <div class="d-flex align-center justify-space-between w-100">
+              <div class="card-title">
+                <v-icon class="mr-2">mdi-receipt-text-outline</v-icon>
+                Lista de Facturas ({{ totalInvoices }})
+              </div>
+              <v-chip 
+                v-if="hasActiveFilters"
+                color="primary" 
+                variant="outlined"
+                size="small"
+              >
+                Filtros activos
+              </v-chip>
             </div>
           </v-card-title>
           
@@ -101,18 +217,21 @@
             :items="invoices"
             :items-length="totalInvoices"
             :loading="loading"
-            :search="filters.search"
             @update:options="loadInvoices"
             class="invoices-table"
           >
+            <template v-slot:item.id="{ item }">
+              <div class="invoice-id">ID-{{ item.id }}</div>
+            </template>
+
             <template v-slot:item.number="{ item }">
               <div class="invoice-number">{{ item.number }}</div>
             </template>
 
             <template v-slot:item.supplier="{ item }">
               <div class="supplier-info">
-                <div class="supplier-name">{{ item.Supplier?.business_name }}</div>
-                <div class="supplier-nit">{{ item.Supplier?.nit }}</div>
+                <div class="supplier-name">{{ item.supplier?.business_name || 'N/A' }}</div>
+                <div class="supplier-nit">NIT: {{ item.supplier?.nit || 'N/A' }}</div>
               </div>
             </template>
 
@@ -126,7 +245,7 @@
                 size="small"
                 class="status-chip"
               >
-                {{ getStatusText(item.status) }}
+                <span class="status-text">{{ getStatusText(item.status) }}</span>
               </v-chip>
             </template>
 
@@ -137,8 +256,11 @@
             <template v-slot:item.assigned_to="{ item }">
               <div v-if="item.assignedUser" class="assigned-info">
                 <div class="assigned-name">{{ item.assignedUser.name }}</div>
+                <div class="assigned-email">{{ item.assignedUser.email }}</div>
               </div>
-              <span v-else class="text-grey">Sin asignar</span>
+              <v-chip v-else size="small" color="warning" variant="outlined">
+                Sin asignar
+              </v-chip>
             </template>
 
             <template v-slot:item.actions="{ item }">
@@ -147,65 +269,65 @@
                 <template v-if="authStore.isProveedor">
                   <!-- Ver detalles -->
                   <v-btn
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="primary"
                     @click="viewInvoice(item)"
                     :title="`Ver detalles de la factura #${item.number}`"
                   >
-                    <v-icon size="18">mdi-eye-outline</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
+                    Ver
                   </v-btn>
                   
                   <!-- Descargar facturas -->
                   <v-btn
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="success"
                     @click="downloadInvoiceFiles(item)"
                     :title="`Descargar factura #${item.number} en formato PDF`"
                   >
-                    <v-icon size="18">mdi-download</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-download</v-icon>
+                    Descargar
                   </v-btn>
                   
                   <!-- Descargar retenciones ISR (si disponible) -->
                   <v-btn
                     v-if="hasRetentionISR(item)"
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="blue"
                     @click="downloadRetentionISR(item)"
-                    :title="`Descargar constancia de retención ISR de la factura #${item.number}`"
+                    :title="`Descargar constancia de retención ISR`"
                   >
-                    <v-icon size="18">mdi-file-download-outline</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-file-document</v-icon>
+                    ISR
                   </v-btn>
                   
                   <!-- Descargar retenciones IVA (si disponible) -->
                   <v-btn
                     v-if="hasRetentionIVA(item)"
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="cyan"
                     @click="downloadRetentionIVA(item)"
-                    :title="`Descargar constancia de retención IVA de la factura #${item.number}`"
+                    :title="`Descargar constancia de retención IVA`"
                   >
-                    <v-icon size="18">mdi-file-certificate-outline</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-file-certificate</v-icon>
+                    IVA
                   </v-btn>
                   
                   <!-- Descargar comprobante de pago (si disponible) -->
                   <v-btn
                     v-if="hasPaymentProof(item)"
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="green"
                     @click="downloadPaymentProof(item)"
-                    :title="`Descargar comprobante de pago de la factura #${item.number}`"
+                    :title="`Descargar comprobante de pago`"
                   >
-                    <v-icon size="18">mdi-check-circle-outline</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-receipt</v-icon>
+                    Comprobante
                   </v-btn>
                 </template>
 
@@ -213,78 +335,39 @@
                 <template v-if="authStore.isContaduria || authStore.isAdmin">
                   <!-- Ver detalles -->
                   <v-btn
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="primary"
                     @click="viewInvoice(item)"
                     :title="`Ver todos los detalles de la factura #${item.number}`"
                   >
-                    <v-icon size="18">mdi-eye-outline</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
+                    Ver
                   </v-btn>
                   
-                  <!-- Descargar facturas del proveedor -->
+                  <!-- Gestionar documentos -->
                   <v-btn
-                    icon
+                    variant="elevated"
                     size="small"
-                    variant="text"
-                    color="success"
-                    @click="downloadInvoiceFiles(item)"
-                    :title="`Descargar factura #${item.number} del proveedor ${item.Supplier?.business_name}`"
+                    color="indigo"
+                    @click="manageInvoice(item)"
+                    :title="`Gestionar documentos de la factura #${item.number}`"
                   >
-                    <v-icon size="18">mdi-download</v-icon>
-                  </v-btn>
-                  
-                  <!-- Subir Retención ISR -->
-                  <v-btn
-                    v-if="canUploadRetentionISR(item)"
-                    icon
-                    size="small"
-                    variant="text"
-                    color="blue"
-                    @click="uploadRetentionISR(item)"
-                    :title="`Subir constancia de retención ISR para la factura #${item.number}`"
-                  >
-                    <v-icon size="18">mdi-file-upload-outline</v-icon>
-                  </v-btn>
-                  
-                  <!-- Subir Retención IVA -->
-                  <v-btn
-                    v-if="canUploadRetentionIVA(item)"
-                    icon
-                    size="small"
-                    variant="text"
-                    color="cyan"
-                    @click="uploadRetentionIVA(item)"
-                    :title="`Subir constancia de retención IVA para la factura #${item.number}`"
-                  >
-                    <v-icon size="18">mdi-file-certificate</v-icon>
-                  </v-btn>
-                  
-                  <!-- Subir Comprobante de Pago -->
-                  <v-btn
-                    v-if="canUploadPaymentProof(item)"
-                    icon
-                    size="small"
-                    variant="text"
-                    color="green"
-                    @click="uploadPaymentProof(item)"
-                    :title="`Subir comprobante de pago para la factura #${item.number}`"
-                  >
-                    <v-icon size="18">mdi-receipt-text</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-cog</v-icon>
+                    Gestionar
                   </v-btn>
                   
                   <!-- Cambiar estado -->
                   <v-btn
                     v-if="canChangeStatus(item)"
-                    icon
+                    variant="outlined"
                     size="small"
-                    variant="text"
                     color="warning"
                     @click="changeStatus(item)"
                     :title="`Modificar el estado actual de la factura #${item.number}`"
                   >
-                    <v-icon size="18">mdi-swap-horizontal</v-icon>
+                    <v-icon class="mr-1" size="16">mdi-swap-horizontal</v-icon>
+                    Estado
                   </v-btn>
                 </template>
 
@@ -292,33 +375,33 @@
                 <v-menu>
                   <template v-slot:activator="{ props }">
                     <v-btn
-                      icon
+                      variant="outlined"
                       size="small"
-                      variant="text"
                       color="secondary"
                       v-bind="props"
+                      :title="'Más opciones'"
                     >
-                      <v-icon size="18">mdi-dots-vertical</v-icon>
+                      <v-icon size="16">mdi-dots-vertical</v-icon>
                     </v-btn>
                   </template>
                   <v-list>
                     <v-list-item @click="viewInvoiceHistory(item)">
-                      <v-list-item-title>
-                        <v-icon class="mr-2">mdi-history</v-icon>
-                        Ver historial de cambios de la factura #{{ item.number }}
-                      </v-list-item-title>
+                      <template v-slot:prepend>
+                        <v-icon size="20">mdi-history</v-icon>
+                      </template>
+                      <v-list-item-title>Ver historial</v-list-item-title>
                     </v-list-item>
                     <v-list-item v-if="authStore.isContaduria && canGeneratePassword(item)" @click="generatePassword(item)">
-                      <v-list-item-title>
-                        <v-icon class="mr-2">mdi-key</v-icon>
-                        Generar contraseña para la factura #{{ item.number }}
-                      </v-list-item-title>
+                      <template v-slot:prepend>
+                        <v-icon size="20">mdi-key</v-icon>
+                      </template>
+                      <v-list-item-title>Generar contraseña</v-list-item-title>
                     </v-list-item>
                     <v-list-item v-if="authStore.isAdmin" @click="reassignInvoice(item)">
-                      <v-list-item-title>
-                        <v-icon class="mr-2">mdi-account-switch</v-icon>
-                        Reasignar factura #{{ item.number }} a otro usuario
-                      </v-list-item-title>
+                      <template v-slot:prepend>
+                        <v-icon size="20">mdi-account-switch</v-icon>
+                      </template>
+                      <v-list-item-title>Reasignar factura</v-list-item-title>
                     </v-list-item>
                   </v-list>
                 </v-menu>
@@ -334,12 +417,19 @@
                 <v-icon size="64" color="grey-lighten-2">mdi-receipt-text-outline</v-icon>
                 <h3>No hay facturas</h3>
                 <p>No se encontraron facturas con los filtros aplicados</p>
+                <v-btn 
+                  v-if="authStore.isProveedor"
+                  color="primary" 
+                  @click="$router.push('/invoices/new')"
+                  class="mt-4"
+                >
+                  Crear primera factura
+                </v-btn>
               </div>
             </template>
           </v-data-table-server>
         </v-card>
       </v-container>
-    </v-main>
 
     <!-- Dialog para cambiar estado -->
     <v-dialog v-model="statusDialog" max-width="500">
@@ -367,741 +457,97 @@
         </v-card-actions>
       </v-card>
     </v-dialog>
-
-    <!-- Dialog para subir archivos -->
-    <v-dialog v-model="uploadDialog" max-width="600">
-      <v-card>
-        <v-card-title>{{ uploadDialogTitle }}</v-card-title>
-        <v-card-text>
-          <div class="upload-area" @click="$refs.uploadInput?.click()">
-            <v-icon size="48" color="#cbd5e1">mdi-cloud-upload</v-icon>
-            <p>Haz clic para seleccionar archivo</p>
-            <p class="text-caption">PDF máximo 10MB</p>
-          </div>
-          <input
-            ref="uploadInput"
-            type="file"
-            accept=".pdf"
-            style="display: none"
-            @change="handleFileUpload"
-          >
-          <div v-if="selectedFile" class="mt-4">
-            <v-list-item>
-              <template v-slot:prepend>
-                <v-icon color="red">mdi-file-pdf-box</v-icon>
-              </template>
-              <v-list-item-title>{{ selectedFile.name }}</v-list-item-title>
-              <v-list-item-subtitle>{{ formatFileSize(selectedFile.size) }}</v-list-item-subtitle>
-            </v-list-item>
-          </div>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn @click="uploadDialog = false">Cancelar</v-btn>
-          <v-btn 
-            color="primary" 
-            @click="submitFileUpload"
-            :disabled="!selectedFile"
-            :loading="uploadingFile"
-          >
-            Subir Archivo
-          </v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { useToast } from 'vue-toastification'
-import AppSidebar from '../components/AppSidebar.vue'
-import axios from 'axios'
+import { useInvoices } from '../scripts/invoices.js'
 
-const router = useRouter()
 const authStore = useAuthStore()
-const toast = useToast()
 
-// Estados reactivos
-const drawer = ref(true)
-const loading = ref(false)
-const invoices = ref([])
-const suppliers = ref([])
-const totalInvoices = ref(0)
-const itemsPerPage = ref(10)
-const statusDialog = ref(false)
-const uploadDialog = ref(false)
-const selectedInvoice = ref(null)
-const newStatus = ref('')
-const statusNotes = ref('')
-const selectedFile = ref(null)
-const uploadingFile = ref(false)
-const uploadType = ref('')
-const uploadDialogTitle = ref('')
+// Estados para loading de exportación
+const exportingCSV = ref(false)
+const exportingJSON = ref(false)
+const exportingPDF = ref(false)
 
-const filters = ref({
-  status: null,
-  supplier_id: null,
-  search: ''
-})
+const {
+  // Estados y funciones existentes...
+  loading,
+  invoices,
+  suppliers,
+  users,
+  totalInvoices,
+  itemsPerPage,
+  statusDialog,
+  selectedInvoice,
+  newStatus,
+  statusNotes,
+  filters,
+  statusOptions,
+  headers,
+  availableStatuses,
+  hasActiveFilters,
+  hasRetentionISR,
+  hasRetentionIVA,
+  hasPaymentProof,
+  canChangeStatus,
+  canGeneratePassword,
+  loadInvoices,
+  downloadInvoiceFiles,
+  downloadRetentionISR,
+  downloadRetentionIVA,
+  downloadPaymentProof,
+  generatePassword,
+  viewInvoice,
+  manageInvoice,
+  viewInvoiceHistory,
+  changeStatus,
+  updateStatus,
+  reassignInvoice,
+  applyFilters,
+  resetFilters,
+  debounceSearch,
+  getStatusColor,
+  formatNumber,
+  formatDate,
+  getStatusText,
+  initializeInvoices,
+  // Nuevas funciones de exportación
+  exportToCSV: originalExportToCSV,
+  exportToJSON: originalExportToJSON,
+  exportToPDF: originalExportToPDF
+} = useInvoices()
 
-const statusOptions = [
-  { title: 'Factura Subida', value: 'factura_subida' },
-  { title: 'Asignada Contaduría', value: 'asignada_contaduria' },
-  { title: 'En Proceso', value: 'en_proceso' },
-  { title: 'Contraseña Generada', value: 'contrasena_generada' },
-  { title: 'Retención ISR', value: 'retencion_isr_generada' },
-  { title: 'Retención IVA', value: 'retencion_iva_generada' },
-  { title: 'Pago Realizado', value: 'pago_realizado' },
-  { title: 'Proceso Completado', value: 'proceso_completado' },
-  { title: 'Rechazada', value: 'rechazada' }
-]
-
-const headers = computed(() => {
-  const baseHeaders = [
-    { title: 'No. Factura', key: 'number', width: '140px' },
-    { title: 'Monto', key: 'amount', width: '120px' },
-    { title: 'Estado', key: 'status', width: '150px' },
-    { title: 'Fecha', key: 'created_at', width: '120px' },
-    { title: 'Acciones', key: 'actions', sortable: false, width: '280px' }
-  ]
-
-  if (!authStore.isProveedor) {
-    baseHeaders.splice(1, 0, { title: 'Proveedor', key: 'supplier', width: '200px' })
-    baseHeaders.splice(-1, 0, { title: 'Asignado a', key: 'assigned_to', width: '150px' })
-  }
-
-  return baseHeaders
-})
-
-const availableStatuses = computed(() => {
-  if (!authStore.isContaduria && !authStore.isAdmin) return []
-  
-  return [
-    { title: 'En Proceso', value: 'en_proceso' },
-    { title: 'Contraseña Generada', value: 'contrasena_generada' },
-    { title: 'Retención ISR', value: 'retencion_isr_generada' },
-    { title: 'Retención IVA', value: 'retencion_iva_generada' },
-    { title: 'Pago Realizado', value: 'pago_realizado' },
-    { title: 'Proceso Completado', value: 'proceso_completado' },
-    { title: 'Rechazada', value: 'rechazada' }
-  ]
-})
-
-// Funciones para verificar disponibilidad de documentos (PROVEEDOR)
-const hasRetentionISR = (invoice) => {
-  return ['retencion_isr_generada', 'retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.status)
-}
-
-const hasRetentionIVA = (invoice) => {
-  return ['retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.status)
-}
-
-const hasPaymentProof = (invoice) => {
-  return ['proceso_completado'].includes(invoice.status)
-}
-
-// Funciones para verificar permisos de subida (CONTADURÍA)
-const canUploadRetentionISR = (invoice) => {
-  return ['en_proceso', 'contrasena_generada'].includes(invoice.status)
-}
-
-const canUploadRetentionIVA = (invoice) => {
-  return ['retencion_isr_generada'].includes(invoice.status)
-}
-
-const canUploadPaymentProof = (invoice) => {
-  return ['pago_realizado'].includes(invoice.status)
-}
-
-const canChangeStatus = (invoice) => {
-  return authStore.isContaduria || authStore.isAdmin
-}
-
-const canGeneratePassword = (invoice) => {
-  return ['en_proceso'].includes(invoice.status)
-}
-
-// Función principal para cargar facturas
-const loadInvoices = async (options = {}) => {
-  loading.value = true
+// Wrappers con loading states
+const exportToCSV = async () => {
+  exportingCSV.value = true
   try {
-    const params = {
-      page: options.page || 1,
-      limit: options.itemsPerPage || itemsPerPage.value,
-      ...filters.value
-    }
-
-    const response = await axios.get('/api/invoices', { params })
-    invoices.value = response.data.invoices
-    totalInvoices.value = response.data.total
-  } catch (error) {
-    console.error('Error loading invoices:', error)
-    toast.error('Error al cargar las facturas')
+    await originalExportToCSV()
   } finally {
-    loading.value = false
+    exportingCSV.value = false
   }
 }
 
-const loadSuppliers = async () => {
+const exportToJSON = async () => {
+  exportingJSON.value = true
   try {
-    const response = await axios.get('/api/suppliers')
-    suppliers.value = response.data.suppliers
-  } catch (error) {
-    console.error('Error loading suppliers:', error)
-  }
-}
-
-// Funciones de descarga para PROVEEDOR
-const downloadInvoiceFiles = async (invoice) => {
-  try {
-    const response = await axios.get(`/api/invoices/${invoice.id}/download-invoice`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `factura-${invoice.number}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    toast.success('Factura descargada')
-  } catch (error) {
-    toast.error('Error al descargar factura')
-  }
-}
-
-const downloadRetentionISR = async (invoice) => {
-  try {
-    const response = await axios.get(`/api/invoices/${invoice.id}/download-retention-isr`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `retencion-isr-${invoice.number}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    toast.success('Retención ISR descargada')
-  } catch (error) {
-    toast.error('Error al descargar retención ISR')
-  }
-}
-
-const downloadRetentionIVA = async (invoice) => {
-  try {
-    const response = await axios.get(`/api/invoices/${invoice.id}/download-retention-iva`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `retencion-iva-${invoice.number}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    toast.success('Retención IVA descargada')
-  } catch (error) {
-    toast.error('Error al descargar retención IVA')
-  }
-}
-
-const downloadPaymentProof = async (invoice) => {
-  try {
-    const response = await axios.get(`/api/invoices/${invoice.id}/download-payment-proof`, {
-      responseType: 'blob'
-    })
-    const url = window.URL.createObjectURL(new Blob([response.data]))
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `comprobante-pago-${invoice.number}.pdf`
-    link.click()
-    window.URL.revokeObjectURL(url)
-    toast.success('Comprobante de pago descargado')
-  } catch (error) {
-    toast.error('Error al descargar comprobante de pago')
-  }
-}
-
-// Funciones de subida para CONTADURÍA
-const uploadRetentionISR = (invoice) => {
-  selectedInvoice.value = invoice
-  uploadType.value = 'retention_isr'
-  uploadDialogTitle.value = `Subir Retención ISR - Factura ${invoice.number}`
-  uploadDialog.value = true
-  selectedFile.value = null
-}
-
-const uploadRetentionIVA = (invoice) => {
-  selectedInvoice.value = invoice
-  uploadType.value = 'retention_iva'
-  uploadDialogTitle.value = `Subir Retención IVA - Factura ${invoice.number}`
-  uploadDialog.value = true
-  selectedFile.value = null
-}
-
-const uploadPaymentProof = (invoice) => {
-  selectedInvoice.value = invoice
-  uploadType.value = 'payment_proof'
-  uploadDialogTitle.value = `Subir Comprobante de Pago - Factura ${invoice.number}`
-  uploadDialog.value = true
-  selectedFile.value = null
-}
-
-const handleFileUpload = (event) => {
-  const file = event.target.files[0]
-  if (file) {
-    if (file.type !== 'application/pdf') {
-      toast.error('Solo se permiten archivos PDF')
-      return
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('El archivo no puede ser mayor a 10MB')
-      return
-    }
-    selectedFile.value = file
-  }
-}
-
-const submitFileUpload = async () => {
-  if (!selectedFile.value || !selectedInvoice.value) return
-
-  uploadingFile.value = true
-  try {
-    const formData = new FormData()
-    formData.append('file', selectedFile.value)
-    formData.append('type', uploadType.value)
-
-    await axios.post(`/api/invoices/${selectedInvoice.value.id}/upload-document`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-
-    toast.success('Documento subido exitosamente')
-    uploadDialog.value = false
-    selectedFile.value = null
-    loadInvoices()
-  } catch (error) {
-    toast.error('Error al subir documento')
+    await originalExportToJSON()
   } finally {
-    uploadingFile.value = false
+    exportingJSON.value = false
   }
 }
 
-// Funciones adicionales
-const generatePassword = async (invoice) => {
+const exportToPDF = async () => {
+  exportingPDF.value = true
   try {
-    await axios.post(`/api/invoices/${invoice.id}/generate-password`)
-    toast.success('Contraseña generada exitosamente')
-    loadInvoices()
-  } catch (error) {
-    toast.error('Error al generar contraseña')
+    await originalExportToPDF()
+  } finally {
+    exportingPDF.value = false
   }
 }
 
-const viewInvoice = (invoice) => {
-  router.push(`/invoices/${invoice.id}`)
-}
-
-const viewInvoiceHistory = (invoice) => {
-  router.push(`/invoices/${invoice.id}/history`)
-}
-
-const changeStatus = (invoice) => {
-  selectedInvoice.value = invoice
-  newStatus.value = invoice.status
-  statusNotes.value = ''
-  statusDialog.value = true
-}
-
-const updateStatus = async () => {
-  try {
-    await axios.put(`/api/invoices/${selectedInvoice.value.id}/status`, {
-      status: newStatus.value,
-      notes: statusNotes.value
-    })
-
-    toast.success('Estado actualizado exitosamente')
-    statusDialog.value = false
-    loadInvoices()
-  } catch (error) {
-    console.error('Error updating status:', error)
-    toast.error('Error al actualizar el estado')
-  }
-}
-
-const reassignInvoice = (invoice) => {
-  // Implementar lógica de reasignación
-  toast.info('Función de reasignación en desarrollo')
-}
-
-const exportInvoices = () => {
-  toast.info('Función de exportación en desarrollo')
-}
-
-const applyFilters = () => {
-  loadInvoices()
-}
-
-let searchTimeout
-const debounceSearch = () => {
-  clearTimeout(searchTimeout)
-  searchTimeout = setTimeout(() => {
-    loadInvoices()
-  }, 500)
-}
-
-// Funciones de utilidad
-const getStatusColor = (status) => {
-  const colors = {
-    'factura_subida': 'blue',
-    'asignada_contaduria': 'orange',
-    'en_proceso': 'purple',
-    'contrasena_generada': 'indigo',
-    'retencion_isr_generada': 'cyan',
-    'retencion_iva_generada': 'teal',
-    'pago_realizado': 'green',
-    'proceso_completado': 'success',
-    'rechazada': 'error'
-  }
-  return colors[status] || 'grey'
-}
-
-const formatNumber = (number) => {
-  return new Intl.NumberFormat('es-GT').format(number)
-}
-
-const formatDate = (dateString) => {
-  return new Date(dateString).toLocaleDateString('es-GT')
-}
-
-const formatFileSize = (bytes) => {
-  const mb = bytes / (1024 * 1024)
-  return `${mb.toFixed(1)} MB`
-}
-
-const getStatusText = (status) => {
-  const texts = {
-    'factura_subida': 'Subida',
-    'asignada_contaduria': 'Asignada',
-    'en_proceso': 'En Proceso',
-    'contrasena_generada': 'Contraseña',
-    'retencion_isr_generada': 'ISR',
-    'retencion_iva_generada': 'IVA',
-    'pago_realizado': 'Pagado',
-    'proceso_completado': 'Completado',
-    'rechazada': 'Rechazada'
-  }
-  return texts[status] || status
-}
-
-onMounted(() => {
-  loadInvoices()
-  if (!authStore.isProveedor) {
-    loadSuppliers()
-  }
-})
+onMounted(initializeInvoices)
 </script>
-
-<style scoped>
-.invoices-layout {
-  min-height: 100vh;
-  background: #f8fafc;
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.header-subtitle {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.main-content {
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
-}
-
-.filter-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-}
-
-.new-invoice-btn {
-  text-transform: none;
-  font-weight: 600;
-}
-
-.export-btn {
-  text-transform: none;
-  font-weight: 500;
-  width: 100%;
-}
-
-.invoices-table {
-  border-radius: 0 0 12px 12px;
-}
-
-.invoice-number {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.supplier-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.supplier-name {
-  font-weight: 500;
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.supplier-nit {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.amount-cell {
-  font-weight: 600;
-  color: #059669;
-  font-size: 14px;
-}
-
-.status-chip {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.date-cell {
-  color: #64748b;
-  font-size: 14px;
-}
-
-.assigned-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.assigned-name {
-  font-weight: 500;
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.actions-cell {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 4px 0;
-}
-
-.actions-cell .v-btn {
-  background-color: rgba(0, 0, 0, 0.05) !important;
-}
-
-.actions-cell .v-btn:hover {
-  background-color: rgba(0, 0, 0, 0.1) !important;
-}
-
-.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #64748b;
-}
-
-.no-data h3 {
-  margin: 16px 0 8px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.no-data p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.upload-area {
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 40px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-area:hover {
-  border-color: #0f172a;
-  background-color: #f8fafc;
-}
-
-.upload-area p {
-  margin: 8px 0 4px 0;
-  color: #64748b;
-}
-
-.upload-area .text-caption {
-  color: #94a3b8;
-  font-size: 12px;
-}
-</style>green',
-    'proceso_completado': 'success',
-    'rechazada': 'error'
-<style scoped>
-.invoices-layout {
-  min-height: 100vh;
-  background: #f8fafc;
-}
-
-.header-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.header-subtitle {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.main-content {
-  background: #f8fafc;
-  min-height: calc(100vh - 64px);
-}
-
-.filter-card {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-}
-
-.card-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #0f172a;
-  display: flex;
-  align-items: center;
-}
-
-.new-invoice-btn {
-  text-transform: none;
-  font-weight: 600;
-}
-
-.export-btn {
-  text-transform: none;
-  font-weight: 500;
-  width: 100%;
-}
-
-.invoices-table {
-  border-radius: 0 0 12px 12px;
-}
-
-.invoice-number {
-  font-family: 'Courier New', monospace;
-  font-weight: 600;
-  color: #0f172a;
-}
-
-.supplier-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.supplier-name {
-  font-weight: 500;
-  color: #0f172a;
-  font-size: 14px;
-}
-
-.supplier-nit {
-  font-size: 12px;
-  color: #64748b;
-}
-
-.amount-cell {
-  font-weight: 600;
-  color: #059669;
-  font-size: 14px;
-}
-
-.status-chip {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.date-cell {
-  color: #64748b;
-  font-size: 14px;
-}
-
-.assigned-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.assigned-name {
-  font-weight: 500;
-  color: #0f172a;
-  font-size: 14px;
-}
-
-  .actions-cell {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 4px 0;
-
-    .v-btn {
-      background-color: rgba(0, 0, 0, 0.05) !important;
-      &:hover {
-        background-color: rgba(0, 0, 0, 0.1) !important;
-      }
-    }
-  }.no-data {
-  text-align: center;
-  padding: 40px;
-  color: #64748b;
-}
-
-.no-data h3 {
-  margin: 16px 0 8px 0;
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.no-data p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.upload-area {
-  border: 2px dashed #cbd5e1;
-  border-radius: 8px;
-  padding: 40px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-}
-
-.upload-area:hover {
-  border-color: #0f172a;
-  background-color: #f8fafc;
-}
-</style>
+<style src="../styles/invoices.css" scoped></style>
