@@ -18,7 +18,6 @@ export function useAccountingDocuments() {
   const uploadingISR = ref(false)
   const uploadingIVA = ref(false)
   const uploadingProof = ref(false)
-  const completingProcess = ref(false)
   const selectedFileIndex = ref(0)
   
   // Estados para edición
@@ -157,10 +156,6 @@ export function useAccountingDocuments() {
     return 'error'
   }
 
-  // Verificar si se puede completar el proceso
-  const canCompleteProcess = () => {
-    return hasISRRetention.value && hasIVARetention.value
-  }
 
   // Funciones de subida de documentos
   const handleISRUpload = async (event) => {
@@ -409,30 +404,6 @@ export function useAccountingDocuments() {
     }
   }
 
-  // Completar proceso
-  const completeProcess = async () => {
-    if (!canCompleteProcess()) {
-      toast.error('Faltan documentos obligatorios por subir')
-      return
-    }
-
-    completingProcess.value = true
-    try {
-      await axios.put(`/api/invoices/${route.params.id}/status`, {
-        status: 'proceso_completado',
-        notes: 'Proceso completado - Todos los documentos obligatorios subidos'
-      })
-      
-      toast.success('¡Proceso completado exitosamente!')
-      await loadInvoice()
-    } catch (error) {
-      console.error('Error completing process:', error)
-      toast.error('Error al completar el proceso')
-    } finally {
-      completingProcess.value = false
-    }
-  }
-
   // Funciones de descarga
   const downloadISR = async () => {
     try {
@@ -577,10 +548,17 @@ export function useAccountingDocuments() {
   const saveEdit = async () => {
     if (!invoice.value || saving.value) return
     
+    // Validar que el monto sea mayor a 0
+    const amount = parseFloat(editForm.value.amount)
+    if (!amount || amount <= 0) {
+      toast.error('El monto de la factura debe ser mayor a 0')
+      return
+    }
+    
     saving.value = true
     try {
       const updateData = {
-        amount: parseFloat(editForm.value.amount),
+        amount: amount,
         description: editForm.value.description,
         priority: editForm.value.priority
       }
@@ -612,7 +590,6 @@ export function useAccountingDocuments() {
     uploadingISR,
     uploadingIVA,
     uploadingProof,
-    completingProcess,
     selectedFileIndex,
     
     // Edit state
@@ -632,7 +609,6 @@ export function useAccountingDocuments() {
     getProgressColor,
     getCompletionText,
     getCompletionColor,
-    canCompleteProcess,
     handleISRUpload,
     handleIVAUpload,
     handleProofUpload,
@@ -642,7 +618,6 @@ export function useAccountingDocuments() {
     replaceISR,
     replaceIVA,
     replaceProof,
-    completeProcess,
     downloadISR,
     downloadIVA,
     downloadProof,

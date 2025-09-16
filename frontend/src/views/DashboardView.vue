@@ -101,32 +101,57 @@
                   <v-icon size="48" color="#e2e8f0">mdi-file-outline</v-icon>
                   <p>No hay documentos disponibles para descargar</p>
                 </div>
-                <v-list v-else>
-                  <v-list-item 
-                    v-for="doc in availableDocuments" 
-                    :key="doc.id"
-                    class="document-item"
+                <div v-else>
+                  <div 
+                    v-for="invoice in availableDocuments" 
+                    :key="invoice.id"
+                    class="invoice-group mb-4"
                   >
-                    <template v-slot:prepend>
-                      <div class="document-emoji">{{ getDocumentEmoji(doc.type) }}</div>
-                    </template>
-                    <v-list-item-title>{{ doc.title }}</v-list-item-title>
-                    <v-list-item-subtitle>
-                      Factura {{ doc.invoiceNumber }} • {{ formatDate(doc.date) }}
-                    </v-list-item-subtitle>
-                    <template v-slot:append>
-                      <v-btn
-                        variant="elevated"
-                        color="primary"
+                    <!-- Header de la factura -->
+                    <div class="invoice-header">
+                      <div class="invoice-info">
+                        <h4>{{ invoice.number }}</h4>
+                        <p class="text-subtitle-2 text-medium-emphasis">
+                          {{ invoice.description }} • Q{{ formatNumber(invoice.amount) }}
+                        </p>
+                      </div>
+                      <v-chip 
+                        :color="getStatusColor(invoice.status)"
                         size="small"
-                        @click="downloadDocument(doc)"
                       >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
-                    </template>
-                  </v-list-item>
-                </v-list>
+                        {{ getStatusText(invoice.status) }}
+                      </v-chip>
+                    </div>
+                    
+                    <!-- Lista de documentos de esta factura -->
+                    <v-list class="document-list">
+                      <v-list-item 
+                        v-for="doc in invoice.documents" 
+                        :key="doc.id"
+                        class="document-item"
+                      >
+                        <template v-slot:prepend>
+                          <div class="document-emoji">{{ getDocumentEmoji(doc.type) }}</div>
+                        </template>
+                        <v-list-item-title>{{ doc.title }}</v-list-item-title>
+                        <v-list-item-subtitle>
+                          {{ formatDate(doc.date) }}
+                        </v-list-item-subtitle>
+                        <template v-slot:append>
+                          <v-btn
+                            variant="elevated"
+                            color="primary"
+                            size="small"
+                            @click="downloadDocument(doc, invoice)"
+                          >
+                            <v-icon class="mr-1">mdi-download</v-icon>
+                            Descargar
+                          </v-btn>
+                        </template>
+                      </v-list-item>
+                    </v-list>
+                  </div>
+                </div>
               </div>
             </div>
           </v-col>
@@ -375,6 +400,7 @@ const {
   getDocumentEmoji,
   getTaskPriorityColor,
   getStatusColor,
+  getStatusText,
   getStatusInitials,
   viewAllInvoices,
   viewInvoice,

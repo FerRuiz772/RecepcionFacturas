@@ -93,6 +93,7 @@
                       class="custom-input"
                       type="number"
                       step="0.01"
+                      min="0.01"
                       prefix="Q"
                       :rules="[v => !!v || 'Monto requerido', v => v > 0 || 'Monto debe ser mayor a 0']"
                       prepend-inner-icon="mdi-currency-usd"

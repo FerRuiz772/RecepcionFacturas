@@ -5,7 +5,7 @@ const rateLimit = require('express-rate-limit');
 // Rate limiting para autenticación
 const authRateLimit = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minuto para desarrollo
-  max: 100, // máximo 100 intentos por IP para desarrollo  
+  max: 1000, // máximo 1000 intentos por IP para desarrollo  
   message: { error: 'Demasiados intentos de autenticación' },
   standardHeaders: true,
   legacyHeaders: false,

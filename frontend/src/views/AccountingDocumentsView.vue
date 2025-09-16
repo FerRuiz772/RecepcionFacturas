@@ -123,7 +123,17 @@
                   <v-col cols="12">
                     <div class="info-field">
                       <label>Descripción</label>
-                      <div class="info-value">{{ invoice.description || 'Sin descripción' }}</div>
+                      <div class="info-value">
+                        {{ invoice.description || 'Sin descripción' }}
+                        <v-chip 
+                          v-if="!invoice.description || invoice.description.trim() === ''"
+                          color="warning"
+                          size="small"
+                          class="ml-2"
+                        >
+                          Pendiente de completar
+                        </v-chip>
+                      </div>
                     </div>
                   </v-col>
                 </v-row>
@@ -136,12 +146,16 @@
                       label="Monto"
                       type="number"
                       step="0.01"
-                      min="0"
+                      min="0.01"
                       prepend-inner-icon="mdi-currency-usd"
                       variant="outlined"
                       density="compact"
                       :disabled="saving"
                       required
+                      :rules="[
+                        v => !!v || 'El monto es requerido',
+                        v => parseFloat(v) > 0 || 'El monto debe ser mayor a 0'
+                      ]"
                     />
                   </v-col>
                   <v-col cols="12" md="6">
@@ -182,6 +196,18 @@
                     </div>
                   </v-col>
                   <v-col cols="12">
+                    <v-alert
+                      type="info"
+                      variant="tonal"
+                      density="compact"
+                      class="mb-3"
+                      icon="mdi-information-outline"
+                    >
+                      <span class="text-body-2">
+                        <strong>Importante:</strong> Complete la descripción con detalles específicos de la factura 
+                        (productos/servicios, fechas relevantes, observaciones especiales, etc.)
+                      </span>
+                    </v-alert>
                     <v-textarea
                       v-model="editForm.description"
                       label="Descripción"
@@ -190,6 +216,7 @@
                       rows="3"
                       :disabled="saving"
                       required
+                      placeholder="Describa detalladamente los productos/servicios de esta factura..."
                     />
                   </v-col>
                 </v-row>
@@ -458,11 +485,11 @@
 
                 <v-divider class="my-6"></v-divider>
 
-                <!-- Documento Opcional -->
-                <div class="optional-documents">
+                <!-- Comprobante de Pago -->
+                <div class="payment-documents">
                   <h3 class="section-title mb-4">
-                    <v-icon class="mr-2" color="info">mdi-information</v-icon>
-                    Documento Opcional
+                    <v-icon class="mr-2" color="success">mdi-file-document-check</v-icon>
+                    Comprobante de Pago
                   </h3>
 
                   <!-- Comprobante de Pago -->
@@ -470,14 +497,14 @@
                     <div class="document-header">
                       <div class="document-info">
                         <h4>Comprobante de Pago</h4>
-                        <p class="text-caption">Comprobante final del pago realizado (opcional)</p>
+                        <p class="text-caption">Comprobante final del pago realizado</p>
                       </div>
                       <div class="document-status">
                         <v-chip 
-                          :color="hasDocument('proof') ? 'success' : 'info'" 
+                          :color="hasDocument('proof') ? 'success' : 'warning'" 
                           size="small"
                         >
-                          {{ hasDocument('proof') ? 'Subido' : 'Opcional' }}
+                          {{ hasDocument('proof') ? 'Subido' : 'Pendiente' }}
                         </v-chip>
                       </div>
                     </div>
@@ -527,44 +554,13 @@
                         prepend-icon="mdi-upload"
                         block
                       >
-                        Subir Comprobante (Opcional)
+                        Subir Comprobante de Pago
                       </v-btn>
                     </div>
                   </div>
                 </div>
 
                 <v-divider class="my-6"></v-divider>
-
-                <!-- Acciones Finales -->
-                <div class="final-actions">
-                  <div v-if="canCompleteProcess()" class="completion-section">
-                    <v-alert type="info" variant="tonal" class="mb-4">
-                      <div class="d-flex align-center justify-space-between">
-                        <span>Todos los documentos obligatorios han sido subidos</span>
-                        <v-btn 
-                          color="success"
-                          @click="completeProcess"
-                          :loading="completingProcess"
-                          prepend-icon="mdi-check-all"
-                        >
-                          Completar Proceso
-                        </v-btn>
-                      </div>
-                    </v-alert>
-                  </div>
-                  
-                  <div v-else class="pending-requirements">
-                    <v-alert type="warning" variant="tonal">
-                      <div>
-                        <strong>Documentos pendientes:</strong>
-                        <ul class="mt-2">
-                          <li v-if="!hasDocument('isr')">Retención ISR</li>
-                          <li v-if="!hasDocument('iva')">Retención IVA</li>
-                        </ul>
-                      </div>
-                    </v-alert>
-                  </div>
-                </div>
 
               </v-card-text>
             </v-card>

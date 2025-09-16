@@ -244,36 +244,21 @@ export function useDashboard() {
     
     try {
       const response = await axios.get('/api/dashboard/available-documents')
-      availableDocuments.value = response.data.documents || [
-        {
-          id: 1,
-          title: 'Retención ISR',
-          type: 'retention_isr',
-          invoiceNumber: 'F-2024-001',
-          date: new Date().toISOString(),
-          downloadUrl: '/api/documents/1/download'
-        },
-        {
-          id: 2,
-          title: 'Comprobante de Pago',
-          type: 'payment_proof',
-          invoiceNumber: 'F-2024-002',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          downloadUrl: '/api/documents/2/download'
-        }
-      ]
+      availableDocuments.value = response.data.invoices || []
     } catch (error) {
       console.error('Error loading available documents:', error)
+      // Datos de fallback
+      availableDocuments.value = []
     }
   }
 
-  const downloadDocument = async (doc) => {
+  const downloadDocument = async (doc, invoice) => {
     try {
       const response = await axios.get(doc.downloadUrl, { responseType: 'blob' })
       const url = window.URL.createObjectURL(new Blob([response.data]))
       const link = document.createElement('a')
       link.href = url
-      link.download = `${doc.title}-${doc.invoiceNumber}.pdf`
+      link.download = `${doc.title}-${invoice.number}.pdf`
       link.click()
       toast.success('Documento descargado')
     } catch (error) {
@@ -512,6 +497,7 @@ export function useDashboard() {
     getDocumentEmoji,
     getTaskPriorityColor,
     getStatusColor,
+    getStatusText,
     getStatusInitials,
     viewAllInvoices,
     viewInvoice,

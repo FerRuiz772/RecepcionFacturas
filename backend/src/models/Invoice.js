@@ -6,7 +6,17 @@ const Invoice = sequelize.define('Invoice', {
     number: { type: DataTypes.STRING(100), allowNull: false, unique: true },
     supplier_id: { type: DataTypes.INTEGER, allowNull: false },
     assigned_to: { type: DataTypes.INTEGER, allowNull: true },
-    amount: { type: DataTypes.DECIMAL(15, 2), allowNull: false },
+    amount: { 
+        type: DataTypes.DECIMAL(15, 2), 
+        allowNull: false,
+        validate: {
+            isDecimal: true,
+            min: {
+                args: [0.01],
+                msg: "El monto debe ser mayor a 0"
+            }
+        }
+    },
     description: { type: DataTypes.TEXT },
     status: {
         type: DataTypes.ENUM(

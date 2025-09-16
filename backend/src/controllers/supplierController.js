@@ -1,5 +1,34 @@
 const { validationResult } = require('express-validator');
 const { Supplier, User } = require('../models');
+const path = require('path');
+const fs = require('fs').promises;
+
+// Helper function para crear estructura de carpetas
+const createSupplierFolder = async (supplierName) => {
+    try {
+        // Normalizar nombre del proveedor para carpeta
+        const folderName = supplierName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+            .replace(/[^a-zA-Z0-9]/g, '_') // Reemplazar caracteres especiales con _
+            .toLowerCase();
+
+        // Crear estructura de carpetas
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        const proveedoresDir = path.join(uploadsDir, 'proveedores');
+        const supplierDir = path.join(proveedoresDir, folderName);
+
+        await fs.mkdir(uploadsDir, { recursive: true });
+        await fs.mkdir(proveedoresDir, { recursive: true });
+        await fs.mkdir(supplierDir, { recursive: true });
+
+        console.log('📁 Carpeta de proveedor creada:', supplierDir);
+        return supplierDir;
+    } catch (error) {
+        console.error('Error creando carpeta de proveedor:', error);
+        throw error;
+    }
+};
 
 const supplierController = {
     async getAllSuppliers(req, res) {
@@ -79,6 +108,13 @@ const supplierController = {
                 address,
                 bank_details: bank_details || {}
             });
+
+            // Crear carpeta del proveedor
+            try {
+                await createSupplierFolder(business_name);
+            } catch (error) {
+                console.warn('Error creando carpeta de proveedor, pero el proveedor fue creado:', error);
+            }
 
             res.status(201).json(supplier);
         } catch (error) {

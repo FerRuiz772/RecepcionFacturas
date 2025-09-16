@@ -112,6 +112,12 @@ export function useNewInvoice() {
       return
     }
 
+    // Validar monto si no es proveedor
+    if (!isProvider.value && (!form.value.amount || parseFloat(form.value.amount) <= 0)) {
+      toast.error('El monto debe ser mayor a 0')
+      return
+    }
+
     if (uploadedFiles.value.length === 0) {
       toast.error('Debe subir al menos un documento')
       return

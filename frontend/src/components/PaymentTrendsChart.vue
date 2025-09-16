@@ -54,6 +54,10 @@ const createChart = async () => {
   // Encontrar valores máximos para escalas
   const maxAmount = Math.max(...amounts)
   const maxCount = Math.max(...counts)
+  
+  // Calcular límites mínimos sensatos para evitar gráficos planos
+  const minAmountScale = maxAmount === 0 ? 1000 : Math.max(maxAmount * 1.2, 1000)
+  const minCountScale = maxCount === 0 ? 5 : Math.max(maxCount * 1.3, 5)
 
   chartInstance = new Chart(ctx, {
     type: 'line',
@@ -61,7 +65,7 @@ const createChart = async () => {
       labels: labels,
       datasets: [
         {
-          label: 'Monto Pagado (Q)',
+          label: 'Monto Total Pagado',
           data: amounts,
           borderColor: '#0f172a',
           backgroundColor: 'rgba(15, 23, 42, 0.1)',
@@ -76,7 +80,7 @@ const createChart = async () => {
           yAxisID: 'y'
         },
         {
-          label: 'Cantidad de Pagos',
+          label: 'Cantidad de Facturas',
           data: counts,
           borderColor: '#10b981',
           backgroundColor: 'rgba(16, 185, 129, 0.1)',
@@ -124,13 +128,21 @@ const createChart = async () => {
           displayColors: true,
           callbacks: {
             title: function(context) {
-              return `${context[0].label}`
+              return `📊 ${context[0].label}`
             },
             label: function(context) {
               if (context.datasetIndex === 0) {
-                return `Monto: Q${context.parsed.y.toLocaleString('es-GT')}`
+                const value = context.parsed.y
+                if (value >= 1000000) {
+                  return `💰 Monto: Q${(value / 1000000).toFixed(2)}M`
+                } else if (value >= 1000) {
+                  return `💰 Monto: Q${(value / 1000).toFixed(1)}K`
+                } else {
+                  return `💰 Monto: Q${value.toLocaleString('es-GT')}`
+                }
               } else {
-                return `Pagos: ${context.parsed.y} facturas`
+                const facturas = context.parsed.y === 1 ? 'factura' : 'facturas'
+                return `📄 Cantidad: ${context.parsed.y} ${facturas}`
               }
             }
           }
@@ -157,7 +169,7 @@ const createChart = async () => {
           type: 'linear',
           position: 'left',
           beginAtZero: true,
-          max: maxAmount * 1.1,
+          max: minAmountScale,
           grid: {
             color: 'rgba(226, 232, 240, 0.5)',
             drawBorder: false
@@ -173,13 +185,19 @@ const createChart = async () => {
             color: '#64748b',
             padding: 8,
             callback: function(value) {
-              return `Q${(value / 1000).toFixed(0)}K`
+              if (value >= 1000000) {
+                return `Q${(value / 1000000).toFixed(1)}M`
+              } else if (value >= 1000) {
+                return `Q${(value / 1000).toFixed(0)}K`
+              } else {
+                return `Q${value.toFixed(0)}`
+              }
             }
           },
           title: {
             display: true,
-            text: 'Monto (Q)',
-            color: '#64748b',
+            text: 'Monto Total (Q)',
+            color: '#0f172a',
             font: {
               size: 12,
               weight: '600'
@@ -190,7 +208,7 @@ const createChart = async () => {
           type: 'linear',
           position: 'right',
           beginAtZero: true,
-          max: maxCount * 1.2,
+          max: minCountScale,
           grid: {
             display: false
           },
@@ -203,11 +221,15 @@ const createChart = async () => {
               weight: '500'
             },
             color: '#10b981',
-            padding: 8
+            padding: 8,
+            stepSize: 1,
+            callback: function(value) {
+              return Math.round(value)
+            }
           },
           title: {
             display: true,
-            text: 'Cantidad',
+            text: 'Cantidad de Facturas',
             color: '#10b981',
             font: {
               size: 12,

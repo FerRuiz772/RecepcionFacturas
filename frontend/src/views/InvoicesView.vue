@@ -332,7 +332,7 @@
                 </template>
 
                 <!-- Menú de más opciones -->
-                <v-menu>
+                <v-menu v-if="!authStore.isProveedor">
                   <template v-slot:activator="{ props }">
                     <v-btn
                       variant="outlined"
@@ -345,7 +345,7 @@
                     </v-btn>
                   </template>
                   <v-list>
-                    <v-list-item @click="viewInvoiceHistory(item)">
+                    <v-list-item v-if="!authStore.isProveedor" @click="viewInvoiceHistory(item)">
                       <template v-slot:prepend>
                         <v-icon size="20">mdi-history</v-icon>
                       </template>

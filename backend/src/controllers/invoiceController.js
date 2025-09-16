@@ -8,6 +8,65 @@ const sharp = require('sharp');
 const zlib = require('zlib');
 const { Op } = require('sequelize');
 
+// Helper function para crear estructura de carpetas por proveedor y factura
+const createInvoiceFolder = async (supplierBusinessName, invoiceNumber) => {
+    try {
+        // Normalizar nombres para carpetas
+        const supplierFolder = supplierBusinessName
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+            .replace(/[^a-zA-Z0-9]/g, '_') // Reemplazar caracteres especiales con _
+            .toLowerCase();
+
+        const invoiceFolder = invoiceNumber
+            .replace(/[^a-zA-Z0-9\-]/g, '_'); // Reemplazar caracteres especiales excepto guiones
+
+        // Crear estructura de carpetas
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        const proveedoresDir = path.join(uploadsDir, 'proveedores');
+        const supplierDir = path.join(proveedoresDir, supplierFolder);
+        const invoiceDir = path.join(supplierDir, invoiceFolder);
+
+        await fs.mkdir(uploadsDir, { recursive: true });
+        await fs.mkdir(proveedoresDir, { recursive: true });
+        await fs.mkdir(supplierDir, { recursive: true });
+        await fs.mkdir(invoiceDir, { recursive: true });
+
+        console.log('📁 Carpeta de factura creada:', invoiceDir);
+        return invoiceDir;
+    } catch (error) {
+        console.error('Error creando carpeta de factura:', error);
+        throw error;
+    }
+};
+
+// Helper function para encontrar archivos en la nueva estructura
+const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) => {
+    try {
+        // Primero intentar en la nueva estructura
+        const invoiceDir = await createInvoiceFolder(supplierBusinessName, invoiceNumber);
+        const newPath = path.join(invoiceDir, fileName);
+        
+        try {
+            await fs.access(newPath);
+            return newPath;
+        } catch (error) {
+            // Si no existe en nueva estructura, buscar en la estructura antigua
+            const uploadsDir = path.join(__dirname, '..', 'uploads');
+            const oldPath = path.join(uploadsDir, fileName);
+            
+            try {
+                await fs.access(oldPath);
+                return oldPath;
+            } catch (error) {
+                throw new Error('Archivo no encontrado');
+            }
+        }
+    } catch (error) {
+        throw error;
+    }
+};
+
 
 
 // Configuración de multer para upload de archivos
@@ -389,21 +448,39 @@ const invoiceController = {
 
             // Preparar datos de actualización
             const updateData = {};
-            if (amount !== undefined) updateData.amount = parseFloat(amount);
+            if (amount !== undefined) {
+                const parsedAmount = parseFloat(amount);
+                if (parsedAmount <= 0) {
+                    await transaction.rollback();
+                    return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+                }
+                updateData.amount = parsedAmount;
+            }
             if (description !== undefined) updateData.description = description;
             if (due_date !== undefined) updateData.due_date = due_date;
             if (priority !== undefined) updateData.priority = priority;
+
+            // Determinar si necesita cambio de estado
+            let newStatus = invoice.status;
+            if (description !== undefined && invoice.status === 'factura_subida') {
+                // Solo cambiar a 'asignada_contaduria' si se modifica la descripción y está en estado inicial
+                newStatus = 'asignada_contaduria';
+                updateData.status = newStatus;
+            }
 
             await invoice.update(updateData, { transaction });
 
             // Registrar cambio si es significativo
             if (Object.keys(updateData).length > 0) {
+                const statusChanged = newStatus !== invoice.status;
                 await InvoiceState.create({
                     invoice_id: invoice.id,
                     from_state: invoice.status,
-                    to_state: invoice.status,
+                    to_state: newStatus,
                     user_id: req.user.userId,
-                    notes: `Factura actualizada: ${Object.keys(updateData).join(', ')}`
+                    notes: statusChanged ? 
+                        `Estado cambiado a ${newStatus} por actualización de descripción` :
+                        `Factura actualizada: ${Object.keys(updateData).filter(key => key !== 'status').join(', ')}`
                 }, { transaction });
             }
 
@@ -459,6 +536,15 @@ const invoiceController = {
 
             // Validación especial para completar proceso
             if (status === 'proceso_completado') {
+                // Validar que la factura tenga un monto válido
+                if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
+                    await transaction.rollback();
+                    return res.status(400).json({ 
+                        error: 'No se puede completar el proceso. La factura debe tener un monto válido mayor a 0',
+                        currentAmount: invoice.amount
+                    });
+                }
+
                 const payment = await Payment.findOne({ 
                     where: { invoice_id: parseInt(id) },
                     transaction 
@@ -607,14 +693,45 @@ const invoiceController = {
                 });
             }
 
+            // Obtener información del proveedor para generar el nombre del archivo
+            const invoiceWithSupplier = await Invoice.findByPk(invoice.id, {
+                include: [{ model: Supplier, as: 'supplier' }]
+            });
+
+            if (!invoiceWithSupplier || !invoiceWithSupplier.supplier) {
+                return res.status(400).json({
+                    error: 'No se puede obtener información del proveedor',
+                    code: 'SUPPLIER_NOT_FOUND'
+                });
+            }
+
             // Crear directorio de uploads si no existe
-            const uploadsDir = path.join(__dirname, '..', 'uploads');
-            await fs.mkdir(uploadsDir, { recursive: true });
+            const invoiceDir = await createInvoiceFolder(
+                invoiceWithSupplier.supplier.business_name,
+                invoiceWithSupplier.number
+            );
 
             const originalName = file.originalname;
             const extension = path.extname(originalName);
-            const newFileName = `${invoice.id}-${type}${extension}`;
-            const uploadPath = path.join(uploadsDir, newFileName);
+            
+            // Generar nombre con formato: proveedor_fecha_tipoDocumento
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+            const supplierName = invoiceWithSupplier.supplier.business_name
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+                .replace(/[^a-zA-Z0-9]/g, '_') // Reemplazar caracteres especiales con _
+                .toLowerCase();
+            
+            // Mapear tipos a nombres más descriptivos
+            const typeMapping = {
+                'retention_isr': 'retencion_isr',
+                'retention_iva': 'retencion_iva',
+                'payment_proof': 'comprobante_pago'
+            };
+            
+            const newFileName = `${supplierName}_${dateStr}_${typeMapping[type]}${extension}`;
+            const uploadPath = path.join(invoiceDir, newFileName);
 
             console.log('📁 Upload paths:', {
                 sourceFile: file.path,
@@ -749,15 +866,52 @@ const invoiceController = {
                 });
             }
 
+            // Obtener información del proveedor para generar el nombre del archivo
+            const invoiceWithSupplier = await Invoice.findByPk(parseInt(id), {
+                include: [{ model: Supplier, as: 'supplier' }]
+            });
+
+            if (!invoiceWithSupplier || !invoiceWithSupplier.supplier) {
+                return res.status(400).json({
+                    error: 'No se puede obtener información del proveedor',
+                    code: 'SUPPLIER_NOT_FOUND'
+                });
+            }
+
             // Crear directorio de uploads si no existe
-            const uploadsDir = path.join(__dirname, '..', 'uploads');
-            await fs.mkdir(uploadsDir, { recursive: true });
+            const invoiceDir = await createInvoiceFolder(
+                invoiceWithSupplier.supplier.business_name,
+                invoiceWithSupplier.number
+            );
 
             const originalName = file.originalname;
             const extension = path.extname(originalName);
-            const newFileName = `${id}-${type}${extension}`;
-            const uploadPath = path.join(uploadsDir, newFileName);
-            const oldFilePath = path.join(uploadsDir, currentFileName);
+            
+            // Generar nombre con formato: proveedor_fecha_tipoDocumento
+            const today = new Date();
+            const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+            const supplierName = invoiceWithSupplier.supplier.business_name
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+                .replace(/[^a-zA-Z0-9]/g, '_') // Reemplazar caracteres especiales con _
+                .toLowerCase();
+            
+            // Mapear tipos a nombres más descriptivos
+            const typeMapping = {
+                'retention_isr': 'retencion_isr',
+                'retention_iva': 'retencion_iva',
+                'payment_proof': 'comprobante_pago'
+            };
+            
+            const newFileName = `${supplierName}_${dateStr}_${typeMapping[type]}${extension}`;
+            const uploadPath = path.join(invoiceDir, newFileName);
+            
+            // Para buscar el archivo anterior, necesitamos construir su path
+            const oldFileDir = await createInvoiceFolder(
+                invoiceWithSupplier.supplier.business_name,
+                invoiceWithSupplier.number
+            );
+            const oldFilePath = path.join(oldFileDir, currentFileName);
 
             console.log('🔄 Reemplazando archivo:', {
                 oldFile: currentFileName,
@@ -877,7 +1031,12 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ 
+                    model: Invoice, 
+                    as: 'Invoice', 
+                    attributes: ['number', 'supplier_id'],
+                    include: [{ model: Supplier, attributes: ['name'] }]
+                }]
             });
 
             if (!payment || !payment.isr_retention_file) {
@@ -893,11 +1052,13 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.isr_retention_file);
+                // Buscar archivo en nueva estructura o estructura antigua
+                const filePath = await findDocumentPath(
+                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.number,
+                    payment.isr_retention_file
+                );
                 
-                await fs.access(filePath);
                 const filename = `retencion-isr-${payment.Invoice.number}.pdf`;
                 res.download(filePath, filename);
             } catch (error) {
@@ -914,7 +1075,12 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ 
+                    model: Invoice, 
+                    as: 'Invoice', 
+                    attributes: ['number', 'supplier_id'],
+                    include: [{ model: Supplier, attributes: ['name'] }]
+                }]
             });
 
             if (!payment || !payment.iva_retention_file) {
@@ -929,11 +1095,13 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.iva_retention_file);
+                // Buscar archivo en nueva estructura o estructura antigua
+                const filePath = await findDocumentPath(
+                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.number,
+                    payment.iva_retention_file
+                );
                 
-                await fs.access(filePath);
                 const filename = `retencion-iva-${payment.Invoice.number}.pdf`;
                 res.download(filePath, filename);
             } catch (error) {
@@ -950,7 +1118,12 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ 
+                    model: Invoice, 
+                    as: 'Invoice', 
+                    attributes: ['number', 'supplier_id'],
+                    include: [{ model: Supplier, attributes: ['name'] }]
+                }]
             });
 
             if (!payment || !payment.payment_proof_file) {
@@ -965,11 +1138,13 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.payment_proof_file);
+                // Buscar archivo en nueva estructura o estructura antigua
+                const filePath = await findDocumentPath(
+                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.number,
+                    payment.payment_proof_file
+                );
                 
-                await fs.access(filePath);
                 const filename = `comprobante-pago-${payment.Invoice.number}.pdf`;
                 res.download(filePath, filename);
             } catch (error) {
@@ -1154,7 +1329,7 @@ const invoiceController = {
     
             const user = await User.findByPk(req.user.userId);
             if (!user.supplier_id) {
-                return res.json({ documents: [], total: 0 });
+                return res.json({ invoices: [], total: 0 });
             }
     
             const invoices = await Invoice.findAll({
@@ -1168,26 +1343,38 @@ const invoiceController = {
                         ]
                     }
                 },
-                include: [{ model: Payment, as: 'payment', required: false }],
+                include: [
+                    { 
+                        model: Payment, 
+                        as: 'payment', 
+                        required: false 
+                    },
+                    {
+                        model: Supplier,
+                        as: 'supplier',
+                        attributes: ['id', 'business_name', 'nit']
+                    }
+                ],
                 order: [['updated_at', 'DESC']]
             });
     
-            const documents = [];
+            const groupedInvoices = [];
+            let totalDocuments = 0;
             
             invoices.forEach(invoice => {
+                const documents = [];
+                
                 if (invoice.payment) {
                     if (invoice.payment.isr_retention_file) {
                         documents.push({
                             id: `isr-${invoice.id}`,
                             type: 'retention_isr',
                             title: 'Retención ISR',
-                            invoiceId: invoice.id,
-                            invoiceNumber: invoice.number,
-                            amount: parseFloat(invoice.amount),
+                            filename: invoice.payment.isr_retention_file,
                             date: invoice.payment.created_at,
-                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-isr`,
-                            status: invoice.status
+                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-isr`
                         });
+                        totalDocuments++;
                     }
     
                     if (invoice.payment.iva_retention_file) {
@@ -1195,13 +1382,11 @@ const invoiceController = {
                             id: `iva-${invoice.id}`,
                             type: 'retention_iva',
                             title: 'Retención IVA',
-                            invoiceId: invoice.id,
-                            invoiceNumber: invoice.number,
-                            amount: parseFloat(invoice.amount),
+                            filename: invoice.payment.iva_retention_file,
                             date: invoice.payment.created_at,
-                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-iva`,
-                            status: invoice.status
+                            downloadUrl: `/api/invoices/${invoice.id}/download-retention-iva`
                         });
+                        totalDocuments++;
                     }
     
                     if (invoice.payment.payment_proof_file && invoice.status === 'proceso_completado') {
@@ -1209,24 +1394,38 @@ const invoiceController = {
                             id: `proof-${invoice.id}`,
                             type: 'payment_proof',
                             title: 'Comprobante de Pago',
-                            invoiceId: invoice.id,
-                            invoiceNumber: invoice.number,
-                            amount: parseFloat(invoice.amount),
+                            filename: invoice.payment.payment_proof_file,
                             date: invoice.payment.completion_date || invoice.payment.updated_at,
-                            downloadUrl: `/api/invoices/${invoice.id}/download-payment-proof`,
-                            status: invoice.status
+                            downloadUrl: `/api/invoices/${invoice.id}/download-payment-proof`
                         });
+                        totalDocuments++;
                     }
+                }
+                
+                // Solo incluir facturas que tengan al menos un documento
+                if (documents.length > 0) {
+                    groupedInvoices.push({
+                        id: invoice.id,
+                        number: invoice.number,
+                        amount: parseFloat(invoice.amount),
+                        description: invoice.description,
+                        status: invoice.status,
+                        supplier: invoice.supplier,
+                        updated_at: invoice.updated_at,
+                        documents: documents,
+                        documentsCount: documents.length
+                    });
                 }
             });
     
             res.json({ 
-                documents,
-                total: documents.length,
+                invoices: groupedInvoices,
+                total: totalDocuments,
+                invoicesCount: groupedInvoices.length,
                 summary: {
-                    isr_count: documents.filter(d => d.type === 'retention_isr').length,
-                    iva_count: documents.filter(d => d.type === 'retention_iva').length,
-                    proof_count: documents.filter(d => d.type === 'payment_proof').length
+                    isr_count: groupedInvoices.reduce((acc, inv) => acc + inv.documents.filter(d => d.type === 'retention_isr').length, 0),
+                    iva_count: groupedInvoices.reduce((acc, inv) => acc + inv.documents.filter(d => d.type === 'retention_iva').length, 0),
+                    proof_count: groupedInvoices.reduce((acc, inv) => acc + inv.documents.filter(d => d.type === 'payment_proof').length, 0)
                 }
             });
         } catch (error) {
@@ -2080,15 +2279,27 @@ const invoiceController = {
                 case 'payment_proof':
                     // Verificar si ya se completó todo el proceso
                     if (payment.isr_retention_file && payment.iva_retention_file) {
-                        newStatus = 'proceso_completado';
-                        statusNotes = 'Proceso completado - todos los documentos subidos';
-                        
-                        // Actualizar la fecha de completado
-                        await payment.update({
-                            completion_date: new Date()
-                        });
+                        // Validar que la factura tenga un monto válido antes de completar
+                        if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
+                            console.warn('⚠️ No se puede completar proceso automáticamente: monto inválido', {
+                                invoiceId: invoice.id,
+                                amount: invoice.amount
+                            });
+                            // Mantener estado actual si no hay monto válido
+                            newStatus = invoice.status === 'factura_subida' ? 'asignada_contaduria' : invoice.status;
+                            statusNotes = 'Comprobante de pago subido - Pendiente: definir monto de factura';
+                        } else {
+                            newStatus = 'proceso_completado';
+                            statusNotes = 'Proceso completado - todos los documentos subidos';
+                            
+                            // Actualizar la fecha de completado
+                            await payment.update({
+                                completion_date: new Date()
+                            });
+                        }
                     } else {
-                        newStatus = 'pago_realizado';
+                        // Solo cambiar a estados específicos de documentos, no a "pago_realizado"
+                        newStatus = invoice.status === 'factura_subida' ? 'asignada_contaduria' : invoice.status;
                         statusNotes = 'Comprobante de pago subido';
                     }
                     break;
