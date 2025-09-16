@@ -127,46 +127,6 @@
                   >
                     Limpiar Filtros
                   </v-btn>
-                  
-                  <!-- Botón CSV (reemplaza Excel) -->
-                  <v-btn
-                    color="success"
-                    variant="outlined"
-                    @click="exportToCSV"
-                    prepend-icon="mdi-file-delimited-outline"
-                    class="export-btn"
-                    :loading="exportingCSV"
-                    title="Exportar a CSV (Compatible con Excel)"
-                  >
-                    Exportar CSV
-                  </v-btn>
-                  
-                  <!-- Botón JSON -->
-                  <v-btn
-                    color="info"
-                    variant="outlined"
-                    @click="exportToJSON"
-                    prepend-icon="mdi-code-json"
-                    class="export-btn"
-                    :loading="exportingJSON"
-                    title="Exportar en formato JSON"
-                  >
-                    Exportar JSON
-                  </v-btn>
-                  
-                  <!-- Botón PDF -->
-                  <v-btn
-                    color="error"
-                    variant="outlined"
-                    @click="exportToPDF"
-                    prepend-icon="mdi-file-pdf-box"
-                    class="export-btn"
-                    :loading="exportingPDF"
-                    title="Generar reporte PDF para imprimir"
-                  >
-                    Reporte PDF
-                  </v-btn>
-                  
                   <!-- Badge de conteo y información -->
                   <v-chip
                     v-if="totalInvoices > 0"
@@ -467,11 +427,6 @@ import { useInvoices } from '../scripts/invoices.js'
 
 const authStore = useAuthStore()
 
-// Estados para loading de exportación
-const exportingCSV = ref(false)
-const exportingJSON = ref(false)
-const exportingPDF = ref(false)
-
 const {
   // Estados y funciones existentes...
   loading,
@@ -513,40 +468,8 @@ const {
   formatNumber,
   formatDate,
   getStatusText,
-  initializeInvoices,
-  // Nuevas funciones de exportación
-  exportToCSV: originalExportToCSV,
-  exportToJSON: originalExportToJSON,
-  exportToPDF: originalExportToPDF
+  initializeInvoices
 } = useInvoices()
-
-// Wrappers con loading states
-const exportToCSV = async () => {
-  exportingCSV.value = true
-  try {
-    await originalExportToCSV()
-  } finally {
-    exportingCSV.value = false
-  }
-}
-
-const exportToJSON = async () => {
-  exportingJSON.value = true
-  try {
-    await originalExportToJSON()
-  } finally {
-    exportingJSON.value = false
-  }
-}
-
-const exportToPDF = async () => {
-  exportingPDF.value = true
-  try {
-    await originalExportToPDF()
-  } finally {
-    exportingPDF.value = false
-  }
-}
 
 onMounted(initializeInvoices)
 </script>

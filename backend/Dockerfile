@@ -1,33 +1,36 @@
-# Usar Node.js LTS
-FROM node:18-alpine
+# Dockerfile optimizado
+FROM node:18-alpine AS base
+
+# Instalar dependencias del sistema necesarias para algunas librerías de Node
+RUN apk add --no-cache \
+    build-base \
+    python3 \
+    make \
+    g++ \
+    libc6-compat
 
 # Crear directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema necesarias
-RUN apk add --no-cache \
-    python3 \
-    make \
-    g++ \
-    && ln -sf python3 /usr/bin/python
-
-# Copiar package.json y package-lock.json
+# Copiar package files
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm ci --only=production
+RUN npm ci --only=production && npm cache clean --force
 
-# Copiar código fuente
-COPY . .
+# Crear usuario node
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodeuser -u 1001
+
+# Copiar código fuente (excluyendo archivos en .dockerignore)
+COPY --chown=nodeuser:nodejs . .
 
 # Crear directorios necesarios
-RUN mkdir -p uploads logs
+RUN mkdir -p uploads logs && \
+    chown -R nodeuser:nodejs uploads logs
 
-# Cambiar permisos
-RUN chown -R node:node /app
-
-# Usar usuario no root
-USER node
+# Cambiar a usuario no root
+USER nodeuser
 
 # Exponer puerto
 EXPOSE 3000

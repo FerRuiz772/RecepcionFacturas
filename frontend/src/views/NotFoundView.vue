@@ -8,9 +8,9 @@
             </div>
             
             <h1 class="error-title">404</h1>
-            <h2 class="error-subtitle">PÃ¡gina no encontrada</h2>
+            <h2 class="error-subtitle">Página no encontrada</h2>
             <p class="error-message">
-              La pÃ¡gina que buscas no existe o has sido redirigido aquÃ­ por un error.
+              La página que buscas no existe o has sido redirigido aquí por un error.
             </p>
             
             <div class="error-actions">
@@ -31,12 +31,12 @@
                 class="action-btn ml-4"
               >
                 <v-icon class="mr-2">mdi-arrow-left</v-icon>
-                Volver AtrÃ¡s
+                Volver Atrás
               </v-btn>
             </div>
             
             <div class="helpful-links">
-              <p class="links-title">Enlaces Ãºtiles:</p>
+              <p class="links-title">Enlaces útiles:</p>
               <div class="links-grid">
                 <router-link to="/dashboard" class="helpful-link">
                   <v-icon class="mr-2">mdi-view-dashboard</v-icon>

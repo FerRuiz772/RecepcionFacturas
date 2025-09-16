@@ -1,6 +1,7 @@
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useInvoicesStore } from '../stores/invoices'
 import { useToast } from 'vue-toastification'
 import axios from 'axios'
 import PaymentTrendsChart from '../components/PaymentTrendsChart.vue'
@@ -8,17 +9,81 @@ import PaymentTrendsChart from '../components/PaymentTrendsChart.vue'
 export function useDashboard() {
   const router = useRouter()
   const authStore = useAuthStore()
+  const invoicesStore = useInvoicesStore()
   const toast = useToast()
 
   // Estados reactivos
   const availableDocuments = ref([])
   const workQueue = ref([])
-  const pendingInvoices = ref([])
   const stats = ref([])
-  const invoiceStatus = ref([])
-  const recentInvoices = ref([])
   const paymentTrends = ref([])
   const loadingStats = ref(false)
+  const refreshing = ref(false)
+  
+  // Computed properties que se actualizan automáticamente desde el store
+  const pendingInvoices = computed(() => {
+    if (!invoicesStore.invoices || !Array.isArray(invoicesStore.invoices)) {
+      return []
+    }
+    return invoicesStore.invoices
+      .filter(invoice => 
+        !['proceso_completado', 'rechazada'].includes(invoice.status)
+      )
+      .map(invoice => {
+        const createdDate = new Date(invoice.created_at)
+        const formattedDate = createdDate.toLocaleDateString('es-ES', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        })
+        
+        return {
+          ...invoice,
+          supplier: invoice.supplier?.business_name || 'N/A',
+          status: getStatusText(invoice.status),
+          rawStatus: invoice.status,
+          amount: parseFloat(invoice.amount || 0),
+          date: formattedDate,
+          supplier_name: invoice.supplier?.business_name || 'N/A',
+          formatted_amount: parseFloat(invoice.amount || 0),
+          formatted_date: formattedDate
+        }
+      })
+  })
+  
+  const recentInvoices = computed(() => {
+    if (!invoicesStore.invoices || !Array.isArray(invoicesStore.invoices)) {
+      return []
+    }
+    return invoicesStore.invoices
+      .slice()
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, 5)
+      .map(invoice => {        
+        const createdDate = new Date(invoice.created_at)
+        const formattedDate = !isNaN(createdDate.getTime()) 
+          ? createdDate.toLocaleDateString('es-ES', {
+              year: 'numeric',
+              month: '2-digit',
+              day: '2-digit'
+            })
+          : 'Fecha inválida'
+        
+        return {
+          ...invoice,
+          supplier: invoice.supplier?.business_name || 'N/A',
+          status: getStatusText(invoice.status),
+          rawStatus: invoice.status,
+          amount: parseFloat(invoice.amount || 0),
+          date: formattedDate,
+          supplier_name: invoice.supplier?.business_name || 'N/A',
+          formatted_amount: parseFloat(invoice.amount || 0),
+          formatted_date: formattedDate
+        }
+      })
+  })
+  
+  const dashboardStats = computed(() => invoicesStore.dashboardStats)
   const loadingRecentInvoices = ref(false)
   const loadingTrends = ref(false)
 
@@ -32,47 +97,78 @@ export function useDashboard() {
     { title: 'Acciones', key: 'actions', sortable: false, width: '180px' }
   ]
 
+  // ================== FUNCIONES AUXILIARES ==================
+
+  const getStatusText = (status) => {
+    const statusLabels = {
+      'factura_subida': 'Factura Subida',
+      'asignada_contaduria': 'Asignada a Contaduría',
+      'en_proceso': 'En Proceso',
+      'contrasena_generada': 'Contraseña Generada',
+      'retencion_isr_generada': 'Retención ISR Generada',
+      'retencion_iva_generada': 'Retención IVA Generada',
+      'pago_realizado': 'Pago Realizado',
+      'proceso_completado': 'Proceso Completado',
+      'rechazada': 'Rechazada'
+    }
+    return statusLabels[status] || status
+  }
+
   // ================== FUNCIONES DE CARGA DE DATOS ==================
 
   const loadDashboardStats = async () => {
     try {
       loadingStats.value = true
       console.log('📊 Cargando estadísticas dashboard...')
-      const response = await axios.get('/api/dashboard/stats')
-      stats.value = response.data.stats || [
-        {
-          title: 'Total Facturas',
-          value: '24',
-          emoji: '📊',
-          colorClass: 'primary',
-          trend: 'up',
-          change: '+12%'
-        },
-        {
-          title: 'Pagos Completados',
-          value: '18',
-          emoji: '✅',
-          colorClass: 'success',
-          trend: 'up',
-          change: '+8%'
-        },
-        {
-          title: 'En Proceso',
-          value: '4',
-          emoji: '⏳',
-          colorClass: 'warning',
-          trend: 'down',
-          change: '-2%'
-        },
-        {
-          title: 'Pendientes',
-          value: '2',
-          emoji: '📄',
-          colorClass: 'info',
-          trend: 'down',
-          change: '-5%'
-        }
-      ]
+      
+      // Cargar estadísticas desde el store
+      await invoicesStore.loadDashboardStats()
+      
+      // También cargar las facturas para tener datos actualizados
+      await invoicesStore.loadInvoices()
+      
+      // Usar estadísticas del store directamente - el backend devuelve stats como array
+      const storeStats = invoicesStore.dashboardStats
+      if (storeStats && storeStats.stats && Array.isArray(storeStats.stats)) {
+        // Si el backend devuelve estadísticas estructuradas, usarlas directamente
+        stats.value = storeStats.stats
+      } else {
+        // Datos de fallback en caso de error
+        stats.value = [
+          {
+            title: 'Total Facturas',
+            value: storeStats?.summary?.total_invoices?.toString() || '0',
+            emoji: '📊',
+            colorClass: 'primary',
+            trend: 'up',
+            change: '+12%'
+          },
+          {
+            title: 'Pagos Completados',
+            value: '0',
+            emoji: '✅',
+            colorClass: 'success',
+            trend: 'up',
+            change: '+0%'
+          },
+          {
+            title: 'En Proceso',
+            value: '0',
+            emoji: '⏳',
+            colorClass: 'warning',
+            trend: 'down',
+            change: '0%'
+          },
+          {
+            title: 'Rechazadas',
+            value: '0',
+            emoji: '❌',
+            colorClass: 'error',
+            trend: 'down',
+            change: '0%'
+          }
+        ]
+      }
       console.log('✅ Estadísticas cargadas:', stats.value)
     } catch (error) {
       console.error('Error loading dashboard stats:', error)
@@ -82,36 +178,23 @@ export function useDashboard() {
     }
   }
 
-  const loadInvoiceStatus = async () => {
+  // Función de refresco del dashboard
+  const refreshDashboard = async () => {
     try {
-      console.log('📈 Cargando estado de facturas...')
-      const response = await axios.get('/api/dashboard/invoice-status')
-      invoiceStatus.value = response.data.invoiceStatus || [
-        {
-          name: 'Pendientes',
-          count: 5,
-          percentage: 20,
-          emoji: '⏳',
-          class: 'pending'
-        },
-        {
-          name: 'En Proceso',
-          count: 8,
-          percentage: 32,
-          emoji: '🔄',
-          class: 'processing'
-        },
-        {
-          name: 'Completadas',
-          count: 12,
-          percentage: 48,
-          emoji: '✅',
-          class: 'completed'
-        }
-      ]
-      console.log('✅ Estados cargados:', invoiceStatus.value)
+      refreshing.value = true
+      console.log('🔄 Refrescando dashboard...')
+      
+      await Promise.all([
+        loadDashboardStats(),
+        loadPaymentTrends()
+      ])
+      
+      toast.success('Dashboard actualizado')
     } catch (error) {
-      console.error('Error loading invoice status:', error)
+      console.error('❌ Error refrescando dashboard:', error)
+      toast.error('Error al actualizar el dashboard')
+    } finally {
+      refreshing.value = false
     }
   }
 
@@ -141,40 +224,13 @@ export function useDashboard() {
     try {
       loadingRecentInvoices.value = true
       console.log('🧾 Cargando facturas recientes...')
-      const response = await axios.get('/api/dashboard/recent-invoices?limit=8')
-      recentInvoices.value = response.data.invoices || [
-        {
-          id: 1,
-          number: 'F-2024-001',
-          supplier: 'Proveedor ABC',
-          amount: 15000,
-          status: 'Completado',
-          rawStatus: 'proceso_completado',
-          date: new Date().toISOString(),
-          canEdit: false
-        },
-        {
-          id: 2,
-          number: 'F-2024-002',
-          supplier: 'Empresa XYZ',
-          amount: 8500,
-          status: 'En Proceso',
-          rawStatus: 'en_proceso',
-          date: new Date(Date.now() - 86400000).toISOString(),
-          canEdit: true
-        },
-        {
-          id: 3,
-          number: 'F-2024-003',
-          supplier: 'Servicios DEF',
-          amount: 12000,
-          status: 'Pendiente',
-          rawStatus: 'factura_subida',
-          date: new Date(Date.now() - 172800000).toISOString(),
-          canEdit: true
-        }
-      ]
-      console.log('✅ Facturas recientes cargadas:', recentInvoices.value)
+      
+      // Cargar facturas en el store si no están cargadas
+      if (invoicesStore.invoices.length === 0) {
+        await invoicesStore.loadInvoices()
+      }
+      
+      console.log('✅ Facturas recientes cargadas:', recentInvoices.value.length)
     } catch (error) {
       console.error('Error loading recent invoices:', error)
     } finally {
@@ -269,30 +325,12 @@ export function useDashboard() {
     if (!authStore.isContaduria && !authStore.isAdmin) return
     
     try {
-      const response = await axios.get('/api/dashboard/pending-invoices')
-      pendingInvoices.value = response.data.invoices || [
-        {
-          id: 1,
-          supplier: 'Proveedor ABC',
-          number: 'F-2024-001',
-          amount: 15000,
-          status: 'asignada_contaduria'
-        },
-        {
-          id: 2,
-          supplier: 'Empresa XYZ',
-          number: 'F-2024-002',
-          amount: 8500,
-          status: 'en_proceso'
-        },
-        {
-          id: 3,
-          supplier: 'Servicios DEF',
-          number: 'F-2024-003',
-          amount: 12000,
-          status: 'factura_subida'
-        }
-      ]
+      // Cargar facturas en el store si no están cargadas
+      if (invoicesStore.invoices.length === 0) {
+        await invoicesStore.loadInvoices()
+      }
+      
+      console.log('✅ Facturas pendientes cargadas:', pendingInvoices.value.length)
     } catch (error) {
       console.error('Error loading pending invoices:', error)
     }
@@ -399,8 +437,11 @@ export function useDashboard() {
   }
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'N/A'
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-GT', { 
+    if (isNaN(date.getTime())) return 'Fecha inválida'
+    
+    return date.toLocaleDateString('es-ES', { 
       day: '2-digit', 
       month: '2-digit',
       year: 'numeric'
@@ -420,21 +461,25 @@ export function useDashboard() {
   const initializeDashboard = async () => {
     console.log('🚀 Dashboard onMounted iniciado')
     
-    // Cargar estadísticas generales
-    await loadDashboardStats()
-    await loadInvoiceStatus()
-    await loadRecentInvoices()
-    await loadPaymentTrends()
-    
-    // Cargar datos específicos según el rol
-    if (authStore.isProveedor) {
-      await loadAvailableDocuments()
-    } else if (authStore.isContaduria || authStore.isAdmin) {
-      await loadWorkQueue()
-      await loadPendingInvoices()
+    try {
+      // Cargar estadísticas generales
+      await loadDashboardStats()
+      await loadRecentInvoices()
+      await loadPaymentTrends()
+      
+      // Cargar datos específicos según el rol
+      if (authStore.isProveedor) {
+        await loadAvailableDocuments()
+      } else if (authStore.isContaduria || authStore.isAdmin) {
+        await loadWorkQueue()
+        await loadPendingInvoices()
+      }
+      
+      console.log('✅ Dashboard carga completa')
+    } catch (error) {
+      console.error('❌ Error durante la inicialización del dashboard:', error)
+      toast.error('Error al cargar los datos del dashboard')
     }
-    
-    console.log('✅ Dashboard carga completa')
   }
 
   // Exponer todo lo necesario
@@ -447,7 +492,6 @@ export function useDashboard() {
     workQueue,
     pendingInvoices,
     stats,
-    invoiceStatus,
     recentInvoices,
     paymentTrends,
     loadingStats,
@@ -457,7 +501,6 @@ export function useDashboard() {
     
     // Functions
     loadDashboardStats,
-    loadInvoiceStatus,
     loadPaymentTrends,
     loadRecentInvoices,
     loadAvailableDocuments,

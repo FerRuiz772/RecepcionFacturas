@@ -23,11 +23,11 @@ INSERT IGNORE INTO users (id, email, password_hash, name, role, supplier_id, pro
 
 -- ==================== FACTURAS DE EJEMPLO ====================
 INSERT IGNORE INTO invoices (id, number, supplier_id, assigned_to, amount, description, due_date, uploaded_files, status, priority, processing_data) VALUES
-(1, 'FACT-2025-001', 1, 3, 2500.00, 'Desarrollo de módulo CRM personalizado', '2025-10-15', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_001.pdf', 'filename', 'factura_001_compressed.pdf', 'size', 245760)), 'en_proceso', 'alta', JSON_OBJECT('received_date', '2024-09-01', 'estimated_completion', '2024-09-15')),
-(2, 'FACT-2025-002', 2, 4, 850.00, 'Diseño e impresión de material publicitario', '2025-10-20', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_002.pdf', 'filename', 'factura_002_compressed.pdf', 'size', 198432)), 'contrasena_generada', 'media', JSON_OBJECT('received_date', '2024-09-02', 'design_approved', TRUE)),
-(3, 'FACT-2025-003', 3, 3, 1200.00, 'Suministros de oficina Q3 2024', '2025-10-25', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_003.pdf', 'filename', 'factura_003_compressed.pdf', 'size', 312576)), 'retencion_isr_generada', 'media', JSON_OBJECT('received_date', '2024-09-03', 'delivery_confirmed', TRUE)),
-(4, 'FACT-2025-004', 4, 4, 4500.00, 'Consultoría legal - Revisión contratos', '2025-11-05', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_004.pdf', 'filename', 'factura_004_compressed.pdf', 'size', 456789)), 'proceso_completado', 'alta', JSON_OBJECT('received_date', '2024-09-01', 'legal_review_completed', TRUE, 'payment_completed', '2024-09-10')),
-(5, 'FACT-2025-005', 1, NULL, 1800.00, 'Mantenimiento sistema ERP - Septiembre', '2025-10-30', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_005.pdf', 'filename', 'factura_005_compressed.pdf', 'size', 287654)), 'factura_subida', 'media', JSON_OBJECT('received_date', '2024-09-05', 'maintenance_type', 'preventivo'));
+(1, 'FACT-2025-001', 1, 3, 2500.00, 'Desarrollo de módulo CRM personalizado', '2025-10-15', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_001.pdf', 'filename', 'files-1757430510253-981292481.pdf', 'size', 222218)), 'en_proceso', 'alta', JSON_OBJECT('received_date', '2024-09-01', 'estimated_completion', '2024-09-15')),
+(2, 'FACT-2025-002', 2, 4, 850.00, 'Diseño e impresión de material publicitario', '2025-10-20', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_002.pdf', 'filename', 'files-1757442929176-700430416.pdf', 'size', 222218)), 'contrasena_generada', 'media', JSON_OBJECT('received_date', '2024-09-02', 'design_approved', TRUE)),
+(3, 'FACT-2025-003', 3, 3, 1200.00, 'Suministros de oficina Q3 2024', '2025-10-25', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_003.pdf', 'filename', 'files-1757698118201-141617703.pdf', 'size', 222218)), 'retencion_isr_generada', 'media', JSON_OBJECT('received_date', '2024-09-03', 'delivery_confirmed', TRUE)),
+(4, 'FACT-2025-004', 4, 4, 4500.00, 'Consultoría legal - Revisión contratos', '2025-11-05', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_004.pdf', 'filename', 'files-1757698195908-298635400.pdf', 'size', 222218)), 'proceso_completado', 'alta', JSON_OBJECT('received_date', '2024-09-01', 'legal_review_completed', TRUE, 'payment_completed', '2024-09-10')),
+(5, 'FACT-2025-005', 1, NULL, 1800.00, 'Mantenimiento sistema ERP - Septiembre', '2025-10-30', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_005.pdf', 'filename', 'files-1757430510253-981292481.pdf', 'size', 222218)), 'factura_subida', 'media', JSON_OBJECT('received_date', '2024-09-05', 'maintenance_type', 'preventivo'));
 
 -- ==================== ESTADOS DE FACTURAS ====================
 INSERT IGNORE INTO invoice_states (id, invoice_id, from_state, to_state, user_id, timestamp, notes) VALUES
@@ -60,8 +60,8 @@ INSERT IGNORE INTO invoice_states (id, invoice_id, from_state, to_state, user_id
 -- ==================== PAGOS ====================
 INSERT IGNORE INTO payments (id, invoice_id, password_generated, isr_retention_file, iva_retention_file, payment_proof_file, completion_date) VALUES
 (1, 2, 'ABC123', NULL, NULL, NULL, NULL),
-(2, 3, 'XYZ789', '/uploads/retenciones/isr_3.pdf', NULL, NULL, NULL),
-(3, 4, 'LEG456', '/uploads/retenciones/isr_4.pdf', '/uploads/retenciones/iva_4.pdf', '/uploads/comprobantes/pago_4.pdf', '2024-09-03 11:30:00');
+(2, 3, 'XYZ789', 'backend/src/uploads/retenciones/isr_3.pdf', NULL, NULL, NULL),
+(3, 4, 'LEG456', 'backend/src/uploads/retenciones/isr_4.pdf', 'backend/src/uploads/retenciones/iva_4.pdf', 'backend/src/uploads/comprobantes/pago_4.pdf', '2024-09-03 11:30:00');
 
 -- ==================== LOGS DEL SISTEMA ====================
 INSERT IGNORE INTO system_logs (id, user_id, action, entity_type, entity_id, ip_address, user_agent, details, timestamp) VALUES

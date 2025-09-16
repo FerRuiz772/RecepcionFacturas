@@ -101,12 +101,13 @@ router.beforeEach(async (to, from, next) => {
       next('/dashboard')
     } 
     else if (to.name === 'AccountingDocuments' || to.name === 'InvoiceDetail') {
-      // Validar que el ID sea válido
+      // Validar que el ID sea válido (debe ser un número positivo)
       const invoiceId = to.params.id
-      if (!invoiceId || invoiceId.length < 3) {
-        console.log('❌ ID de factura inválido')
+      if (!invoiceId || isNaN(parseInt(invoiceId)) || parseInt(invoiceId) <= 0) {
+        console.log('❌ ID de factura inválido:', invoiceId)
         next('/invoices')
       } else {
+        console.log('✅ ID de factura válido:', invoiceId)
         next()
       }
     }

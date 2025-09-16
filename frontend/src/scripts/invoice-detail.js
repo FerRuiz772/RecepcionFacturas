@@ -218,6 +218,9 @@ export function useInvoiceDetail() {
     loading,
     invoice,
     
+    // Stores
+    authStore,
+    
     // Computed properties
     canManage,
     

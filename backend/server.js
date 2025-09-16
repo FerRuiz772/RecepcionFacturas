@@ -89,7 +89,14 @@ const initializeUsers = async () => {
 };
 
 // Security middleware
-app.use(helmet());
+app.use(helmet({
+    frameguard: false, // Permitir iframes
+    contentSecurityPolicy: {
+        directives: {
+            frameAncestors: ["'self'", "http://localhost:8080", "https://localhost:8080"]
+        }
+    }
+}));
 app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true

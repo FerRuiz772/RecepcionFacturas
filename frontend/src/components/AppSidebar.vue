@@ -5,82 +5,46 @@
     class="sidebar" 
     width="280"
     :permanent="$vuetify.display.lgAndUp"
+    :temporary="$vuetify.display.mdAndDown"
   >
+    <!-- Header del sidebar -->
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <div class="sidebar-logo">
           <v-icon size="18" color="#0f172a">mdi-file-document-multiple</v-icon>
         </div>
-        <div>
+        <div class="sidebar-brand-text">
           <div class="sidebar-title">Recepción Facturas</div>
         </div>
       </div>
       <p class="sidebar-subtitle">Sistema de Gestión de Pagos</p>
     </div>
     
-    <v-list nav class="pt-4">
+    <!-- Navegación principal -->
+    <v-list nav class="sidebar-nav pt-4">
       <v-list-item
         v-for="item in filteredMenuItems"
         :key="item.title"
         :to="item.to"
         class="nav-item"
-        rounded="lg"
         :class="{ 'nav-item--active': isActiveRoute(item.to) }"
-        exact
       >
         <template v-slot:prepend>
-          <v-icon>{{ item.icon }}</v-icon>
+          <v-icon :icon="item.icon" class="nav-icon" />
         </template>
-        <v-list-item-title>{{ item.title }}</v-list-item-title>
+        
+        <v-list-item-title class="nav-title">
+          {{ item.title }}
+        </v-list-item-title>
       </v-list-item>
     </v-list>
-
-    <!-- Información del usuario en el sidebar (móvil) -->
-    <template v-if="$vuetify.display.mdAndDown">
-      <v-divider class="my-4"></v-divider>
-      <div class="sidebar-user-info">
-        <div class="d-flex align-center pa-4">
-          <v-avatar size="40" style="background: #0f172a;">
-            <span class="text-white font-weight-bold">{{ userInitials }}</span>
-          </v-avatar>
-          <div class="ml-3">
-            <div class="sidebar-user-name">{{ authStore.userName }}</div>
-            <div class="sidebar-user-role">{{ roleDisplayName }}</div>
-          </div>
-        </div>
-        
-        <v-list dense>
-          <v-list-item @click="goToProfile" class="sidebar-menu-item">
-            <template v-slot:prepend>
-              <v-icon color="#64748b" size="20">mdi-account-outline</v-icon>
-            </template>
-            <v-list-item-title>Mi Perfil</v-list-item-title>
-          </v-list-item>
-          
-          <v-list-item @click="goToSettings" class="sidebar-menu-item">
-            <template v-slot:prepend>
-              <v-icon color="#64748b" size="20">mdi-cog-outline</v-icon>
-            </template>
-            <v-list-item-title>Configuración</v-list-item-title>
-          </v-list-item>
-          
-          <v-list-item @click="logout" class="sidebar-menu-item">
-            <template v-slot:prepend>
-              <v-icon color="#ef4444" size="20">mdi-logout</v-icon>
-            </template>
-            <v-list-item-title>Cerrar Sesión</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </div>
-    </template>
   </v-navigation-drawer>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
-import { useToast } from 'vue-toastification'
 
 const props = defineProps({
   modelValue: {
@@ -92,9 +56,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue'])
 
 const route = useRoute()
-const router = useRouter()
 const authStore = useAuthStore()
-const toast = useToast()
 
 // Computed para el v-model del drawer
 const drawerModel = computed({
@@ -102,117 +64,67 @@ const drawerModel = computed({
   set: (value) => emit('update:modelValue', value)
 })
 
-// Definición de elementos del menú con permisos específicos
+// Definición de elementos del menú con permisos
 const menuItems = [
   { 
     title: 'Dashboard', 
     icon: 'mdi-view-dashboard-outline', 
     to: '/dashboard', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'],
-    exactMatch: true
+    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor']
   },
   { 
     title: 'Facturas', 
     icon: 'mdi-receipt-text-outline', 
     to: '/invoices', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'],
-    exactMatch: false
+    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor']
   },
   { 
     title: 'Proveedores', 
     icon: 'mdi-account-group-outline', 
     to: '/suppliers', 
-    roles: ['super_admin', 'admin_contaduria'],
-    exactMatch: false
+    roles: ['super_admin', 'admin_contaduria']
   },
   { 
     title: 'Usuarios', 
     icon: 'mdi-account-multiple-outline', 
     to: '/users', 
-    roles: ['super_admin', 'admin_contaduria'],
-    exactMatch: false
+    roles: ['super_admin', 'admin_contaduria']
   }
 ]
 
-// Filtrado de elementos del menú basado en el rol del usuario
+// Filtrado de elementos del menú basado en el rol
 const filteredMenuItems = computed(() => {
-  console.log('Rol actual del usuario:', authStore.userRole)
-  console.log('Todos los items del menú:', menuItems)
-  
-  const filtered = menuItems.filter(item => {
-    const hasPermission = item.roles.includes(authStore.userRole)
-    console.log(`Item: ${item.title}, Roles permitidos: ${item.roles}, Usuario: ${authStore.userRole}, Tiene permiso: ${hasPermission}`)
-    return hasPermission
+  return menuItems.filter(item => {
+    return item.roles.includes(authStore.userRole)
   })
-  
-  console.log('Items filtrados:', filtered)
-  return filtered
-})
-
-const userInitials = computed(() => {
-  return authStore.userName
-    ?.split(' ')
-    .map(n => n[0])
-    .join('')
-    .toUpperCase() || 'U'
-})
-
-const roleDisplayName = computed(() => {
-  const roles = {
-    'super_admin': 'Super Admin',
-    'admin_contaduria': 'Admin Contaduría',
-    'trabajador_contaduria': 'Trabajador Contaduría',
-    'proveedor': 'Proveedor'
-  }
-  return roles[authStore.userRole] || authStore.userRole
 })
 
 // Función para determinar si una ruta está activa
 const isActiveRoute = (itemPath) => {
   const currentPath = route.path
   
-  // Para el dashboard, coincidencia exacta
   if (itemPath === '/dashboard') {
     return currentPath === '/dashboard'
   }
   
-  // Para otras rutas, verificar si la ruta actual comienza con el path del item
   return currentPath.startsWith(itemPath)
-}
-
-const goToProfile = () => {
-  toast.info('Funcionalidad de perfil en desarrollo')
-  // Cerrar sidebar en móvil
-  if (window.innerWidth <= 960) {
-    drawerModel.value = false
-  }
-}
-
-const goToSettings = () => {
-  toast.info('Funcionalidad de configuración en desarrollo')
-  // Cerrar sidebar en móvil
-  if (window.innerWidth <= 960) {
-    drawerModel.value = false
-  }
-}
-
-const logout = async () => {
-  await authStore.logout()
-  router.push('/login')
 }
 </script>
 
 <style scoped>
 .sidebar {
   background: #f8fafc !important;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid #e2e8f0 !important;
+  box-shadow: none !important;
+  z-index: 1100 !important;
 }
 
+/* Header del sidebar */
 .sidebar-header {
   background: #0f172a;
   color: white;
   padding: 24px 20px;
-  border-radius: 0;
+  position: relative;
 }
 
 .sidebar-brand {
@@ -230,30 +142,40 @@ const logout = async () => {
   align-items: center;
   justify-content: center;
   margin-right: 12px;
+  flex-shrink: 0;
 }
 
 .sidebar-title {
   font-size: 18px;
   font-weight: 700;
   letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .sidebar-subtitle {
   font-size: 13px;
   opacity: 0.7;
   margin: 0;
+  line-height: 1.3;
+}
+
+/* Navegación */
+.sidebar-nav {
+  padding-top: 16px !important;
 }
 
 .nav-item {
-  margin: 4px 12px;
+  margin: 2px 12px 6px 12px;
   border-radius: 8px;
   color: #475569;
   font-weight: 500;
   transition: all 0.2s ease;
+  min-height: 48px;
 }
 
 .nav-item:hover {
-  background: #e2e8f0;
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
 }
 
 .nav-item--active {
@@ -263,58 +185,62 @@ const logout = async () => {
 
 .nav-item--active:hover {
   background: #1e293b !important;
+  color: white !important;
 }
 
-/* Información del usuario en sidebar móvil */
-.sidebar-user-info {
-  background: #f1f5f9;
-  margin: 16px 12px;
-  border-radius: 8px;
-  overflow: hidden;
+.nav-icon {
+  font-size: 20px !important;
+  margin-right: 12px;
 }
 
-.sidebar-user-name {
+.nav-title {
   font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }
 
-.sidebar-user-role {
-  font-size: 12px;
-  color: #64748b;
-  margin-top: 2px;
+/* Estados de focus para accesibilidad */
+.nav-item:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
 }
 
-.sidebar-menu-item {
-  padding: 8px 16px;
-  min-height: 40px;
-  border-radius: 6px;
-  margin: 2px 8px;
-  transition: background-color 0.2s ease;
-}
-
-.sidebar-menu-item:hover {
-  background: #e2e8f0;
-}
-
-/* Responsive adjustments */
+/* Responsive */
 @media (max-width: 960px) {
   .sidebar {
-    z-index: 1000;
+    z-index: 1100 !important;
+  }
+}
+
+@media (max-width: 599px) {
+  .sidebar-header {
+    padding: 20px 16px;
+  }
+  
+  .sidebar-title {
+    font-size: 16px;
+  }
+  
+  .sidebar-subtitle {
+    font-size: 12px;
+  }
+  
+  .nav-item {
+    margin: 2px 8px 4px 8px;
+    min-height: 44px;
+  }
+  
+  .nav-title {
+    font-size: 13px;
   }
 }
 
 /* Animaciones suaves */
-.nav-item,
-.sidebar-menu-item {
+.nav-item {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Estados de focus para accesibilidad */
-.nav-item:focus,
-.sidebar-menu-item:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+.sidebar {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>

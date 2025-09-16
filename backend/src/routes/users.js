@@ -7,11 +7,11 @@ const { body } = require('express-validator');
 // Todas las rutas protegidas
 router.use(authenticate);
 
-// Solo super_admin y admin_contaduria pueden listar
-router.get('/', authorize(['super_admin', 'admin_contaduria']), userController.getAllUsers);
+// Listar usuarios (incluye trabajador_contaduria para asignaciones)
+router.get('/', authorize(['super_admin', 'admin_contaduria', 'trabajador_contaduria']), userController.getAllUsers);
 
-// Solo super_admin y admin_contaduria pueden ver detalles
-router.get('/:id', authorize(['super_admin', 'admin_contaduria']), userController.getUserById);
+// Ver detalles de usuario (incluye trabajador_contaduria para asignaciones)
+router.get('/:id', authorize(['super_admin', 'admin_contaduria', 'trabajador_contaduria']), userController.getUserById);
 
 // Solo super_admin puede crear
 router.post('/', authorize(['super_admin']), [

@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
+const { Invoice, Supplier, User, InvoiceState, Payment, sequelize } = require('../models');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -9,6 +9,396 @@ const zlib = require('zlib');
 const { Op } = require('sequelize');
 
 
+        const { status, supplier_id, assigned_to, search, start_date, end_date } = req.query;
+        
+        let whereClause = {};
+        
+        // Aplicar filtros
+        if (status) whereClause.status = status;
+        if (supplier_id) whereClause.supplier_id = parseInt(supplier_id);
+        if (assigned_to) whereClause.assigned_to = parseInt(assigned_to);
+        
+        if (search) {
+            whereClause[Op.or] = [
+                { number: { [Op.like]: `%${search}%` } },
+                { description: { [Op.like]: `%${search}%` } }
+            ];
+        }
+        
+        if (start_date || end_date) {
+            whereClause.created_at = {};
+            if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+            if (end_date) {
+                const endDate = new Date(end_date);
+                endDate.setHours(23, 59, 59, 999);
+                whereClause.created_at[Op.lte] = endDate;
+            }
+        }
+        
+        // Filtros por rol
+        if (role === 'proveedor') {
+            const user = await User.findByPk(req.user.userId);
+            whereClause.supplier_id = user.supplier_id;
+        } else if (role === 'trabajador_contaduria') {
+            whereClause.assigned_to = req.user.userId;
+        }
+
+        // Obtener datos
+        const invoices = await Invoice.findAll({
+            where: whereClause,
+            include: [
+                {
+                    model: Supplier,
+                    as: 'supplier',
+                    attributes: ['business_name', 'nit', 'contact_email']
+                },
+                {
+                    model: User,
+                    as: 'assignedUser',
+                    attributes: ['name', 'email'],
+                    required: false
+                }
+            ],
+            order: [['created_at', 'DESC']]
+        });
+
+        // Calcular estadísticas
+        const totalAmount = invoices.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+        const statusStats = {};
+        const supplierStats = {};
+        
+        invoices.forEach(invoice => {
+            // Stats por estado
+            statusStats[invoice.status] = (statusStats[invoice.status] || 0) + 1;
+            
+            // Stats por proveedor (solo para admin/contaduría)
+            if (role !== 'proveedor' && invoice.supplier) {
+                const supplierName = invoice.supplier.business_name;
+                if (!supplierStats[supplierName]) {
+                    supplierStats[supplierName] = { count: 0, amount: 0 };
+                }
+                supplierStats[supplierName].count++;
+                supplierStats[supplierName].amount += parseFloat(invoice.amount);
+            }
+        });
+
+        // Crear PDF
+        const doc = new jsPDF('p', 'mm', 'a4');
+        const pageWidth = doc.internal.pageSize.width;
+        const pageHeight = doc.internal.pageSize.height;
+
+        // Obtener información del usuario
+        const currentUser = await User.findByPk(req.user.userId, {
+            include: [{ model: Supplier, as: 'supplier', required: false }]
+        });
+
+        let yPos = 20;
+
+        // HEADER CORPORATIVO
+        doc.setFillColor(25, 118, 210);
+        doc.rect(0, 0, pageWidth, 50, 'F');
+        
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(26);
+        doc.setFont('helvetica', 'bold');
+        doc.text('REPORTE EJECUTIVO DE FACTURAS', pageWidth/2, 25, { align: 'center' });
+
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'normal');
+        const currentDate = new Date().toLocaleDateString('es-GT', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        doc.text(`Fecha: ${currentDate}`, pageWidth/2, 35, { align: 'center' });
+        doc.text(`Usuario: ${currentUser.name} (${currentUser.role})`, pageWidth/2, 42, { align: 'center' });
+
+        yPos = 60;
+
+        // TARJETAS DE MÉTRICAS PRINCIPALES
+        const cardHeight = 35;
+        const cardWidth = (pageWidth - 50) / 2;
+        
+        // Tarjeta 1: Resumen General
+        doc.setFillColor(240, 248, 255);
+        doc.setDrawColor(25, 118, 210);
+        doc.setLineWidth(1);
+        doc.rect(15, yPos, cardWidth, cardHeight, 'FD');
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(25, 118, 210);
+        doc.text('RESUMEN GENERAL', 20, yPos + 10);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.text(`Total de Facturas: ${invoices.length}`, 20, yPos + 18);
+        doc.text(`Monto Total: Q${totalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`, 20, yPos + 25);
+        doc.text(`Promedio: Q${(totalAmount / invoices.length || 0).toLocaleString('es-GT', { minimumFractionDigits: 2 })}`, 20, yPos + 32);
+
+        // Tarjeta 2: Información del Período
+        doc.setFillColor(248, 255, 248);
+        doc.setDrawColor(76, 175, 80);
+        doc.rect(25 + cardWidth, yPos, cardWidth, cardHeight, 'FD');
+        
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(76, 175, 80);
+        doc.text('PERÍODO Y FILTROS', 30 + cardWidth, yPos + 10);
+        
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        const periodText = start_date && end_date ? `${start_date} al ${end_date}` : 'Todas las fechas';
+        doc.text(`Período: ${periodText}`, 30 + cardWidth, yPos + 18);
+        doc.text(`Estado filtro: ${status || 'Todos'}`, 30 + cardWidth, yPos + 25);
+        doc.text(`Búsqueda: ${search || 'Sin filtro'}`, 30 + cardWidth, yPos + 32);
+
+        yPos += cardHeight + 25;
+
+        // GRÁFICO DE BARRAS HORIZONTAL CON RECTÁNGULOS DE COLORES
+        doc.setFontSize(18);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(25, 118, 210);
+        doc.text('DISTRIBUCIÓN POR ESTADO', 20, yPos);
+        yPos += 15;
+
+        const statusNames = {
+            'factura_subida': 'Facturas Subidas',
+            'asignada_contaduria': 'Asignadas',
+            'en_proceso': 'En Proceso',
+            'contrasena_generada': 'Con Contraseña',
+            'retencion_isr_generada': 'ISR Generado',
+            'retencion_iva_generada': 'IVA Generado',
+            'pago_realizado': 'Pagos Realizados',
+            'proceso_completado': 'Completados',
+            'rechazada': 'Rechazadas'
+        };
+
+        const colors = [
+            [25, 118, 210],   // Azul
+            [76, 175, 80],    // Verde
+            [255, 152, 0],    // Naranja
+            [156, 39, 176],   // Morado
+            [63, 81, 181],    // Índigo
+            [0, 150, 136],    // Teal
+            [255, 87, 34],    // Rojo naranja
+            [96, 125, 139],   // Azul gris
+            [244, 67, 54]     // Rojo
+        ];
+
+        // Calcular dimensiones del gráfico
+        const chartWidth = pageWidth - 40;
+        const maxBarWidth = chartWidth * 0.5;
+        const maxCount = Math.max(...Object.values(statusStats));
+        
+        let chartY = yPos;
+        let colorIndex = 0;
+
+        // Crear gráfico de barras horizontales
+        Object.entries(statusStats).forEach(([status, count]) => {
+            const statusName = statusNames[status] || status;
+            const percentage = ((count / invoices.length) * 100).toFixed(1);
+            const barWidth = maxCount > 0 ? (count / maxCount) * maxBarWidth : 0;
+            
+            // Color de la barra
+            const color = colors[colorIndex % colors.length];
+            doc.setFillColor(color[0], color[1], color[2]);
+            
+            // Dibujar barra principal
+            if (barWidth > 2) {
+                doc.rect(20, chartY, barWidth, 10, 'F');
+            }
+            
+            // Borde de la barra
+            doc.setDrawColor(color[0] - 20, color[1] - 20, color[2] - 20);
+            doc.setLineWidth(0.5);
+            if (barWidth > 2) {
+                doc.rect(20, chartY, barWidth, 10, 'S');
+            }
+            
+            // Texto del estado y valor
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`${statusName}:`, 25 + maxBarWidth, chartY + 4);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`${count} facturas (${percentage}%)`, 25 + maxBarWidth, chartY + 8);
+            
+            chartY += 15;
+            colorIndex++;
+        });
+
+        yPos = chartY + 20;
+
+        // TOP 5 PROVEEDORES (solo para admin/contaduría)
+        if (role !== 'proveedor' && Object.keys(supplierStats).length > 0) {
+            doc.setFontSize(16);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(25, 118, 210);
+            doc.text('TOP 5 PROVEEDORES POR MONTO', 20, yPos);
+            yPos += 10;
+
+            const topSuppliers = Object.entries(supplierStats)
+                .sort((a, b) => b[1].amount - a[1].amount)
+                .slice(0, 5);
+
+            const supplierTableData = topSuppliers.map(([supplier, data], index) => [
+                `${index + 1}.`,
+                supplier.substring(0, 30),
+                data.count.toString(),
+                `Q${data.amount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`
+            ]);
+
+            doc.autoTable({
+                head: [['#', 'Proveedor', 'Facturas', 'Monto Total']],
+                body: supplierTableData,
+                startY: yPos,
+                theme: 'striped',
+                headStyles: {
+                    fillColor: [76, 175, 80],
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    fontSize: 10
+                },
+                bodyStyles: {
+                    fontSize: 9
+                },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 80 },
+                    2: { cellWidth: 20, halign: 'center' },
+                    3: { cellWidth: 40, halign: 'right' }
+                },
+                margin: { left: 20, right: 20 }
+            });
+
+            yPos = doc.lastAutoTable.finalY + 20;
+        }
+
+        // NUEVA PÁGINA PARA TABLA DETALLADA
+        doc.addPage();
+        yPos = 20;
+
+        // TÍTULO DE TABLA DETALLADA
+        doc.setFontSize(20);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(25, 118, 210);
+        doc.text('DETALLE DE FACTURAS', 20, yPos);
+        yPos += 10;
+
+        // Información adicional
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Mostrando ${Math.min(invoices.length, 100)} facturas de ${invoices.length} total`, 20, yPos);
+        yPos += 15;
+
+        // TABLA PRINCIPAL DE FACTURAS
+        const tableHeaders = ['No. Factura', 'Monto (Q)', 'Estado', 'Fecha'];
+        if (role !== 'proveedor') {
+            tableHeaders.splice(1, 0, 'Proveedor');
+        }
+
+        const tableData = invoices.slice(0, 100).map(invoice => {
+            const row = [
+                invoice.number,
+                parseFloat(invoice.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 }),
+                statusNames[invoice.status] || invoice.status,
+                new Date(invoice.created_at).toLocaleDateString('es-GT')
+            ];
+
+            if (role !== 'proveedor') {
+                row.splice(1, 0, invoice.supplier?.business_name?.substring(0, 25) || 'N/A');
+            }
+
+            return row;
+        });
+
+        // Configurar y dibujar tabla principal
+        doc.autoTable({
+            head: [tableHeaders],
+            body: tableData,
+            startY: yPos,
+            theme: 'striped',
+            headStyles: {
+                fillColor: [25, 118, 210],
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 10,
+                halign: 'center'
+            },
+            bodyStyles: {
+                fontSize: 8,
+                cellPadding: 3
+            },
+            columnStyles: {
+                0: { cellWidth: 30 },
+                1: role !== 'proveedor' ? { cellWidth: 40 } : { cellWidth: 35, halign: 'right' },
+                2: role !== 'proveedor' ? { cellWidth: 35, halign: 'right' } : { cellWidth: 35 },
+                3: role !== 'proveedor' ? { cellWidth: 35 } : { cellWidth: 30 },
+                4: { cellWidth: 30 }
+            },
+            margin: { left: 20, right: 20 },
+            didDrawPage: function (data) {
+                // Header en páginas adicionales
+                if (doc.internal.getCurrentPageInfo().pageNumber > 2) {
+                    doc.setFontSize(12);
+                    doc.setTextColor(100, 100, 100);
+                    doc.text('Detalle de Facturas (continuación)', 20, 15);
+                }
+                
+                // Footer en cada página
+                doc.setFontSize(8);
+                doc.setTextColor(128, 128, 128);
+                doc.text(`Página ${doc.internal.getCurrentPageInfo().pageNumber}`, 
+                    pageWidth - 30, pageHeight - 10);
+                doc.text('Sistema de Gestión de Pagos a Proveedores', 20, pageHeight - 10);
+            }
+        });
+
+        // RESUMEN FINAL
+        const finalY = doc.lastAutoTable.finalY + 15;
+        if (finalY < pageHeight - 60) {
+            doc.setFillColor(248, 249, 250);
+            doc.setDrawColor(200, 200, 200);
+            doc.rect(20, finalY, pageWidth - 40, 30, 'FD');
+
+            doc.setFontSize(14);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(25, 118, 210);
+            doc.text('RESUMEN FINAL', 25, finalY + 10);
+            
+            doc.setFont('helvetica', 'normal');
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(11);
+            doc.text(`Total: ${invoices.length} facturas por Q${totalAmount.toLocaleString('es-GT', { minimumFractionDigits: 2 })}`, 25, finalY + 18);
+            
+            if (invoices.length > 100) {
+                doc.text(`Nota: Se muestran las primeras 100 facturas en el detalle`, 25, finalY + 25);
+            }
+            
+            doc.setFontSize(9);
+            doc.setTextColor(100, 100, 100);
+            doc.text(`Generado por: ${currentUser.name} - ${currentDate}`, 25, finalY + 25);
+        }
+
+        // Generar buffer del PDF
+        const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+
+        // Enviar respuesta
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="reporte_facturas_${new Date().toISOString().slice(0, 10)}.pdf"`);
+        res.send(pdfBuffer);
+
+    } catch (error) {
+        console.error('Error generating PDF report:', error);
+        res.status(500).json({ error: 'Error al generar reporte PDF', details: error.message });
+    }
+}
 
 // Configuración de multer para upload de archivos
 const storage = multer.diskStorage({
@@ -48,8 +438,8 @@ const VALID_STATE_TRANSITIONS = {
     'asignada_contaduria': ['en_proceso', 'rechazada'],
     'en_proceso': ['contrasena_generada', 'rechazada'],
     'contrasena_generada': ['retencion_isr_generada', 'rechazada'],
-    'retencion_isr_generada': ['retencion_iva_generada', 'pago_realizado', 'proceso_completado', 'rechazada'],
-    'retencion_iva_generada': ['pago_realizado', 'proceso_completado', 'rechazada'],
+    'retencion_isr_generada': ['retencion_iva_generada', 'rechazada'],
+    'retencion_iva_generada': ['pago_realizado', 'rechazada'],
     'pago_realizado': ['proceso_completado', 'rechazada'],
     'proceso_completado': [],
     'rechazada': ['factura_subida']
@@ -335,7 +725,7 @@ const invoiceController = {
             // Obtener factura completa para respuesta ANTES del commit
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] },
+                    { model: Supplier, attributes: ['id', 'business_name', 'nit'] },
                     { model: User, as: 'assignedUser', attributes: ['id', 'name'], required: false }
                 ],
                 transaction
@@ -455,32 +845,6 @@ const invoiceController = {
                     validStates: validNextStates,
                     currentStatus
                 });
-            }
-
-            // Validación especial para completar proceso
-            if (status === 'proceso_completado') {
-                const payment = await Payment.findOne({ 
-                    where: { invoice_id: parseInt(id) },
-                    transaction 
-                });
-
-                if (!payment || !payment.password_generated || !payment.isr_retention_file || !payment.iva_retention_file || !payment.payment_proof_file) {
-                    await transaction.rollback();
-                    return res.status(400).json({ 
-                        error: 'No se puede completar el proceso. Faltan documentos obligatorios',
-                        missing: {
-                            password: !payment?.password_generated,
-                            isr_retention: !payment?.isr_retention_file,
-                            iva_retention: !payment?.iva_retention_file,
-                            payment_proof: !payment?.payment_proof_file
-                        }
-                    });
-                }
-
-                // Actualizar fecha de completado
-                await payment.update({ 
-                    completion_date: new Date() 
-                }, { transaction });
             }
 
             await invoice.update({ status }, { transaction });
@@ -609,61 +973,35 @@ const invoiceController = {
 
             // Crear directorio de uploads si no existe
             const uploadsDir = path.join(__dirname, '..', 'uploads');
-            await fs.mkdir(uploadsDir, { recursive: true });
+            await fs.promises.mkdir(uploadsDir, { recursive: true });
 
             const originalName = file.originalname;
             const extension = path.extname(originalName);
             const newFileName = `${invoice.id}-${type}${extension}`;
             const uploadPath = path.join(uploadsDir, newFileName);
 
-            console.log('📁 Upload paths:', {
-                sourceFile: file.path,
-                uploadPath: uploadPath,
-                fileName: newFileName,
-                type: type
-            });
-
             // Si el archivo existe, lo eliminamos primero
             try {
-                await fs.unlink(uploadPath);
-                console.log('🗑️ Archivo anterior eliminado:', uploadPath);
+                await fs.promises.unlink(uploadPath);
             } catch (err) {
-                console.log('ℹ️ No hay archivo anterior que eliminar');
+                // Ignoramos el error si el archivo no existe
             }
 
-            // Asegurar que file.path sea absoluto
-            const sourceFilePath = path.isAbsolute(file.path) ? file.path : path.join(process.cwd(), file.path);
-            console.log('📂 Moviendo archivo de:', sourceFilePath, 'a:', uploadPath);
-            await fs.rename(sourceFilePath, uploadPath);
+            await fs.promises.rename(file.path, uploadPath);
 
-            // Actualizar la tabla de payments con la nueva información del documento
-            const [payment] = await Payment.findOrCreate({
-                where: { invoice_id: invoice.id },
-                defaults: { invoice_id: invoice.id }
-            });
-
-            // Mapear los tipos a los campos correctos de la base de datos
-            const fieldMapping = {
-                'retention_isr': 'isr_retention_file',
-                'retention_iva': 'iva_retention_file',
-                'payment_proof': 'payment_proof_file'
-            };
-
+            // Actualizar la factura con la nueva información del documento
             const updateData = {
-                [fieldMapping[type]]: newFileName
+                [`${type}_path`]: newFileName,
+                [`${type}_date`]: new Date()
             };
 
-            console.log('💾 Actualizando payment:', { paymentId: payment.id, updateData });
-            await payment.update(updateData);
-            console.log('✅ Payment actualizado exitosamente');
-
-            // Actualizar el estado de la factura según el tipo de documento subido
-            await invoiceController.updateInvoiceStatusAfterUpload(invoice, type, payment);
+            await invoice.update(updateData);
 
             // Registrar la acción en el log del sistema
+            const SystemLog = require('../models/SystemLog');
             await SystemLog.create({
                 action: 'DOCUMENT_UPLOAD',
-                userId: req.user.userId,
+                userId: req.user.id,
                 details: JSON.stringify({
                     invoiceId: invoice.id,
                     documentType: type,
@@ -671,143 +1009,16 @@ const invoiceController = {
                 })
             });
 
-            // Recargar la factura con el estado actualizado
-            const updatedInvoice = await Invoice.findByPk(invoice.id, {
-                include: [
-                    { model: Supplier, as: 'supplier' },
-                    { model: User, as: 'assignedUser' },
-                    { model: InvoiceState, as: 'states', include: [{ model: User, as: 'user' }] },
-                    { model: Payment, as: 'payment' }
-                ]
-            });
-
             res.json({
                 message: 'Documento subido correctamente',
-                invoice: updatedInvoice
+                invoice
             });
 
         } catch (error) {
             // Si hay un error, intentamos limpiar el archivo temporal
             if (req.file && req.file.path) {
                 try {
-                    const sourceFilePath = path.isAbsolute(req.file.path) ? req.file.path : path.join(process.cwd(), req.file.path);
-                    await fs.unlink(sourceFilePath);
-                } catch (err) {
-                    // Ignoramos errores al limpiar
-                }
-            }
-            next(error);
-        }
-    },
-
-    // Método para reemplazar documentos existentes
-    async replaceDocument(req, res, next) {
-        try {
-            const { id, type } = req.params;
-            const file = req.file;
-
-            if (!file) {
-                return res.status(400).json({
-                    error: 'No se ha proporcionado ningún archivo',
-                    code: 'NO_FILE_PROVIDED'
-                });
-            }
-
-            const validTypes = ['retention_isr', 'retention_iva', 'payment_proof'];
-            if (!validTypes.includes(type)) {
-                return res.status(400).json({
-                    error: 'Tipo de documento no válido',
-                    code: 'INVALID_DOCUMENT_TYPE'
-                });
-            }
-
-            // Buscar el payment existente
-            const payment = await Payment.findOne({
-                where: { invoice_id: parseInt(id) }
-            });
-
-            if (!payment) {
-                return res.status(404).json({
-                    error: 'No hay información de pago para esta factura',
-                    code: 'PAYMENT_NOT_FOUND'
-                });
-            }
-
-            // Mapear los tipos a los campos correctos de la base de datos
-            const fieldMapping = {
-                'retention_isr': 'isr_retention_file',
-                'retention_iva': 'iva_retention_file',
-                'payment_proof': 'payment_proof_file'
-            };
-
-            // Verificar que existe un archivo previo
-            const currentFileName = payment[fieldMapping[type]];
-            if (!currentFileName) {
-                return res.status(404).json({
-                    error: 'No existe un archivo previo para reemplazar',
-                    code: 'NO_PREVIOUS_FILE'
-                });
-            }
-
-            // Crear directorio de uploads si no existe
-            const uploadsDir = path.join(__dirname, '..', 'uploads');
-            await fs.mkdir(uploadsDir, { recursive: true });
-
-            const originalName = file.originalname;
-            const extension = path.extname(originalName);
-            const newFileName = `${id}-${type}${extension}`;
-            const uploadPath = path.join(uploadsDir, newFileName);
-            const oldFilePath = path.join(uploadsDir, currentFileName);
-
-            console.log('🔄 Reemplazando archivo:', {
-                oldFile: currentFileName,
-                newFile: newFileName,
-                type: type
-            });
-
-            // Eliminar el archivo anterior si existe
-            try {
-                await fs.unlink(oldFilePath);
-                console.log('🗑️ Archivo anterior eliminado:', oldFilePath);
-            } catch (err) {
-                console.log('⚠️ No se pudo eliminar archivo anterior:', err.message);
-            }
-
-            // Mover el nuevo archivo
-            const sourceFilePath = path.isAbsolute(file.path) ? file.path : path.join(process.cwd(), file.path);
-            await fs.rename(sourceFilePath, uploadPath);
-
-            // Actualizar la base de datos
-            const updateData = {
-                [fieldMapping[type]]: newFileName
-            };
-
-            await payment.update(updateData);
-
-            // Registrar la acción en el log del sistema
-            await SystemLog.create({
-                action: 'DOCUMENT_REPLACE',
-                userId: req.user.userId,
-                details: JSON.stringify({
-                    invoiceId: id,
-                    documentType: type,
-                    oldFileName: currentFileName,
-                    newFileName: newFileName
-                })
-            });
-
-            res.json({
-                message: 'Documento reemplazado correctamente',
-                fileName: newFileName,
-                type: type
-            });
-
-        } catch (error) {
-            // Si hay un error, intentamos limpiar el archivo temporal
-            if (req.file && req.file.path) {
-                try {
-                    const sourceFilePath = path.isAbsolute(req.file.path) ? req.file.path : path.join(process.cwd(), req.file.path);
-                    await fs.unlink(sourceFilePath);
+                    await fs.promises.unlink(req.file.path);
                 } catch (err) {
                     // Ignoramos errores al limpiar
                 }
@@ -839,27 +1050,12 @@ const invoiceController = {
 
             if (invoice.uploaded_files.length === 1) {
                 const file = invoice.uploaded_files[0];
-                // Check multiple possible locations for the file
-                const possiblePaths = [
-                    path.join(__dirname, '../uploads', 'temp', file.filename),
-                    path.join(__dirname, '../uploads', id.toString(), file.filename),
-                    path.join(__dirname, '../uploads', file.filename)
-                ];
+                const filePath = path.join(__dirname, '../uploads', id.toString(), file.filename);
                 
-                let filePath = null;
-                for (const tryPath of possiblePaths) {
-                    try {
-                        await fs.access(tryPath);
-                        filePath = tryPath;
-                        break;
-                    } catch (error) {
-                        // Continue to next path
-                    }
-                }
-                
-                if (filePath) {
+                try {
+                    await fs.access(filePath);
                     res.download(filePath, file.originalName);
-                } else {
+                } catch (error) {
                     res.status(404).json({ error: 'Archivo no encontrado' });
                 }
             } else {
@@ -877,7 +1073,7 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
             if (!payment || !payment.isr_retention_file) {
@@ -893,13 +1089,9 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.isr_retention_file);
-                
-                await fs.access(filePath);
+                await fs.access(payment.isr_retention_file);
                 const filename = `retencion-isr-${payment.Invoice.number}.pdf`;
-                res.download(filePath, filename);
+                res.download(payment.isr_retention_file, filename);
             } catch (error) {
                 return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
             }
@@ -914,7 +1106,7 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
             if (!payment || !payment.iva_retention_file) {
@@ -929,13 +1121,9 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.iva_retention_file);
-                
-                await fs.access(filePath);
+                await fs.access(payment.iva_retention_file);
                 const filename = `retencion-iva-${payment.Invoice.number}.pdf`;
-                res.download(filePath, filename);
+                res.download(payment.iva_retention_file, filename);
             } catch (error) {
                 return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
             }
@@ -950,7 +1138,7 @@ const invoiceController = {
             const { id } = req.params;
             const payment = await Payment.findOne({ 
                 where: { invoice_id: parseInt(id) },
-                include: [{ model: Invoice, as: 'Invoice', attributes: ['number', 'supplier_id'] }]
+                include: [{ model: Invoice, attributes: ['number', 'supplier_id'] }]
             });
 
             if (!payment || !payment.payment_proof_file) {
@@ -965,117 +1153,14 @@ const invoiceController = {
             }
 
             try {
-                // Construir la ruta completa del archivo
-                const uploadsDir = path.join(__dirname, '..', 'uploads');
-                const filePath = path.join(uploadsDir, payment.payment_proof_file);
-                
-                await fs.access(filePath);
+                await fs.access(payment.payment_proof_file);
                 const filename = `comprobante-pago-${payment.Invoice.number}.pdf`;
-                res.download(filePath, filename);
+                res.download(payment.payment_proof_file, filename);
             } catch (error) {
                 return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
             }
         } catch (error) {
             console.error('Error al descargar comprobante:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
-        }
-    },
-
-    // Función para visualizar archivos originales de la factura
-    async viewInvoiceFile(req, res) {
-        try {
-            const { id, filename } = req.params;
-            const invoice = await Invoice.findByPk(parseInt(id));
-
-            if (!invoice) {
-                return res.status(404).json({ error: 'Factura no encontrada' });
-            }
-
-            // Buscar el archivo en uploaded_files
-            const file = invoice.uploaded_files?.find(f => f.filename === filename);
-            
-            if (!file) {
-                return res.status(404).json({ error: 'Archivo no encontrado' });
-            }
-
-            // Construir la ruta del archivo - probar múltiples ubicaciones
-            const possiblePaths = [
-                path.join(__dirname, '../uploads', 'temp', file.filename),
-                path.join(__dirname, '../uploads', id.toString(), file.filename),
-                path.join(__dirname, '../uploads', file.filename)
-            ];
-            
-            let filePath = null;
-            for (const tryPath of possiblePaths) {
-                try {
-                    await fs.access(tryPath);
-                    filePath = tryPath;
-                    break;
-                } catch (error) {
-                    // Continue to next path
-                }
-            }
-            
-            if (!filePath) {
-                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
-            }
-
-            // Configurar headers para visualización
-            res.setHeader('Content-Type', file.mimetype || 'application/pdf');
-            res.setHeader('Content-Disposition', 'inline; filename="' + file.originalName + '"');
-            
-            // Enviar el archivo
-            res.sendFile(path.resolve(filePath));
-            
-        } catch (error) {
-            console.error('Error al visualizar archivo:', error);
-            res.status(500).json({ error: 'Error interno del servidor' });
-        }
-    },
-
-    // Función para descargar archivos específicos de la factura
-    async downloadInvoiceFile(req, res) {
-        try {
-            const { id, filename } = req.params;
-            const invoice = await Invoice.findByPk(parseInt(id));
-
-            if (!invoice) {
-                return res.status(404).json({ error: 'Factura no encontrada' });
-            }
-
-            // Buscar el archivo en uploaded_files
-            const file = invoice.uploaded_files?.find(f => f.filename === filename);
-            
-            if (!file) {
-                return res.status(404).json({ error: 'Archivo no encontrado' });
-            }
-
-            // Construir la ruta del archivo - probar múltiples ubicaciones
-            const possiblePaths = [
-                path.join(__dirname, '../uploads', 'temp', file.filename),
-                path.join(__dirname, '../uploads', id.toString(), file.filename),
-                path.join(__dirname, '../uploads', file.filename)
-            ];
-            
-            let filePath = null;
-            for (const tryPath of possiblePaths) {
-                try {
-                    await fs.access(tryPath);
-                    filePath = tryPath;
-                    break;
-                } catch (error) {
-                    // Continue to next path
-                }
-            }
-            
-            if (filePath) {
-                res.download(filePath, file.originalName);
-            } else {
-                return res.status(404).json({ error: 'Archivo no encontrado en el servidor' });
-            }
-            
-        } catch (error) {
-            console.error('Error al descargar archivo:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
@@ -1414,7 +1499,6 @@ const invoiceController = {
     
     async autoAssignInvoice() {
         try {
-            // Buscar ÚNICAMENTE trabajadores de contaduría activos
             const workers = await User.findAll({
                 where: { 
                     role: 'trabajador_contaduria',
@@ -1422,14 +1506,16 @@ const invoiceController = {
                 }
             });
     
-            // Si no hay trabajadores disponibles, no asignar a nadie
-            // Los administradores NO deben recibir asignaciones automáticas
             if (workers.length === 0) {
-                console.warn('No hay trabajadores de contaduría disponibles para asignación automática');
-                return null;
+                const admin = await User.findOne({
+                    where: { 
+                        role: 'admin_contaduria',
+                        is_active: true 
+                    }
+                });
+                return admin ? admin.id : null;
             }
     
-            // Calcular carga de trabajo para cada trabajador
             const workersWithCount = await Promise.all(
                 workers.map(async (worker) => {
                     const count = await Invoice.count({
@@ -1444,12 +1530,10 @@ const invoiceController = {
                 })
             );
     
-            // Asignar al trabajador con menor carga de trabajo
             const selectedWorker = workersWithCount.reduce((min, current) => 
                 current.count < min.count ? current : min
             ).worker;
     
-            console.log(`Auto-asignando factura a trabajador: ${selectedWorker.name} (${selectedWorker.email}) con ${workersWithCount.find(w => w.worker.id === selectedWorker.id).count} facturas pendientes`);
             return selectedWorker.id;
         } catch (error) {
             console.error('Error en auto-asignación:', error);
@@ -1530,16 +1614,12 @@ const invoiceController = {
 
             let averageTime = 0;
             if (completedInvoices.length > 0) {
-                const times = completedInvoices
-                    .filter(invoice => invoice.states && invoice.states.length > 0)
-                    .map(invoice => {
-                        const completedDate = new Date(invoice.states[0].timestamp);
-                        const createdDate = new Date(invoice.created_at);
-                        return (completedDate - createdDate) / (1000 * 60 * 60 * 24); // días
-                    });
-                if (times.length > 0) {
-                    averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
-                }
+                const times = completedInvoices.map(invoice => {
+                    const completedDate = new Date(invoice.states[0].timestamp);
+                    const createdDate = new Date(invoice.created_at);
+                    return (completedDate - createdDate) / (1000 * 60 * 60 * 24); // días
+                });
+                averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
             }
 
             // Calcular tendencias (comparar con mes anterior)
@@ -2061,64 +2141,109 @@ const invoiceController = {
         }
     },
 
-    // Actualizar el estado de la factura después de subir documentos
-    updateInvoiceStatusAfterUpload: async (invoice, documentType, payment) => {
+    // Exportar a PDF
+    exportToPDF: async (req, res) => {
         try {
-            let newStatus = null;
-            let statusNotes = null;
+            const { role } = req.user;
+            const { status, supplier_id, assigned_to, search, start_date, end_date } = req.query;
+            
+            let whereClause = {};
+            
+            // Aplicar filtros del frontend
+            if (status) whereClause.status = status;
+            if (supplier_id) whereClause.supplier_id = parseInt(supplier_id);
+            if (assigned_to) whereClause.assigned_to = parseInt(assigned_to);
+            
+            if (search) {
+                whereClause[Op.or] = [
+                    { number: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } }
+                ];
+            }
+            
+            // Filtros de fecha
+            if (start_date || end_date) {
+                whereClause.created_at = {};
+                if (start_date) whereClause.created_at[Op.gte] = new Date(start_date);
+                if (end_date) {
+                    const endDate = new Date(end_date);
+                    endDate.setHours(23, 59, 59, 999);
+                    whereClause.created_at[Op.lte] = endDate;
+                }
+            }
+            
+            // Aplicar filtros por rol
+            if (role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                whereClause.supplier_id = user.supplier_id;
+            } else if (role === 'trabajador_contaduria') {
+                whereClause.assigned_to = req.user.userId;
+            }
 
-            // Determinar el nuevo estado según el tipo de documento
-            switch (documentType) {
-                case 'retention_isr':
-                    newStatus = 'retencion_isr_generada';
-                    statusNotes = 'Retención ISR subida automáticamente';
-                    break;
-                case 'retention_iva':
-                    newStatus = 'retencion_iva_generada';
-                    statusNotes = 'Retención IVA subida automáticamente';
-                    break;
-                case 'payment_proof':
-                    // Verificar si ya se completó todo el proceso
-                    if (payment.isr_retention_file && payment.iva_retention_file) {
-                        newStatus = 'proceso_completado';
-                        statusNotes = 'Proceso completado - todos los documentos subidos';
-                        
-                        // Actualizar la fecha de completado
-                        await payment.update({
-                            completion_date: new Date()
-                        });
-                    } else {
-                        newStatus = 'pago_realizado';
-                        statusNotes = 'Comprobante de pago subido';
+            // Obtener datos
+            const invoices = await Invoice.findAll({
+                where: whereClause,
+                include: [
+                    {
+                        model: Supplier,
+                        as: 'supplier',
+                        attributes: ['business_name', 'nit', 'contact_email']
+                    },
+                    {
+                        model: User,
+                        as: 'assignedUser',
+                        attributes: ['name', 'email'],
+                        required: false
+                    },
+                    {
+                        model: Payment,
+                        as: 'payment',
+                        required: false
                     }
-                    break;
-            }
+                ],
+                order: [['created_at', 'DESC']]
+            });
 
-            if (newStatus && newStatus !== invoice.status) {
-                console.log('🔄 Actualizando estado de factura:', {
-                    invoiceId: invoice.id,
-                    oldStatus: invoice.status,
-                    newStatus: newStatus
-                });
+            // Crear PDF simple
+            const doc = new PDFDocument({ margin: 50, size: 'A4' });
+            const fileName = `reporte_facturas_${Date.now()}.pdf`;
+            const filePath = path.join(__dirname, '../uploads/temp', fileName);
+            
+            // Crear directorio si no existe
+            await fs.mkdir(path.dirname(filePath), { recursive: true });
+            
+            const stream = require('fs').createWriteStream(filePath);
+            doc.pipe(stream);
 
-                // Actualizar el estado de la factura
-                await invoice.update({ status: newStatus });
+            // Header del documento
+            doc.fontSize(20).text('REPORTE DE FACTURAS', 50, 50);
+            doc.fontSize(12).text(`Generado el: ${new Date().toLocaleDateString('es-GT')}`, 50, 80);
+            doc.text(`Total de facturas: ${invoices.length}`, 50, 110);
 
-                // Crear registro en el historial de estados
-                await InvoiceState.create({
-                    invoice_id: invoice.id,
-                    from_state: invoice.status,
-                    to_state: newStatus,
-                    user_id: 1, // Sistema automático
-                    notes: statusNotes,
-                    timestamp: new Date()
-                });
+            doc.end();
 
-                console.log('✅ Estado de factura actualizado exitosamente');
-            }
+            // Esperar a que termine de escribir el archivo
+            await new Promise((resolve, reject) => {
+                stream.on('finish', resolve);
+                stream.on('error', reject);
+            });
+
+            // Enviar archivo
+            res.download(filePath, `reporte_facturas_${new Date().toISOString().slice(0, 10)}.pdf`, async (err) => {
+                if (err) {
+                    console.error('Error sending PDF:', err);
+                }
+                // Limpiar archivo temporal
+                try {
+                    await fs.unlink(filePath);
+                } catch (cleanupError) {
+                    console.warn('Error cleaning up PDF file:', cleanupError);
+                }
+            });
+
         } catch (error) {
-            console.error('❌ Error actualizando estado de factura:', error);
-            // No lanzamos el error para no interrumpir el proceso de subida
+            console.error('Error generating PDF report:', error);
+            res.status(500).json({ error: 'Error al generar reporte PDF' });
         }
     }
 };

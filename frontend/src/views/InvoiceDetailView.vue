@@ -332,6 +332,9 @@ const {
   loading,
   invoice,
   
+  // Stores
+  authStore,
+  
   // Computed properties
   canManage,
   

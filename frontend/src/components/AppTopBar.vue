@@ -1,205 +1,353 @@
 <template>
-  <v-navigation-drawer 
-    v-model="drawerModel" 
+  <v-app-bar 
     app 
-    class="sidebar" 
-    width="280"
-    :permanent="$vuetify.display.lgAndUp"
-    :temporary="$vuetify.display.mdAndDown"
+    class="topbar" 
+    height="64"
+    flat
+    color="white"
   >
-    <div class="sidebar-header">
-      <div class="sidebar-brand">
-        <div class="sidebar-logo">
-          <v-icon size="18" color="#0f172a">mdi-file-document-multiple</v-icon>
-        </div>
-        <div>
-          <div class="sidebar-title">Recepción Facturas</div>
+    <!-- Toggle sidebar en móvil -->
+    <v-app-bar-nav-icon 
+      v-if="$vuetify.display.mdAndDown"
+      @click="toggleSidebar"
+      class="sidebar-toggle"
+    >
+      <v-icon>mdi-menu</v-icon>
+    </v-app-bar-nav-icon>
+
+    <!-- Breadcrumbs/Título de página -->
+    <div class="topbar-content">
+      <div class="page-title">
+        <h1 class="topbar-title">{{ pageTitle }}</h1>
+        <div v-if="breadcrumbs.length > 1" class="breadcrumbs">
+          <span 
+            v-for="(crumb, index) in breadcrumbs" 
+            :key="index"
+            class="breadcrumb-item"
+          >
+            {{ crumb }}
+            <v-icon 
+              v-if="index < breadcrumbs.length - 1" 
+              size="16" 
+              class="breadcrumb-separator"
+            >
+              mdi-chevron-right
+            </v-icon>
+          </span>
         </div>
       </div>
-      <p class="sidebar-subtitle">Sistema de Gestión de Pagos</p>
     </div>
-    
-    <v-list nav class="pt-4">
-      <v-list-item
-        v-for="item in filteredMenuItems"
-        :key="item.title"
-        :to="item.to"
-        class="nav-item"
-        rounded="lg"
-        :class="{ 'nav-item--active': isActiveRoute(item.to) }"
-        exact
-      >
-        <template v-slot:prepend>
-          <v-icon>{{ item.icon }}</v-icon>
+
+    <v-spacer />
+
+    <!-- Información del usuario y controles (solo en desktop) -->
+    <div v-if="$vuetify.display.lgAndUp" class="topbar-user">
+      <!-- Información del usuario -->
+      <div class="user-info">
+        <div class="user-details">
+          <div class="user-name">{{ authStore.userName }}</div>
+          <div class="user-role">{{ roleDisplayName }}</div>
+        </div>
+        <v-avatar size="40" class="user-avatar">
+          <span class="text-white font-weight-bold">{{ userInitials }}</span>
+        </v-avatar>
+      </div>
+
+      <!-- Menú de usuario -->
+      <v-menu offset-y>
+        <template v-slot:activator="{ props }">
+          <v-btn 
+            icon 
+            variant="text" 
+            v-bind="props"
+            class="user-menu-toggle"
+          >
+            <v-icon>mdi-chevron-down</v-icon>
+          </v-btn>
         </template>
-        <v-list-item-title>{{ item.title }}</v-list-item-title>
-      </v-list-item>
-    </v-list>
-  </v-navigation-drawer>
+        
+        <v-list class="user-menu" min-width="200">
+          <v-list-item @click="goToProfile" class="user-menu-item">
+            <template v-slot:prepend>
+              <v-icon color="#64748b" size="20">mdi-account-outline</v-icon>
+            </template>
+            <v-list-item-title>Mi Perfil</v-list-item-title>
+          </v-list-item>
+          
+          <v-list-item @click="goToSettings" class="user-menu-item">
+            <template v-slot:prepend>
+              <v-icon color="#64748b" size="20">mdi-cog-outline</v-icon>
+            </template>
+            <v-list-item-title>Configuración</v-list-item-title>
+          </v-list-item>
+          
+          <v-divider class="my-1" />
+          
+          <v-list-item @click="logout" class="user-menu-item logout-item">
+            <template v-slot:prepend>
+              <v-icon color="#ef4444" size="20">mdi-logout</v-icon>
+            </template>
+            <v-list-item-title>Cerrar Sesión</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+    </div>
+  </v-app-bar>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useToast } from 'vue-toastification'
 
-const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    default: true
-  }
-})
-
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
+const toast = useToast()
 
-// Computed para el v-model del drawer
-const drawerModel = computed({
-  get: () => props.modelValue,
-  set: (value) => emit('update:modelValue', value)
-})
+// Función para toggle del sidebar
+const toggleSidebar = () => {
+  emit('toggle-sidebar')
+}
 
-// Definición de elementos del menú con permisos específicos
-const menuItems = [
-  { 
-    title: 'Dashboard', 
-    icon: 'mdi-view-dashboard-outline', 
-    to: '/dashboard', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'],
-    exactMatch: true
-  },
-  { 
-    title: 'Facturas', 
-    icon: 'mdi-receipt-text-outline', 
-    to: '/invoices', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'],
-    exactMatch: false
-  },
-  { 
-    title: 'Proveedores', 
-    icon: 'mdi-account-group-outline', 
-    to: '/suppliers', 
-    roles: ['super_admin', 'admin_contaduria'],
-    exactMatch: false
-  },
-  { 
-    title: 'Usuarios', 
-    icon: 'mdi-account-multiple-outline', 
-    to: '/users', 
-    roles: ['super_admin', 'admin_contaduria'],
-    exactMatch: false
-  }
-]
-
-// Filtrado de elementos del menú basado en el rol del usuario
-const filteredMenuItems = computed(() => {
-  console.log('Rol actual del usuario:', authStore.userRole)
-  console.log('Todos los items del menú:', menuItems)
-  
-  const filtered = menuItems.filter(item => {
-    const hasPermission = item.roles.includes(authStore.userRole)
-    console.log(`Item: ${item.title}, Roles permitidos: ${item.roles}, Usuario: ${authStore.userRole}, Tiene permiso: ${hasPermission}`)
-    return hasPermission
-  })
-  
-  console.log('Items filtrados:', filtered)
-  return filtered
-})
-
-// Función para determinar si una ruta está activa
-const isActiveRoute = (itemPath) => {
-  const currentPath = route.path
-  
-  // Para el dashboard, coincidencia exacta
-  if (itemPath === '/dashboard') {
-    return currentPath === '/dashboard'
+// Título de página basado en la ruta
+const pageTitle = computed(() => {
+  const titles = {
+    '/dashboard': 'Dashboard',
+    '/invoices': 'Gestión de Facturas',
+    '/invoices/new': 'Nueva Factura',
+    '/suppliers': 'Gestión de Proveedores',
+    '/users': 'Gestión de Usuarios',
+    '/accounting-documents': 'Documentos Contables'
   }
   
-  // Para otras rutas, verificar si la ruta actual comienza con el path del item
-  return currentPath.startsWith(itemPath)
+  // Buscar coincidencia exacta primero
+  if (titles[route.path]) {
+    return titles[route.path]
+  }
+  
+  // Buscar coincidencia parcial
+  for (const [path, title] of Object.entries(titles)) {
+    if (route.path.startsWith(path) && path !== '/') {
+      return title
+    }
+  }
+  
+  return 'Sistema de Recepción de Facturas'
+})
+
+// Breadcrumbs basados en la ruta
+const breadcrumbs = computed(() => {
+  const path = route.path
+  const crumbs = ['Inicio']
+  
+  if (path.startsWith('/invoices')) {
+    crumbs.push('Facturas')
+    if (path.includes('/new')) {
+      crumbs.push('Nueva Factura')
+    } else if (path.includes('/edit/')) {
+      crumbs.push('Editar Factura')
+    } else if (path.match(/\/\d+$/)) {
+      crumbs.push('Detalle')
+    }
+  } else if (path.startsWith('/suppliers')) {
+    crumbs.push('Proveedores')
+  } else if (path.startsWith('/users')) {
+    crumbs.push('Usuarios')
+  } else if (path.startsWith('/accounting-documents')) {
+    crumbs.push('Documentos Contables')
+  }
+  
+  return crumbs
+})
+
+// Información del usuario
+const userInitials = computed(() => {
+  return authStore.userName
+    ?.split(' ')
+    .map(n => n[0])
+    .join('')
+    .toUpperCase() || 'U'
+})
+
+const roleDisplayName = computed(() => {
+  const roles = {
+    'super_admin': 'Super Admin',
+    'admin_contaduria': 'Admin Contaduría',
+    'trabajador_contaduria': 'Trabajador Contaduría',
+    'proveedor': 'Proveedor'
+  }
+  return roles[authStore.userRole] || authStore.userRole
+})
+
+// Funciones del menú de usuario
+const goToProfile = () => {
+  router.push('/profile')
+}
+
+const goToSettings = () => {
+  router.push('/settings')
+}
+
+const logout = async () => {
+  try {
+    await authStore.logout()
+    toast.success('Sesión cerrada correctamente')
+    router.push('/login')
+  } catch (error) {
+    toast.error('Error al cerrar sesión')
+  }
 }
 </script>
 
 <style scoped>
-.sidebar {
-  background: #f8fafc !important;
-  border-right: 1px solid #e2e8f0;
+.topbar {
+  border-bottom: 1px solid #e2e8f0 !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  z-index: 1050 !important;
 }
 
-.sidebar-header {
-  background: #0f172a;
-  color: white;
-  padding: 24px 20px;
-  border-radius: 0;
+.sidebar-toggle {
+  margin-right: 8px;
 }
 
-.sidebar-brand {
+.topbar-content {
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  flex: 1;
 }
 
-.sidebar-logo {
-  width: 32px;
-  height: 32px;
-  background: white;
-  border-radius: 6px;
+.page-title {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12px;
+  flex-direction: column;
+  gap: 2px;
 }
 
-.sidebar-title {
-  font-size: 18px;
-  font-weight: 700;
-  letter-spacing: -0.025em;
-}
-
-.sidebar-subtitle {
-  font-size: 13px;
-  opacity: 0.7;
+.topbar-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #0f172a;
   margin: 0;
+  line-height: 1.2;
 }
 
-.nav-item {
-  margin: 4px 12px;
+.breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.breadcrumb-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.breadcrumb-separator {
+  color: #cbd5e1;
+}
+
+.topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
   border-radius: 8px;
-  color: #475569;
-  font-weight: 500;
   transition: all 0.2s ease;
 }
 
-.nav-item:hover {
-  background: #e2e8f0;
+.user-details {
+  text-align: right;
 }
 
-.nav-item--active {
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.user-role {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.2;
+}
+
+.user-avatar {
   background: #0f172a !important;
-  color: white !important;
+  flex-shrink: 0;
 }
 
-.nav-item--active:hover {
-  background: #1e293b !important;
+.user-menu-toggle {
+  color: #64748b;
+  transition: all 0.2s ease;
 }
 
-/* Responsive adjustments */
+.user-menu-toggle:hover {
+  color: #0f172a;
+  background: #f1f5f9 !important;
+}
+
+.user-menu {
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.user-menu-item {
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.user-menu-item:hover {
+  background: #f8fafc !important;
+}
+
+.logout-item:hover {
+  background: #fef2f2 !important;
+}
+
+/* Responsive */
 @media (max-width: 960px) {
-  .sidebar {
-    z-index: 1000;
+  .topbar-title {
+    font-size: 18px;
+  }
+  
+  .breadcrumbs {
+    display: none;
   }
 }
 
-/* Animaciones suaves */
-.nav-item {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+@media (max-width: 599px) {
+  .topbar-title {
+    font-size: 16px;
+  }
 }
 
-/* Estados de focus para accesibilidad */
-.nav-item:focus {
+/* Estados de focus */
+.user-menu-toggle:focus,
+.user-menu-item:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
+}
+
+/* Animaciones */
+.user-info,
+.user-menu-toggle,
+.user-menu-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 </style>

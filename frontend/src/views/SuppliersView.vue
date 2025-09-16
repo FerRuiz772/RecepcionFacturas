@@ -11,13 +11,13 @@
       </v-container>
     </div>
 
-    <!-- Header de pÃ¡gina -->
+    <!-- Header de página -->
     <div class="page-header">
       <v-container>
         <div class="d-flex align-center justify-space-between">
           <div>
-            <h1 class="page-title">GestiÃ³n de Proveedores</h1>
-            <p class="page-subtitle">Administra la informaciÃ³n de proveedores</p>
+            <h1 class="page-title">Gestión de Proveedores</h1>
+            <p class="page-subtitle">Administra la información de proveedores</p>
           </div>
           <div>
             <v-btn 
@@ -38,7 +38,7 @@
       <v-card class="filter-card mb-6" elevation="2">
         <v-card-title class="card-title-bg">
           <v-icon class="mr-2">mdi-filter-outline</v-icon>
-          Filtros de BÃºsqueda
+          Filtros de Búsqueda
         </v-card-title>
         <v-card-text class="pa-6">
           <v-row>
@@ -63,18 +63,6 @@
                 clearable
                 @update:model-value="loadSuppliers"
               ></v-select>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-btn
-                color="primary"
-                variant="outlined"
-                @click="exportSuppliers"
-                prepend-icon="mdi-download"
-                class="export-btn"
-                block
-              >
-                Exportar Excel
-              </v-btn>
             </v-col>
           </v-row>
         </v-card-text>
@@ -225,7 +213,7 @@
                   variant="outlined"
                   :rules="[
                     v => !!v || 'Email requerido',
-                    v => /.+@.+\..+/.test(v) || 'Email debe ser vÃ¡lido'
+                    v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
                   ]"
                   required
                 ></v-text-field>
@@ -233,14 +221,14 @@
               <v-col cols="12">
                 <v-text-field
                   v-model="supplierForm.contact_phone"
-                  label="TelÃ©fono de Contacto"
+                  label="Teléfono de Contacto"
                   variant="outlined"
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
                 <v-textarea
                   v-model="supplierForm.address"
-                  label="DirecciÃ³n"
+                  label="Dirección"
                   variant="outlined"
                   rows="3"
                 ></v-textarea>
@@ -304,7 +292,6 @@ const {
   closeSupplierDialog,
   saveSupplier,
   toggleSupplier,
-  exportSuppliers,
   formatDate,
   initializeSuppliers
 } = useSuppliers()

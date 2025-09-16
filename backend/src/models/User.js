@@ -19,7 +19,9 @@ const User = sequelize.define('User', {
     tableName: 'users',
     timestamps: true,
     createdAt: 'created_at',
-    updatedAt: 'updated_at'
+    updatedAt: 'updated_at',
+    charset: 'utf8mb4',
+    collate: 'utf8mb4_unicode_ci'
 });
 
 User.prototype.validatePassword = async function(password) {

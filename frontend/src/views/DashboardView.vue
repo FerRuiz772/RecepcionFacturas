@@ -205,7 +205,7 @@
                         <span class="text-white text-caption">{{ getStatusInitials(invoice.status) }}</span>
                       </v-avatar>
                     </template>
-                    <v-list-item-title>{{ invoice.supplier }}</v-list-item-title>
+                    <v-list-item-title>{{ invoice.supplier_name }}</v-list-item-title>
                     <v-list-item-subtitle>
                       {{ invoice.number }} • Q{{ formatNumber(invoice.amount) }}
                     </v-list-item-subtitle>
@@ -243,7 +243,7 @@
       <!-- Gráficos y métricas (común para todos) -->
       <v-row>
         <!-- Gráfico principal -->
-        <v-col cols="12" lg="8">
+        <v-col cols="12">
           <div class="content-card">
             <div class="card-header">
               <div class="card-title">
@@ -273,30 +273,6 @@
                 :loading="loadingTrends"
                 class="chart-wrapper"
               />
-            </div>
-          </div>
-        </v-col>
-
-        <!-- Estado de facturas -->
-        <v-col cols="12" lg="4">
-          <div class="content-card">
-            <div class="card-header">
-              <div class="card-title">
-                <v-icon>mdi-file-document-outline</v-icon>
-                Estado de Facturas
-              </div>
-            </div>
-            <div class="status-container">
-              <div v-for="(status, index) in invoiceStatus" :key="index" :class="['status-indicator', status.class]">
-                <div class="status-header">
-                  <span class="status-emoji">{{ status.emoji }}</span>
-                  <div class="status-label">{{ status.name }}</div>
-                </div>
-                <div class="d-flex align-center justify-space-between">
-                  <div class="status-count">{{ status.count }}</div>
-                  <div class="status-percentage">{{ status.percentage }}%</div>
-                </div>
-              </div>
             </div>
           </div>
         </v-col>
@@ -385,7 +361,6 @@ const {
   workQueue,
   pendingInvoices,
   stats,
-  invoiceStatus,
   recentInvoices,
   paymentTrends,
   loadingStats,

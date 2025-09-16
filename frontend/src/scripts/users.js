@@ -180,9 +180,7 @@ export function useUsers() {
     }
   }
 
-  const exportUsers = () => {
-    toast.info('Función de exportación en desarrollo')
-  }
+
 
   // Funciones de utilidad
   const getInitials = (name) => {
@@ -262,7 +260,6 @@ export function useUsers() {
     onRoleChange,
     saveUser,
     toggleUser,
-    exportUsers,
     getInitials,
     getAvatarColor,
     getRoleColor,

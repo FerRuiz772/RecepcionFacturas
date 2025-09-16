@@ -291,3 +291,38 @@
     padding: 24px 16px;
   }
 }
+
+/* Estilos para las instrucciones de proveedores */
+.instructions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.instruction-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(25, 118, 210, 0.04);
+  border-radius: 12px;
+  border: 1px solid rgba(25, 118, 210, 0.12);
+}
+
+.instruction-item strong {
+  color: #1976d2;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.instruction-item p {
+  margin: 0;
+  color: #616161;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.instruction-item > div {
+  flex: 1;
+}

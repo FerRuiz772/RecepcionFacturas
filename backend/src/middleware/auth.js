@@ -4,17 +4,26 @@ const rateLimit = require('express-rate-limit');
 
 // Rate limiting para autenticación
 const authRateLimit = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 10, // máximo 10 intentos por IP
+  windowMs: 1 * 60 * 1000, // 1 minuto para desarrollo
+  max: 100, // máximo 100 intentos por IP para desarrollo  
   message: { error: 'Demasiados intentos de autenticación' },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Opcional: saltar rate limiting para IPs locales en desarrollo
+    const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.startsWith('192.168.') || req.ip.startsWith('::ffff:192.168.')
+    return process.env.NODE_ENV === 'development' && isLocal
+  }
 });
 
 // Middleware principal de autenticación
 const authenticate = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Obtener token desde header Authorization o query parameter (para iframes)
+    let token = req.header('Authorization')?.replace('Bearer ', '');
+    if (!token && req.query.token) {
+      token = req.query.token;
+    }
     
     if (!token) {
       return res.status(401).json({ 
@@ -197,12 +206,13 @@ const validateInvoiceAccess = async (req, res, next) => {
       });
     }
 
-    // Los trabajadores de contaduría pueden acceder a facturas asignadas y también subir documentos
+    // Los trabajadores de contaduría pueden acceder a facturas asignadas, subir documentos y visualizar archivos
     if (req.user.role === 'trabajador_contaduria') {
       const isUploadEndpoint = req.path.includes('/upload-document');
+      const isViewFileEndpoint = req.path.includes('/view-file');
       const isAssigned = invoice.assigned_to === req.user.userId;
       
-      if (!isAssigned && !isUploadEndpoint) {
+      if (!isAssigned && !isUploadEndpoint && !isViewFileEndpoint) {
         return res.status(403).json({ 
           error: 'Acceso denegado',
           code: 'ACCESS_DENIED' 

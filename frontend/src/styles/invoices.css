@@ -3,10 +3,12 @@
   background: #f8fafc;
 }
 
-/* Reducir padding del contenedor principal */
+/* Maximizar el uso del ancho disponible y reducir padding lateral */
 .invoices-layout .v-container {
-  padding-left: 16px !important;
-  padding-right: 16px !important;
+  max-width: 95vw !important;
+  width: 95vw !important;
+  padding-left: 12px !important;
+  padding-right: 12px !important;
 }
 
 .main-content {
@@ -97,6 +99,24 @@
   border-radius: 0 0 12px 12px;
 }
 
+/* Ampliar el ancho de la tabla de facturas */
+.invoices-table .v-data-table__wrapper {
+  width: 100%;
+  margin: 0 -24px;
+  padding: 0 24px;
+}
+
+/* Asegurar que las cartas ocupen todo el ancho disponible */
+.invoices-layout .v-card {
+  margin: 0 -8px;
+  padding: 0;
+}
+
+.invoices-layout .v-card-text {
+  padding-left: 24px !important;
+  padding-right: 24px !important;
+}
+
 .invoice-id {
   font-family: 'Courier New', monospace;
   font-weight: 600;
@@ -166,9 +186,17 @@
 
 .actions-cell {
   display: flex;
-  gap: 4px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 4px 0;
+  padding: 12px 8px;
+  align-items: center;
+  min-height: 60px;
+}
+
+/* Mejorar espaciado de botones de acción */
+.actions-cell .v-btn {
+  margin: 2px;
+  min-width: 80px;
 }
 
 .no-data {

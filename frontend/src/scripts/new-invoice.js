@@ -1,12 +1,14 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useInvoicesStore } from '../stores/invoices'
 import { useToast } from 'vue-toastification'
 import axios from 'axios'
 
 export function useNewInvoice() {
   const router = useRouter()
   const authStore = useAuthStore()
+  const invoicesStore = useInvoicesStore()
   const toast = useToast()
 
   const valid = ref(false)
@@ -27,6 +29,10 @@ export function useNewInvoice() {
       business_name: authStore.user?.supplier_name || 'Nombre de la empresa',
       nit: authStore.user?.supplier_nit || 'NIT no disponible'
     }
+  })
+
+  const isProvider = computed(() => {
+    return authStore.user?.role === 'proveedor'
   })
 
   const goBack = () => {
@@ -100,7 +106,8 @@ export function useNewInvoice() {
   }
 
   const submitInvoice = async () => {
-    if (!valid.value) {
+    // Para proveedores solo validar archivos, para contaduría validar formulario completo
+    if (!isProvider.value && !valid.value) {
       toast.error('Por favor complete todos los campos requeridos')
       return
     }
@@ -113,11 +120,15 @@ export function useNewInvoice() {
     submitting.value = true
     try {
       const formData = new FormData()
-      formData.append('number', form.value.number)
-      formData.append('amount', form.value.amount)
-      formData.append('date', form.value.date)
-      formData.append('due_date', form.value.due_date)
-      formData.append('description', form.value.description)
+      
+      // Solo incluir datos del formulario si no es proveedor
+      if (!isProvider.value) {
+        formData.append('number', form.value.number)
+        formData.append('amount', form.value.amount)
+        formData.append('date', form.value.date)
+        formData.append('due_date', form.value.due_date)
+        formData.append('description', form.value.description)
+      }
 
       uploadedFiles.value.forEach((file, index) => {
         formData.append(`files`, file)
@@ -128,6 +139,10 @@ export function useNewInvoice() {
           'Content-Type': 'multipart/form-data'
         }
       })
+
+      // Actualizar el store de facturas para que el dashboard se actualice
+      await invoicesStore.loadInvoices()
+      await invoicesStore.loadDashboardStats()
 
       toast.success('Factura enviada exitosamente')
       setTimeout(() => {
@@ -158,6 +173,7 @@ export function useNewInvoice() {
     
     // Computed properties
     supplierInfo,
+    isProvider,
     
     // Functions
     goBack,

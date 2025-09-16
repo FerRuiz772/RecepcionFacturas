@@ -11,12 +11,12 @@
       </v-container>
     </div>
 
-    <!-- Header de pÃ¡gina -->
+    <!-- Header de página -->
     <div class="page-header">
       <v-container>
         <div class="d-flex align-center justify-space-between">
           <div>
-            <h1 class="page-title">GestiÃ³n de Usuarios</h1>
+            <h1 class="page-title">Gestión de Usuarios</h1>
             <p class="page-subtitle">Administra usuarios y sus permisos</p>
           </div>
           <div>
@@ -38,7 +38,7 @@
       <v-card class="filter-card mb-6" elevation="2">
         <v-card-title class="card-title-bg">
           <v-icon class="mr-2">mdi-filter-outline</v-icon>
-          Filtros de BÃºsqueda
+          Filtros de Búsqueda
         </v-card-title>
         <v-card-text class="pa-6">
           <v-row>
@@ -74,18 +74,6 @@
                 clearable
                 @update:model-value="loadUsers"
               ></v-select>
-            </v-col>
-            <v-col cols="12" md="3">
-              <v-btn
-                color="primary"
-                variant="outlined"
-                @click="exportUsers"
-                prepend-icon="mdi-download"
-                class="export-btn"
-                block
-              >
-                Exportar Excel
-              </v-btn>
             </v-col>
           </v-row>
         </v-card-text>
@@ -243,7 +231,7 @@
                   variant="outlined"
                   :rules="[
                     v => !!v || 'Email requerido',
-                    v => /.+@.+\..+/.test(v) || 'Email debe ser vÃ¡lido'
+                    v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
                   ]"
                   required
                 ></v-text-field>
@@ -251,12 +239,12 @@
               <v-col cols="12" v-if="!editMode">
                 <v-text-field
                   v-model="userForm.password"
-                  label="ContraseÃ±a"
+                  label="Contraseña"
                   type="password"
                   variant="outlined"
                   :rules="[
-                    v => !!v || 'ContraseÃ±a requerida',
-                    v => v.length >= 6 || 'ContraseÃ±a debe tener al menos 6 caracteres'
+                    v => !!v || 'Contraseña requerida',
+                    v => v.length >= 6 || 'Contraseña debe tener al menos 6 caracteres'
                   ]"
                   required
                 ></v-text-field>
@@ -347,7 +335,6 @@ const {
   onRoleChange,
   saveUser,
   toggleUser,
-  exportUsers,
   getInitials,
   getAvatarColor,
   getRoleColor,

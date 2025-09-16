@@ -146,9 +146,7 @@ export function useSuppliers() {
     }
   }
 
-  const exportSuppliers = () => {
-    toast.info('Función de exportación en desarrollo')
-  }
+
 
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleDateString('es-GT')
@@ -187,7 +185,6 @@ export function useSuppliers() {
     closeSupplierDialog,
     saveSupplier,
     toggleSupplier,
-    exportSuppliers,
     formatDate,
     initializeSuppliers
   }
