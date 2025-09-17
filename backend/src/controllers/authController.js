@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { validationResult } = require('express-validator');
-const { User, Supplier, SystemLog } = require('../models');
+const { User, Supplier, SystemLog, PasswordResetToken } = require('../models');
 const { Op } = require('sequelize'); // AÑADIDO: Para operadores Sequelize
+const emailService = require('../utils/emailService');
 
 const authController = {
   async login(req, res) {
@@ -477,6 +478,260 @@ const authController = {
 
     } catch (error) {
       console.error('❌ Error en change password:', error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR' 
+      });
+    }
+  },
+
+  async forgotPassword(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { email } = req.body;
+      const clientIP = req.ip || req.connection.remoteAddress;
+
+      // Buscar usuario por email
+      const user = await User.findOne({
+        where: { 
+          email: email.toLowerCase(), 
+          is_active: true 
+        }
+      });
+
+      // Por seguridad, siempre devolvemos el mismo mensaje
+      // independientemente de si el usuario existe o no
+      const response = {
+        message: 'Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña.',
+        code: 'RESET_EMAIL_SENT'
+      };
+
+      if (!user) {
+        // Log del intento con email inexistente
+        await SystemLog.create({
+          user_id: null,
+          action: 'password_reset_request_invalid',
+          ip_address: clientIP,
+          details: { email, reason: 'user_not_found' }
+        });
+
+        // Devolvemos la misma respuesta por seguridad
+        return res.json(response);
+      }
+
+      // Verificar si ya existe un token activo reciente (último minuto)
+      const recentToken = await PasswordResetToken.findOne({
+        where: {
+          user_id: user.id,
+          used_at: null,
+          created_at: {
+            [Op.gte]: new Date(Date.now() - 60000) // Último minuto
+          }
+        }
+      });
+
+      if (recentToken) {
+        return res.status(429).json({
+          error: 'Ya se envió un correo de recuperación recientemente. Espera un momento antes de solicitar otro.',
+          code: 'RATE_LIMITED'
+        });
+      }
+
+      // Invalidar tokens anteriores
+      await PasswordResetToken.update(
+        { used_at: new Date() },
+        { 
+          where: { 
+            user_id: user.id, 
+            used_at: null 
+          } 
+        }
+      );
+
+      // Generar nuevo token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = new Date(Date.now() + 3600000); // 1 hora
+
+      // Crear registro de token
+      await PasswordResetToken.create({
+        token: resetToken,
+        user_id: user.id,
+        expires_at: expiresAt
+      });
+
+      // Enviar email de recuperación
+      try {
+        await emailService.sendPasswordResetEmail(
+          user.email,
+          user.name,
+          resetToken
+        );
+
+        // Log exitoso
+        await SystemLog.create({
+          user_id: user.id,
+          action: 'password_reset_request_sent',
+          ip_address: clientIP,
+          details: { email: user.email }
+        });
+
+      } catch (emailError) {
+        console.error('Error sending password reset email:', emailError);
+        
+        // Eliminar token si no se pudo enviar el email
+        await PasswordResetToken.destroy({
+          where: { token: resetToken }
+        });
+
+        return res.status(500).json({
+          error: 'No se pudo enviar el correo de recuperación. Inténtalo más tarde.',
+          code: 'EMAIL_ERROR'
+        });
+      }
+
+      res.json(response);
+
+    } catch (error) {
+      console.error('❌ Error en forgot password:', error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR' 
+      });
+    }
+  },
+
+  async resetPassword(req, res) {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({ errors: errors.array() });
+      }
+
+      const { token, password, confirmPassword } = req.body;
+      const clientIP = req.ip || req.connection.remoteAddress;
+
+      // Validar que las contraseñas coincidan
+      if (password !== confirmPassword) {
+        return res.status(400).json({
+          error: 'Las contraseñas no coinciden',
+          code: 'PASSWORD_MISMATCH'
+        });
+      }
+
+      // Buscar token válido
+      const resetToken = await PasswordResetToken.findOne({
+        where: {
+          token,
+          used_at: null,
+          expires_at: {
+            [Op.gt]: new Date()
+          }
+        },
+        include: [{
+          model: User,
+          as: 'user',
+          where: { is_active: true }
+        }]
+      });
+
+      if (!resetToken) {
+        return res.status(400).json({
+          error: 'Token inválido o expirado',
+          code: 'INVALID_TOKEN'
+        });
+      }
+
+      const user = resetToken.user;
+
+      // Validar fortaleza de contraseña
+      const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+      if (!passwordRegex.test(password)) {
+        return res.status(400).json({
+          error: 'La contraseña debe tener al menos 8 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos',
+          code: 'WEAK_PASSWORD'
+        });
+      }
+
+      // Verificar que no sea la misma contraseña actual
+      const isSamePassword = await user.validatePassword(password);
+      if (isSamePassword) {
+        return res.status(400).json({
+          error: 'La nueva contraseña debe ser diferente a la actual',
+          code: 'SAME_PASSWORD'
+        });
+      }
+
+      // Actualizar contraseña
+      await user.update({ password });
+
+      // Marcar token como usado
+      await resetToken.update({ used_at: new Date() });
+
+      // Log exitoso
+      await SystemLog.create({
+        user_id: user.id,
+        action: 'password_reset_completed',
+        ip_address: clientIP,
+        details: { email: user.email }
+      });
+
+      res.json({
+        message: 'Contraseña restablecida exitosamente',
+        code: 'PASSWORD_RESET_SUCCESS'
+      });
+
+    } catch (error) {
+      console.error('❌ Error en reset password:', error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR' 
+      });
+    }
+  },
+
+  async validateResetToken(req, res) {
+    try {
+      const { token } = req.params;
+
+      // Buscar token válido
+      const resetToken = await PasswordResetToken.findOne({
+        where: {
+          token,
+          used_at: null,
+          expires_at: {
+            [Op.gt]: new Date()
+          }
+        },
+        include: [{
+          model: User,
+          as: 'user',
+          where: { is_active: true },
+          attributes: ['id', 'email', 'name']
+        }]
+      });
+
+      if (!resetToken) {
+        return res.status(400).json({
+          error: 'Token inválido o expirado',
+          code: 'INVALID_TOKEN'
+        });
+      }
+
+      res.json({
+        valid: true,
+        code: 'VALID_TOKEN',
+        user: {
+          email: resetToken.user.email,
+          name: resetToken.user.name
+        }
+      });
+
+    } catch (error) {
+      console.error('❌ Error validating reset token:', error);
       res.status(500).json({ 
         error: 'Error interno del servidor',
         code: 'INTERNAL_ERROR' 

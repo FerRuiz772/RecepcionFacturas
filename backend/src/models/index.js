@@ -7,6 +7,7 @@ const Invoice = require('./Invoice');
 const InvoiceState = require('./InvoiceState');
 const Payment = require('./Payment');
 const SystemLog = require('./SystemLog');
+const PasswordResetToken = require('./PasswordResetToken')(sequelize);
 
 // ========== RELACIONES ==========
 
@@ -37,6 +38,10 @@ Payment.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'Invoice', allowNull:
 // User - SystemLog
 User.hasMany(SystemLog, { foreignKey: 'user_id', as: 'logs', onDelete: 'SET NULL' });
 SystemLog.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: true });
+
+// User - PasswordResetToken
+User.hasMany(PasswordResetToken, { foreignKey: 'user_id', as: 'passwordResetTokens', onDelete: 'CASCADE' });
+PasswordResetToken.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: false });
 
 // ========== SCOPES ==========
 
@@ -131,6 +136,7 @@ const syncDatabase = async (force = false) => {
     await InvoiceState.sync({ force });
     await Payment.sync({ force });
     await SystemLog.sync({ force });
+    await PasswordResetToken.sync({ force });
 };
 
 module.exports = {
@@ -142,5 +148,6 @@ module.exports = {
     InvoiceState,
     Payment,
     SystemLog,
+    PasswordResetToken,
     syncDatabase
 };

@@ -31,9 +31,12 @@ router.post('/forgot-password', [
   body('email').isEmail().normalizeEmail().withMessage('Email válido requerido')
 ], authController.forgotPassword);
 
+router.get('/validate-reset-token/:token', authController.validateResetToken);
+
 router.post('/reset-password', [
   body('token').notEmpty().withMessage('Token requerido'),
-  body('newPassword').isLength({ min: 6 }).withMessage('Nueva contraseña debe tener al menos 6 caracteres')
+  body('password').isLength({ min: 8 }).withMessage('Contraseña debe tener al menos 8 caracteres'),
+  body('confirmPassword').notEmpty().withMessage('Confirmación de contraseña requerida')
 ], authController.resetPassword);
 
 // Cambiar contraseña autenticado

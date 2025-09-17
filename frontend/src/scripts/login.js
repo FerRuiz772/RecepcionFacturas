@@ -51,7 +51,7 @@ export function useLogin() {
   }
   
   const forgotPassword = () => {
-    toast.info('Se ha enviado un enlace de recuperación a su correo electrónico')
+    router.push('/forgot-password')
   }
 
   return {
