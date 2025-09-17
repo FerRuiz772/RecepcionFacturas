@@ -153,6 +153,13 @@ export function useResetPassword() {
       }
     })
 
+    // Reglas de validación para los campos
+    const rules = {
+      required: v => !!v || 'Este campo es obligatorio',
+      password: v => passwordValid.value || 'La contraseña no cumple con los requisitos',
+      confirmPassword: v => passwordsMatch.value || 'Las contraseñas no coinciden'
+    }
+
     return {
       // Estado
       password,
@@ -180,6 +187,7 @@ export function useResetPassword() {
       // Métodos
       handleSubmit,
       goToLogin,
-      goToForgotPassword
+      goToForgotPassword,
+      rules
     }
 }

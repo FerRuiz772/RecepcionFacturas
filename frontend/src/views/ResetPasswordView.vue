@@ -88,7 +88,7 @@
                 :prepend-inner-icon="'mdi-lock'"
                 :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                 @click:append-inner="showPassword = !showPassword"
-                :rules="[rules.required, rules.password]"
+                :rules="[v => !!v || 'Este campo es obligatorio', v => passwordValid || 'La contraseña no cumple con los requisitos']"
                 :disabled="loading"
                 autocomplete="new-password"
                 class="custom-input mb-4"
@@ -132,7 +132,7 @@
                 :prepend-inner-icon="'mdi-lock-check'"
                 :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
                 @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                :rules="[rules.required, rules.confirmPassword]"
+                :rules="[v => !!v || 'Este campo es obligatorio', v => passwordsMatch || 'Las contraseñas no coinciden']"
                 :disabled="loading"
                 autocomplete="new-password"
                 class="custom-input mb-4"
@@ -227,5 +227,32 @@
   </div>
 </template>
 
-<script src="../scripts/reset-password.js"></script>
+<script setup>
+import { useResetPassword } from '../scripts/reset-password.js'
+
+const {
+  password,
+  confirmPassword,
+  showPassword,
+  showConfirmPassword,
+  loading,
+  validatingToken,
+  passwordReset,
+  error,
+  tokenError,
+  errors,
+  userInfo,
+  hasMinLength,
+  hasUppercase,
+  hasLowercase,
+  hasNumber,
+  hasSymbol,
+  passwordValid,
+  passwordsMatch,
+  isFormValid,
+  handleSubmit,
+  goToLogin,
+  goToForgotPassword
+} = useResetPassword()
+</script>
 <style src="../styles/reset-password.css" scoped></style>

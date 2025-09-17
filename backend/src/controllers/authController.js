@@ -665,8 +665,8 @@ const authController = {
         });
       }
 
-      // Actualizar contraseña
-      await user.update({ password });
+      // Actualizar contraseña (el hook beforeUpdate se encargará del hash)
+      await user.update({ password_hash: password });
 
       // Marcar token como usado
       await resetToken.update({ used_at: new Date() });

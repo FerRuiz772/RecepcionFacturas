@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
+const invoiceNotificationService = require('../utils/invoiceNotificationService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -402,6 +403,21 @@ const invoiceController = {
 
             await transaction.commit();
 
+            // Enviar notificaciones por email (después del commit para asegurar que todo se guardó)
+            try {
+                const supplier = createdInvoice.supplier;
+                const assignedUser = createdInvoice.assignedUser;
+                
+                await invoiceNotificationService.notifyInvoiceUploaded(
+                    createdInvoice, 
+                    supplier, 
+                    assignedUser
+                );
+            } catch (notificationError) {
+                console.error('❌ Error enviando notificaciones:', notificationError);
+                // No fallar la creación de factura si falla el email
+            }
+
             const message = role === 'proveedor' 
                 ? 'Archivo subido exitosamente. El personal de contaduría procesará los datos de la factura.'
                 : 'Factura creada exitosamente';
@@ -581,6 +597,30 @@ const invoiceController = {
             }, { transaction });
 
             await transaction.commit();
+
+            // Enviar notificaciones por email (después del commit)
+            try {
+                const invoiceWithDetails = await Invoice.findByPk(id, {
+                    include: [
+                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'contact_email'] }
+                    ]
+                });
+                
+                const changedBy = await User.findByPk(req.user.userId, {
+                    attributes: ['id', 'name', 'email']
+                });
+
+                await invoiceNotificationService.notifyStatusChange(
+                    invoiceWithDetails,
+                    currentStatus,
+                    status,
+                    changedBy,
+                    invoiceWithDetails.supplier
+                );
+            } catch (notificationError) {
+                console.error('❌ Error enviando notificación de cambio de estado:', notificationError);
+                // No fallar la actualización si falla el email
+            }
             
             res.json({
                 message: 'Estado actualizado exitosamente',

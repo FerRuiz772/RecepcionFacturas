@@ -112,8 +112,16 @@ const toggleDrawer = () => {
 
 // Mostrar layout solo en rutas autenticadas
 const showLayout = computed(() => {
-  const publicRoutes = ['/login', '/', '/register', '/forgot-password', '/reset-password']
-  return !publicRoutes.includes(route.path)
+  const publicRoutes = ['/login', '/', '/register', '/forgot-password']
+  const currentPath = route.path
+  
+  // Verificar rutas públicas exactas
+  if (publicRoutes.includes(currentPath)) return false
+  
+  // Verificar rutas dinámicas de reset password (incluye token)
+  if (currentPath.startsWith('/reset-password/')) return false
+  
+  return true
 })
 
 // Títulos dinámicos basados en la ruta
