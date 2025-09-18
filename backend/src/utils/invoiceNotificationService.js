@@ -1,3 +1,4 @@
+﻿
 const emailService = require('./emailService');
 const { User, Supplier } = require('../models');
 
@@ -11,19 +12,32 @@ class InvoiceNotificationService {
    */
   async notifyInvoiceUploaded(invoice, supplier, assignedUser) {
     try {
+      console.log(`🔍 notifyInvoiceUploaded iniciado para factura: ${invoice.number}`);
+      console.log(`🔍 Datos del supplier:`, supplier);
+      console.log(`🔍 Datos del assignedUser:`, assignedUser);
+      
       // Notificar al proveedor que su factura fue recibida
       if (supplier?.contact_email) {
+        console.log(`📧 Enviando notificación al proveedor: ${supplier.contact_email}`);
         await this.sendInvoiceReceivedNotification(supplier, invoice);
+        console.log(`✅ Notificación al proveedor enviada exitosamente`);
+      } else {
+        console.log(`⚠️ Proveedor no tiene contact_email configurado:`, supplier);
       }
 
       // Notificar al usuario asignado que tiene una nueva factura pendiente
       if (assignedUser?.email) {
+        console.log(`📧 Enviando notificación al usuario asignado: ${assignedUser.email}`);
         await this.sendNewInvoiceAssignedNotification(assignedUser, invoice, supplier);
+        console.log(`✅ Notificación al usuario asignado enviada exitosamente`);
+      } else {
+        console.log(`⚠️ Usuario asignado no tiene email configurado:`, assignedUser);
       }
 
       console.log(`📧 Notificaciones enviadas para factura ${invoice.number}`);
     } catch (error) {
       console.error('❌ Error enviando notificaciones de factura subida:', error);
+      console.error('❌ Stack trace completo:', error.stack);
     }
   }
 
@@ -125,7 +139,15 @@ class InvoiceNotificationService {
       </div>
     `;
 
-    await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+    try {
+      console.log(`📧 Enviando notificación de factura recibida a proveedor: ${supplier.contact_email}`);
+      const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+      console.log(`✅ Notificación enviada exitosamente al proveedor ${supplier.business_name}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación al proveedor ${supplier.business_name}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -196,7 +218,15 @@ class InvoiceNotificationService {
       </div>
     `;
 
-    await emailService.sendEmail(user.email, subject, htmlContent);
+    try {
+      console.log(`📧 Enviando notificación de nueva asignación al usuario: ${user.email}`);
+      const result = await emailService.sendEmail(user.email, subject, htmlContent);
+      console.log(`✅ Notificación de asignación enviada exitosamente al usuario ${user.username}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación de asignación al usuario ${user.username}:`, error);
+      throw error;
+    }
   }
 
   /**
@@ -285,7 +315,15 @@ class InvoiceNotificationService {
       </div>
     `;
 
-    await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+    try {
+      console.log(`📧 Enviando notificación de cambio de estado al proveedor: ${supplier.contact_email}`);
+      const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+      console.log(`✅ Notificación de cambio de estado enviada exitosamente al proveedor ${supplier.business_name}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación de cambio de estado al proveedor ${supplier.business_name}:`, error);
+      throw error;
+    }
   }
 }
 

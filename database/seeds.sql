@@ -7,7 +7,8 @@ INSERT IGNORE INTO suppliers (id, business_name, nit, contact_email, contact_pho
 (2, 'Servicios Gráficos Guatemala', '98765432-1', 'ventas@graficosguat.com', '2345-6789', 'Zona 1, Avenida Central 15-20', JSON_OBJECT('banco', 'Banco G&T Continental', 'cuenta', '9876543210987', 'tipo', 'monetaria', 'nombre_cuenta', 'Servicios Gráficos Guatemala'), TRUE),
 (3, 'Suministros de Oficina Central', '55443322-7', 'administracion@suministroscentral.com', '2456-7890', 'Zona 4, Calzada Roosevelt 12-34', JSON_OBJECT('banco', 'Banco Promerica', 'cuenta', '5544332211445', 'tipo', 'monetaria', 'nombre_cuenta', 'Suministros de Oficina Central'), TRUE),
 (4, 'Consultoría Legal Moderna', '11223344-5', 'info@legalmoderna.com', '2567-8901', 'Zona 9, Edificio Murano Center, Nivel 8', JSON_OBJECT('banco', 'Banco Industrial', 'cuenta', '1122334455667', 'tipo', 'monetaria', 'nombre_cuenta', 'Consultoría Legal Moderna, S.A.'), TRUE),
-(5, 'Sistema Interno Empresa', '00000000-0', 'sistema@empresa.com', '0000-0000', 'Oficinas Centrales', JSON_OBJECT('banco', 'N/A', 'cuenta', 'N/A', 'tipo', 'interno'), TRUE);
+(5, 'Sistema Interno Empresa', '00000000-0', 'sistema@empresa.com', '0000-0000', 'Oficinas Centrales', JSON_OBJECT('banco', 'N/A', 'cuenta', 'N/A', 'tipo', 'interno'), TRUE),
+(6, 'Aquiles Tech Solutions S.A.', '87654321-0', 'aquiles14troya@gmail.com', '+502 2234-5678', 'Zona 10, Ciudad de Guatemala', JSON_OBJECT('banco', 'Banco BAM', 'cuenta', '8765432100001', 'tipo', 'monetaria', 'nombre_cuenta', 'Aquiles Tech Solutions S.A.'), TRUE);
 
 -- ==================== USUARIOS ====================
 -- Contraseñas: admin123 / contaduria123 / trabajador123 / proveedor123
@@ -19,7 +20,11 @@ INSERT IGNORE INTO users (id, email, password_hash, name, role, supplier_id, pro
 (5, 'proveedor1@tecavanzada.com', '$2b$12$j5P9c2hH5aqahOKEe5i3iODAAzqronz5IBphYs4DY8ENeDMt/qIUG', 'Roberto Chen', 'proveedor', 1, JSON_OBJECT('phone', '2234-5678', 'position', 'Gerente Comercial'), TRUE),
 (6, 'proveedor2@graficosguat.com', '$2b$12$j5P9c2hH5aqahOKEe5i3iODAAzqronz5IBphYs4DY8ENeDMt/qIUG', 'Patricia Morales', 'proveedor', 2, JSON_OBJECT('phone', '2345-6789', 'position', 'Coordinadora de Ventas'), TRUE),
 (7, 'proveedor3@suministroscentral.com', '$2b$12$j5P9c2hH5aqahOKEe5i3iODAAzqronz5IBphYs4DY8ENeDMt/qIUG', 'Jorge Hernández', 'proveedor', 3, JSON_OBJECT('phone', '2456-7890', 'position', 'Ejecutivo de Cuentas'), TRUE),
-(8, 'proveedor4@legalmoderna.com', '$2b$12$j5P9c2hH5aqahOKEe5i3iODAAzqronz5IBphYs4DY8ENeDMt/qIUG', 'Claudia Vásquez', 'proveedor', 4, JSON_OBJECT('phone', '2567-8901', 'position', 'Socia Directora'), TRUE);
+(8, 'proveedor4@legalmoderna.com', '$2b$12$j5P9c2hH5aqahOKEe5i3iODAAzqronz5IBphYs4DY8ENeDMt/qIUG', 'Claudia Vásquez', 'proveedor', 4, JSON_OBJECT('phone', '2567-8901', 'position', 'Socia Directora'), TRUE),
+-- Usuarios personalizados agregados
+(9, 'fruiz@clubpremierfs.com', '$2b$12$ed6LQilBLnlW9tH0s6qNPekglVoYyqnKHv0k5FHfxpiDWisZYbQG6', 'Fernando Ruiz', 'super_admin', NULL, JSON_OBJECT('phone', '2234-0000', 'department', 'Administración', 'created_by', 'personalizado'), TRUE),
+(10, 'aquiles14troya@gmail.com', '$2b$12$ed6LQilBLnlW9tH0s6qNPekglVoYyqnKHv0k5FHfxpiDWisZYbQG6', 'Aquiles González', 'proveedor', 6, JSON_OBJECT('phone', '2234-5678', 'position', 'Director Técnico'), TRUE),
+(11, 'mmargen811@gmail.com', '$2b$12$ed6LQilBLnlW9tH0s6qNPekglVoYyqnKHv0k5FHfxpiDWisZYbQG6', 'Mario Margen', 'trabajador_contaduria', NULL, JSON_OBJECT('phone', '2567-0001', 'department', 'Contaduría', 'area', 'Análisis'), TRUE);
 
 -- ==================== FACTURAS DE EJEMPLO ====================
 INSERT IGNORE INTO invoices (id, number, supplier_id, assigned_to, amount, description, due_date, uploaded_files, status, priority, processing_data) VALUES
@@ -85,6 +90,7 @@ SELECT 'Logs insertados:' as Info, COUNT(*) as Total FROM system_logs;
 
 -- ==================== CREDENCIALES DE ACCESO ====================
 -- Para referencia durante desarrollo
+-- USUARIOS ORIGINALES:
 -- admin@recepcionfacturas.com / admin123 (Super Admin)
 -- contaduria@recepcionfacturas.com / contaduria123 (Admin Contaduría)
 -- maria.lopez@recepcionfacturas.com / trabajador123 (Trabajador Contaduría)
@@ -93,3 +99,8 @@ SELECT 'Logs insertados:' as Info, COUNT(*) as Total FROM system_logs;
 -- proveedor2@graficosguat.com / proveedor123 (Proveedor - Servicios Gráficos)
 -- proveedor3@suministroscentral.com / proveedor123 (Proveedor - Suministros)
 -- proveedor4@legalmoderna.com / proveedor123 (Proveedor - Consultoría Legal)
+
+-- USUARIOS PERSONALIZADOS:
+-- fruiz@clubpremierfs.com / admin123 (Super Admin - Fernando Ruiz)
+-- aquiles14troya@gmail.com / admin123 (Proveedor - Aquiles González - Aquiles Tech Solutions S.A.)
+-- mmargen811@gmail.com / admin123 (Trabajador Contaduría - Mario Margen)

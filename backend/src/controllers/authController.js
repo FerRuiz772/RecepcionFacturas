@@ -284,61 +284,6 @@ const authController = {
     }
   },
 
-  async forgotPassword(req, res) {
-    try {
-      const { email } = req.body;
-
-      const user = await User.findOne({
-        where: { email: email.toLowerCase(), is_active: true }
-      });
-
-      if (!user) {
-        // Por seguridad, no revelar si el email existe
-        return res.json({ 
-          message: 'Si el email existe, recibirás instrucciones de recuperación',
-          code: 'RESET_EMAIL_SENT' 
-        });
-      }
-
-      // Generar token de reset
-      const resetToken = crypto.randomBytes(32).toString('hex');
-      const resetExpires = new Date(Date.now() + 3600000); // 1 hora
-
-      // CORREGIDO: Usar operador JSON para buscar en profile_data
-      await user.update({
-        profile_data: {
-          ...user.profile_data,
-          reset_token: resetToken,
-          reset_expires: resetExpires
-        }
-      });
-
-      // Log solicitud de reset
-      await SystemLog.create({
-        user_id: user.id,
-        action: 'PASSWORD_RESET_REQUEST',
-        entity_type: 'User',
-        ip_address: req.ip,
-        details: { email }
-      });
-
-      // TODO: Enviar email con el token
-      console.log(`🔑 Reset token para ${email}: ${resetToken}`);
-
-      res.json({ 
-        message: 'Si el email existe, recibirás instrucciones de recuperación',
-        code: 'RESET_EMAIL_SENT' 
-      });
-
-    } catch (error) {
-      console.error('❌ Error en forgot password:', error);
-      res.status(500).json({ 
-        error: 'Error interno del servidor',
-        code: 'INTERNAL_ERROR' 
-      });
-    }
-  },
-
   async resetPassword(req, res) {
     try {
       const { token, newPassword } = req.body;

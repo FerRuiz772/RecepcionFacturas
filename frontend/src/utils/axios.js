@@ -33,11 +33,11 @@ axios.interceptors.request.use(
     if (authStore.token) {
       config.headers.Authorization = `Bearer ${authStore.token}`
     }
-    console.log('🚀 Request:', config.method?.toUpperCase(), config.url)
+    console.log('Request:', config.method?.toUpperCase(), config.url)
     return config
   },
   (error) => {
-    console.error('❌ Request Error:', error)
+    console.error('Request Error:', error)
     return Promise.reject(error)
   }
 )
@@ -53,7 +53,7 @@ axios.interceptors.response.use(
     const authStore = useAuthStore()
     const originalRequest = error.config
 
-    console.error('❌ Response Error:', {
+    console.error('Response Error:', {
       status: error.response?.status,
       url: error.config?.url,
       hasToken: !!authStore.token,
@@ -94,7 +94,7 @@ axios.interceptors.response.use(
           originalRequest.headers.Authorization = `Bearer ${token}`
           return axios(originalRequest)
         }).catch(err => {
-          console.log('❌ Petición de cola falló:', err.message)
+          console.log('Petición de cola falló:', err.message)
           return Promise.reject(err)
         })
       }
@@ -105,7 +105,7 @@ axios.interceptors.response.use(
       try {
         // Verificar que tenemos refresh token antes de intentar
         if (!authStore.refreshToken) {
-          console.log('❌ No hay refresh token disponible')
+          console.log('No hay refresh token disponible')
           throw new Error('No refresh token available')
         }
 
@@ -124,7 +124,7 @@ axios.interceptors.response.use(
           throw new Error('Refresh returned false')
         }
       } catch (refreshError) {
-        console.log('❌ Refresh falló:', refreshError.message)
+        console.log('Refresh falló:', refreshError.message)
         processQueue(refreshError, null)
         await authStore.logout()
         
@@ -156,6 +156,6 @@ axios.interceptors.response.use(
   }
 )
 
-console.log('🔧 Interceptors de axios configurados')
+console.log('Interceptors de axios configurados')
 
 export default axios

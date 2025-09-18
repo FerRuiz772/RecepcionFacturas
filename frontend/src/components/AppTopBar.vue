@@ -1,10 +1,14 @@
 <template>
   <v-app-bar 
     app 
+    fixed
     class="topbar" 
+    :class="{ 'topbar--with-drawer': drawerOpen && $vuetify.display.lgAndUp }"
     height="64"
     flat
     color="white"
+    elevation="1"
+    style="position: fixed !important; top: 0 !important; z-index: 1050 !important;"
   >
     <!-- Toggle sidebar en móvil -->
     <v-app-bar-nav-icon 
@@ -15,28 +19,14 @@
       <v-icon>mdi-menu</v-icon>
     </v-app-bar-nav-icon>
 
-    <!-- Breadcrumbs/Título de página -->
-    <div class="topbar-content">
-      <div class="page-title">
-        <h1 class="topbar-title">{{ pageTitle }}</h1>
-        <div v-if="breadcrumbs.length > 1" class="breadcrumbs">
-          <span 
-            v-for="(crumb, index) in breadcrumbs" 
-            :key="index"
-            class="breadcrumb-item"
-          >
-            {{ crumb }}
-            <v-icon 
-              v-if="index < breadcrumbs.length - 1" 
-              size="16" 
-              class="breadcrumb-separator"
-            >
-              mdi-chevron-right
-            </v-icon>
-          </span>
-        </div>
-      </div>
-    </div>
+    <!-- Toggle sidebar en desktop -->
+    <v-app-bar-nav-icon 
+      v-if="$vuetify.display.lgAndUp"
+      @click="toggleSidebar"
+      class="sidebar-toggle desktop-toggle"
+    >
+      <v-icon>{{ drawerOpen ? 'mdi-menu-open' : 'mdi-menu' }}</v-icon>
+    </v-app-bar-nav-icon>
 
     <v-spacer />
 
@@ -101,6 +91,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from 'vue-toastification'
 
+const props = defineProps({
+  drawerOpen: {
+    type: Boolean,
+    default: false
+  }
+})
+
 const emit = defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
@@ -112,57 +109,6 @@ const toast = useToast()
 const toggleSidebar = () => {
   emit('toggle-sidebar')
 }
-
-// Título de página basado en la ruta
-const pageTitle = computed(() => {
-  const titles = {
-    '/dashboard': 'Dashboard',
-    '/invoices': 'Gestión de Facturas',
-    '/invoices/new': 'Nueva Factura',
-    '/suppliers': 'Gestión de Proveedores',
-    '/users': 'Gestión de Usuarios',
-    '/accounting-documents': 'Documentos Contables'
-  }
-  
-  // Buscar coincidencia exacta primero
-  if (titles[route.path]) {
-    return titles[route.path]
-  }
-  
-  // Buscar coincidencia parcial
-  for (const [path, title] of Object.entries(titles)) {
-    if (route.path.startsWith(path) && path !== '/') {
-      return title
-    }
-  }
-  
-  return 'Sistema de Recepción de Facturas'
-})
-
-// Breadcrumbs basados en la ruta
-const breadcrumbs = computed(() => {
-  const path = route.path
-  const crumbs = ['Inicio']
-  
-  if (path.startsWith('/invoices')) {
-    crumbs.push('Facturas')
-    if (path.includes('/new')) {
-      crumbs.push('Nueva Factura')
-    } else if (path.includes('/edit/')) {
-      crumbs.push('Editar Factura')
-    } else if (path.match(/\/\d+$/)) {
-      crumbs.push('Detalle')
-    }
-  } else if (path.startsWith('/suppliers')) {
-    crumbs.push('Proveedores')
-  } else if (path.startsWith('/users')) {
-    crumbs.push('Usuarios')
-  } else if (path.startsWith('/accounting-documents')) {
-    crumbs.push('Documentos Contables')
-  }
-  
-  return crumbs
-})
 
 // Información del usuario
 const userInitials = computed(() => {
@@ -205,51 +151,46 @@ const logout = async () => {
 
 <style scoped>
 .topbar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
   border-bottom: 1px solid #e2e8f0 !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
   z-index: 1050 !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Ajustar posición cuando el drawer está abierto en desktop */
+.topbar--with-drawer {
+  left: 0 !important; /* El topbar siempre empieza desde la izquierda */
+  width: 100% !important; /* Y siempre ocupa el ancho completo */
+}
+
+/* Transición suave para el cambio de estado */
+@media (min-width: 1024px) {
+  .topbar {
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  }
 }
 
 .sidebar-toggle {
   margin-right: 8px;
 }
 
-.topbar-content {
-  display: flex;
-  align-items: center;
-  flex: 1;
+.desktop-toggle {
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s ease;
 }
 
-.page-title {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.topbar-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0f172a;
-  margin: 0;
-  line-height: 1.2;
-}
-
-.breadcrumbs {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 13px;
-  color: #64748b;
-}
-
-.breadcrumb-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.breadcrumb-separator {
-  color: #cbd5e1;
+.desktop-toggle:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
 }
 
 .topbar-user {
@@ -304,6 +245,8 @@ const logout = async () => {
   border: 1px solid #e2e8f0;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
   overflow: hidden;
+  margin-top: 8px;
+  z-index: 2000 !important;
 }
 
 .user-menu-item {
@@ -321,19 +264,29 @@ const logout = async () => {
 }
 
 /* Responsive */
-@media (max-width: 960px) {
-  .topbar-title {
-    font-size: 18px;
+@media (max-width: 1023px) {
+  /* En tablet y móvil, el topbar siempre ocupa el ancho completo */
+  .topbar--with-drawer {
+    left: 0 !important;
+    width: 100% !important;
   }
   
-  .breadcrumbs {
-    display: none;
+  .topbar {
+    padding: 0 8px !important;
+  }
+}
+
+@media (max-width: 959px) {
+  /* En móvil, el drawer es temporal, así que el topbar siempre es full width */
+  .topbar--with-drawer {
+    left: 0 !important;
+    width: 100% !important;
   }
 }
 
 @media (max-width: 599px) {
-  .topbar-title {
-    font-size: 16px;
+  .topbar {
+    padding: 0 4px !important;
   }
 }
 

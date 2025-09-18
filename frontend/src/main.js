@@ -68,19 +68,19 @@ app.use(Toast, {
 
 // Función para inicializar la aplicación
 async function initApp() {
-  console.log('🚀 Iniciando aplicación...')
+  console.log('Iniciando aplicación...')
   
   // IMPORTANTE: Asegurar que el store esté disponible
   const authStore = useAuthStore()
   
-  console.log('🔍 Estado inicial del store:')
+  console.log('Estado inicial del store:')
   console.log('- Token:', !!authStore.token)
   console.log('- RefreshToken:', !!authStore.refreshToken)
   console.log('- User:', !!authStore.user)
   
   // Configurar axios con el token actual ANTES de inicializar
   if (authStore.token) {
-    console.log('🔧 Configurando axios con token existente...')
+    console.log('Configurando axios con token existente...')
     const axios = (await import('axios')).default
     axios.defaults.headers.common['Authorization'] = `Bearer ${authStore.token}`
   }
@@ -88,18 +88,18 @@ async function initApp() {
   // Inicializar autenticación
   await authStore.initializeAuth()
   
-  console.log('🔍 Estado después de inicialización:')
+  console.log('Estado después de inicialización:')
   console.log('- Autenticado:', authStore.isAuthenticated)
   console.log('- User:', authStore.user?.email || 'No user')
   console.log('- Role:', authStore.user?.role || 'No role')
   
   // Montar la aplicación
   app.mount('#app')
-  console.log('✅ Aplicación montada exitosamente')
+  console.log('Aplicación montada exitosamente')
 }
 
 // Ejecutar inicialización
 initApp().catch(error => {
-  console.error('❌ Error inicializando aplicación:', error)
+  console.error('Error inicializando aplicación:', error)
   app.mount('#app') // Montar de todos modos
 })

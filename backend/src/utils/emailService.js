@@ -1,4 +1,4 @@
-const nodemailer = require('nodemailer');
+﻿const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
   // Detectar si usamos SendGrid (si el password empieza con 'SG.')
@@ -27,9 +27,12 @@ const createTransporter = () => {
 
 const sendPasswordResetEmail = async (userEmail, userName, resetToken) => {
   try {
+    console.log('🔧 Creating transporter...');
     const transporter = createTransporter();
+    console.log('📧 Transporter created successfully');
     
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password/${resetToken}`;
+    console.log('🔗 Reset URL:', resetUrl);
 
     const mailOptions = {
       from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
@@ -107,6 +110,11 @@ const sendPasswordResetEmail = async (userEmail, userName, resetToken) => {
       `
     };
 
+    console.log('📤 Sending email...');
+    console.log('📧 From:', mailOptions.from);
+    console.log('📧 To:', mailOptions.to);
+    console.log('📧 Subject:', mailOptions.subject);
+
     const info = await transporter.sendMail(mailOptions);
     console.log('✅ Email enviado exitosamente:', info.messageId);
     return { success: true, messageId: info.messageId };
@@ -124,7 +132,41 @@ class EmailService {
   }
 
   async sendPasswordResetEmail(userEmail, userName, resetToken) {
+    console.log('🔧 Iniciando envío de email de recuperación...');
+    console.log('📧 Email destino:', userEmail);
+    console.log('👤 Nombre usuario:', userName);
+    console.log('🔑 Token:', resetToken);
     return await sendPasswordResetEmail(userEmail, userName, resetToken);
+  }
+
+  // Método genérico para enviar emails
+  async sendEmail(to, subject, htmlContent) {
+    try {
+      console.log('🔧 Iniciando envío de email genérico...');
+      console.log('📧 Email destino:', to);
+      console.log('📧 Subject:', subject);
+      
+      const transporter = createTransporter();
+      
+      const mailOptions = {
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+        to: to,
+        subject: subject,
+        html: htmlContent
+      };
+
+      console.log('📤 Sending email...');
+      console.log('📧 From:', mailOptions.from);
+      console.log('📧 To:', mailOptions.to);
+      console.log('📧 Subject:', mailOptions.subject);
+
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Email enviado exitosamente:', info.messageId);
+      return { success: true, messageId: info.messageId };
+    } catch (error) {
+      console.error('❌ Error enviando email desde emailService.js:', error);
+      throw error;
+    }
   }
 }
 

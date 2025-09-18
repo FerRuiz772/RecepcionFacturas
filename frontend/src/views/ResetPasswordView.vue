@@ -1,6 +1,5 @@
 <template>
-  <div id="app">
-    <div class="reset-password-container">
+  <div class="reset-password-container">
       <!-- Panel izquierdo - Formulario -->
       <div class="left-panel">
         <div class="reset-password-card">
@@ -224,7 +223,6 @@
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>

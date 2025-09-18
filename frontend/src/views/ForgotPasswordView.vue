@@ -1,6 +1,5 @@
 <template>
-  <v-main>
-    <div class="forgot-password-container">
+  <div class="forgot-password-container">
       <!-- Panel Izquierdo - Formulario -->
       <div class="left-panel">
         <div class="forgot-password-card">
@@ -149,7 +148,6 @@
         </div>
       </div>
     </div>
-  </v-main>
 </template>
 
 <script setup>

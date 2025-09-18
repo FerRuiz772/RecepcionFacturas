@@ -12,8 +12,8 @@ const Invoice = sequelize.define('Invoice', {
         validate: {
             isDecimal: true,
             min: {
-                args: [0.01],
-                msg: "El monto debe ser mayor a 0"
+                args: [0],
+                msg: "El monto no puede ser negativo"
             }
         }
     },

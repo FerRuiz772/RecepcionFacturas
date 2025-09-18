@@ -4,8 +4,9 @@
     app 
     class="sidebar" 
     width="280"
-    :permanent="$vuetify.display.lgAndUp"
-    :temporary="$vuetify.display.mdAndDown"
+    :rail="false"
+    :permanent="false"
+    :temporary="true"
   >
     <!-- Header del sidebar -->
     <div class="sidebar-header">
@@ -115,8 +116,8 @@ const isActiveRoute = (itemPath) => {
 .sidebar {
   background: #f8fafc !important;
   border-right: 1px solid #e2e8f0 !important;
-  box-shadow: none !important;
-  z-index: 1100 !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  z-index: 1200 !important; /* Mayor que el topbar */
 }
 
 /* Header del sidebar */

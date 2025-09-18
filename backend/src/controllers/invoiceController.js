@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
 const invoiceNotificationService = require('../utils/invoiceNotificationService');
+const statusNotificationService = require('../utils/statusNotificationService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -94,10 +95,10 @@ const upload = multer({
         fileSize: 10 * 1024 * 1024 // 10MB
     },
     fileFilter: (req, file, cb) => {
-        if (file.mimetype === 'application/pdf' || file.mimetype.startsWith('image/')) {
+        if (file.mimetype === 'application/pdf') {
             cb(null, true);
         } else {
-            cb(new Error('Solo se permiten archivos PDF e imágenes'));
+            cb(new Error('Solo se permiten archivos PDF'));
         }
     }
 });
@@ -339,17 +340,58 @@ const invoiceController = {
                 };
             }
 
-            // Procesar archivos subidos
+            // Procesar archivos subidos con estructura de carpetas organizada
             const uploadedFiles = [];
             if (req.files && req.files.length > 0) {
+                // Obtener información del proveedor
+                const supplier = await Supplier.findByPk(supplier_id, { transaction });
+                if (!supplier) {
+                    await transaction.rollback();
+                    return res.status(400).json({ error: 'Proveedor no encontrado' });
+                }
+
+                // Crear estructura de directorios
+                const providerName = supplier.business_name.replace(/[^a-zA-Z0-9]/g, '_'); // Limpiar nombre
+                const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                const invoiceNumber = invoiceData.number.replace(/[^a-zA-Z0-9-]/g, '_'); // Limpiar número
+                
+                const providerDir = path.join(__dirname, '../uploads', providerName);
+                const invoiceDir = path.join(providerDir, `${invoiceNumber}_${currentDate}`);
+                
+                // Crear directorios si no existen
+                await fs.mkdir(providerDir, { recursive: true });
+                await fs.mkdir(invoiceDir, { recursive: true });
+
                 for (const file of req.files) {
-                    const compressedFile = await invoiceController.compressFile(file);
+                    // Determinar tipo de documento basado en el nombre del archivo
+                    const originalName = file.originalname.toLowerCase();
+                    let docType = 'documento'; // tipo por defecto
+                    
+                    if (originalName.includes('factura')) docType = 'factura';
+                    else if (originalName.includes('isr')) docType = 'isr';
+                    else if (originalName.includes('iva')) docType = 'iva';
+                    else if (originalName.includes('comprobante')) docType = 'comprobante';
+                    else if (originalName.includes('retencion')) docType = 'retencion';
+
+                    // Crear nombre del archivo: proveedor_fecha_tipo.ext
+                    const ext = path.extname(file.originalname);
+                    const timeStamp = new Date().toTimeString().split(' ')[0].replace(/:/g, ''); // HHMMSS
+                    const newFileName = `${providerName}_${currentDate}_${timeStamp}_${docType}${ext}`;
+                    const finalPath = path.join(invoiceDir, newFileName);
+
+                    // Mover archivo desde temp a la ubicación final
+                    await fs.rename(file.path, finalPath);
+
+                    // Comprimir si es necesario
+                    const compressedFile = await invoiceController.compressFileInPlace(finalPath, file.mimetype);
+                    
                     uploadedFiles.push({
                         originalName: file.originalname,
                         filename: compressedFile.filename,
                         path: compressedFile.path,
                         size: compressedFile.size,
                         mimetype: file.mimetype,
+                        docType: docType,
                         uploadedAt: new Date()
                     });
                 }
@@ -395,8 +437,8 @@ const invoiceController = {
             // Obtener factura completa para respuesta ANTES del commit
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] },
-                    { model: User, as: 'assignedUser', attributes: ['id', 'name'], required: false }
+                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'contact_email'] },
+                    { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false }
                 ],
                 transaction
             });
@@ -408,11 +450,14 @@ const invoiceController = {
                 const supplier = createdInvoice.supplier;
                 const assignedUser = createdInvoice.assignedUser;
                 
-                await invoiceNotificationService.notifyInvoiceUploaded(
-                    createdInvoice, 
-                    supplier, 
-                    assignedUser
-                );
+                // Usar el nuevo servicio de notificaciones
+                await statusNotificationService.processNotification('invoice_created', {
+                    invoice: createdInvoice,
+                    supplier: supplier,
+                    assignedUser: assignedUser
+                });
+                
+                console.log('✅ Notificaciones enviadas exitosamente');
             } catch (notificationError) {
                 console.error('❌ Error enviando notificaciones:', notificationError);
                 // No fallar la creación de factura si falla el email
@@ -610,13 +655,16 @@ const invoiceController = {
                     attributes: ['id', 'name', 'email']
                 });
 
-                await invoiceNotificationService.notifyStatusChange(
-                    invoiceWithDetails,
-                    currentStatus,
-                    status,
-                    changedBy,
-                    invoiceWithDetails.supplier
-                );
+                // Usar el nuevo servicio de notificaciones
+                await statusNotificationService.processNotification('status_change', {
+                    invoice: invoiceWithDetails,
+                    fromStatus: currentStatus,
+                    toStatus: status,
+                    changedBy: changedBy,
+                    supplier: invoiceWithDetails.supplier
+                });
+                
+                console.log(`✅ Notificación de cambio de estado enviada: ${currentStatus} → ${status}`);
             } catch (notificationError) {
                 console.error('❌ Error enviando notificación de cambio de estado:', notificationError);
                 // No fallar la actualización si falla el email
@@ -1605,6 +1653,7 @@ const invoiceController = {
             const inputPath = file.path;
             const outputPath = inputPath.replace(path.extname(inputPath), '_compressed' + path.extname(inputPath));
     
+            // Solo manejamos PDFs ahora
             if (file.mimetype === 'application/pdf') {
                 const input = await fs.readFile(inputPath);
                 const compressed = zlib.gzipSync(input);
@@ -1616,24 +1665,9 @@ const invoiceController = {
                     path: outputPath + '.gz',
                     size: compressed.length
                 };
-            } else if (file.mimetype.startsWith('image/')) {
-                await sharp(inputPath)
-                    .resize(1920, 1920, { 
-                        fit: 'inside',
-                        withoutEnlargement: true 
-                    })
-                    .jpeg({ quality: 85 })
-                    .toFile(outputPath);
-                
-                await fs.unlink(inputPath);
-                const stats = await fs.stat(outputPath);
-                return {
-                    filename: path.basename(outputPath),
-                    path: outputPath,
-                    size: stats.size
-                };
             }
     
+            // Si no es PDF, retornar archivo sin cambios
             const stats = await fs.stat(inputPath);
             return {
                 filename: path.basename(inputPath),
@@ -1641,11 +1675,52 @@ const invoiceController = {
                 size: stats.size
             };
         } catch (error) {
-            console.error('Error al comprimir archivo:', error);
+            console.error('Error al comprimir archivo PDF:', error);
             const stats = await fs.stat(file.path);
             return {
                 filename: path.basename(file.path),
                 path: file.path,
+                size: stats.size
+            };
+        }
+    },
+    
+    async compressFileInPlace(filePath, mimetype) {
+        try {
+            const inputPath = filePath;
+            const ext = path.extname(inputPath);
+            const baseName = path.basename(inputPath, ext);
+            const dirName = path.dirname(inputPath);
+            
+            // Solo procesamos PDFs ahora
+            if (mimetype === 'application/pdf') {
+                const input = await fs.readFile(inputPath);
+                const compressed = zlib.gzipSync(input);
+                const gzPath = inputPath + '.gz';
+                await fs.writeFile(gzPath, compressed);
+                await fs.unlink(inputPath); // Eliminar archivo original
+                
+                return {
+                    filename: path.basename(gzPath),
+                    path: gzPath,
+                    size: compressed.length
+                };
+            }
+    
+            // Si no es PDF (no debería llegar aquí), retornar sin cambios
+            const stats = await fs.stat(inputPath);
+            return {
+                filename: path.basename(inputPath),
+                path: inputPath,
+                size: stats.size
+            };
+        } catch (error) {
+            console.error('Error al comprimir archivo PDF:', error);
+            // Si hay error, retornar archivo original
+            const stats = await fs.stat(filePath);
+            return {
+                filename: path.basename(filePath),
+                path: filePath,
                 size: stats.size
             };
         }
@@ -2352,13 +2427,15 @@ const invoiceController = {
                     newStatus: newStatus
                 });
 
+                const oldStatus = invoice.status;
+
                 // Actualizar el estado de la factura
                 await invoice.update({ status: newStatus });
 
                 // Crear registro en el historial de estados
                 await InvoiceState.create({
                     invoice_id: invoice.id,
-                    from_state: invoice.status,
+                    from_state: oldStatus,
                     to_state: newStatus,
                     user_id: 1, // Sistema automático
                     notes: statusNotes,
@@ -2366,6 +2443,32 @@ const invoiceController = {
                 });
 
                 console.log('✅ Estado de factura actualizado exitosamente');
+
+                // Enviar notificaciones de cambio de estado
+                try {
+                    // Obtener datos completos de la factura para notificaciones
+                    const completeInvoice = await Invoice.findByPk(invoice.id, {
+                        include: [
+                            { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'contact_email'] }
+                        ]
+                    });
+
+                    // Simular objeto de usuario que hizo el cambio (sistema automático)
+                    const systemUser = { id: 1, name: 'Sistema Automático', email: 'sistema@recepcionfacturas.com' };
+
+                    await statusNotificationService.processNotification('status_change', {
+                        invoice: completeInvoice,
+                        fromStatus: oldStatus,
+                        toStatus: newStatus,
+                        changedBy: systemUser,
+                        supplier: completeInvoice.supplier
+                    });
+
+                    console.log('✅ Notificaciones de cambio de estado enviadas exitosamente');
+                } catch (notificationError) {
+                    console.error('❌ Error enviando notificaciones de cambio de estado:', notificationError);
+                    // No fallar el proceso principal
+                }
             }
         } catch (error) {
             console.error('❌ Error actualizando estado de factura:', error);

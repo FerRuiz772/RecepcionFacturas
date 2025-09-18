@@ -58,7 +58,7 @@ export function useNewInvoice() {
   }
 
   const processFiles = (files) => {
-    const validTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png']
+    const validTypes = ['application/pdf']
     const maxSize = 10 * 1024 * 1024 // 10MB
     const maxFiles = 5
 
@@ -69,7 +69,7 @@ export function useNewInvoice() {
 
     files.forEach(file => {
       if (!validTypes.includes(file.type)) {
-        toast.error(`Tipo de archivo no válido: ${file.name}`)
+        toast.error(`Solo se permiten archivos PDF: ${file.name}`)
         return
       }
 
@@ -87,15 +87,11 @@ export function useNewInvoice() {
   }
 
   const getFileIcon = (type) => {
-    if (type.includes('pdf')) return 'mdi-file-pdf-box'
-    if (type.includes('image')) return 'mdi-file-image'
-    return 'mdi-file-document'
+    return 'mdi-file-pdf-box' // Solo PDFs ahora
   }
 
   const getFileIconColor = (type) => {
-    if (type.includes('pdf')) return '#ef4444'
-    if (type.includes('image')) return '#10b981'
-    return '#64748b'
+    return '#ef4444' // Color rojo para PDFs
   }
 
   const formatFileSize = (bytes) => {

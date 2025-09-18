@@ -1,6 +1,5 @@
 ﻿<template>
-  <v-main>
-    <div class="login-container">
+  <div class="login-container">
       <!-- Panel Izquierdo - Formulario -->
       <div class="left-panel">
         <div class="login-card">
@@ -140,7 +139,6 @@
         </div>
       </div>
     </div>
-  </v-main>
 </template>
 
 <script setup>

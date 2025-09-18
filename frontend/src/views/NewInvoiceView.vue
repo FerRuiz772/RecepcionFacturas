@@ -1,21 +1,6 @@
 ﻿<template>
     <div class="invoice-layout">
-      <!-- Header -->
-      <v-app-bar app color="white" elevation="1" height="64">
-        <v-btn icon @click="goBack" color="#64748b" class="ml-2">
-          <v-icon>mdi-arrow-left</v-icon>
-        </v-btn>
-        <div class="ml-4">
-          <div class="header-title">Nueva Factura</div>
-          <div class="header-subtitle">Subir documentos de facturación</div>
-        </div>
-        <v-spacer></v-spacer>
-        <v-btn icon color="#64748b">
-          <v-icon>mdi-help-circle-outline</v-icon>
-        </v-btn>
-      </v-app-bar>
-  
-      <v-main class="main-content">
+      <v-main class="main-content no-top-padding">
         <!-- Breadcrumb -->
         <div class="breadcrumb-container">
           <v-container>
@@ -29,7 +14,18 @@
           </v-container>
         </div>
   
-        <v-container class="py-8" max-width="800">
+        <v-container class="py-3" max-width="800">
+          <!-- Header con botón volver -->
+          <div class="d-flex align-center mb-4">
+            <v-btn icon @click="goBack" color="#64748b" class="mr-3" variant="outlined">
+              <v-icon>mdi-arrow-left</v-icon>
+            </v-btn>
+            <div>
+              <h1 class="page-title">Nueva Factura</h1>
+              <p class="page-subtitle">Subir documentos de facturación</p>
+            </div>
+          </div>
+
           <!-- Información del proveedor (solo lectura) -->
           <v-card class="form-card mb-6" elevation="2">
             <v-card-title class="card-title-bg">
@@ -200,14 +196,14 @@
               >
                 <v-icon size="64" color="#cbd5e1">mdi-cloud-upload</v-icon>
                 <h3 class="upload-title">Arrastra archivos aquí o haz clic para seleccionar</h3>
-                <p class="upload-subtitle">PDF, JPG, PNG • Máximo 10MB por archivo</p>
+                <p class="upload-subtitle">Solo archivos PDF • Máximo 10MB por archivo</p>
               </div>
               
               <input 
                 ref="fileInput"
                 type="file"
                 multiple
-                accept=".pdf,.jpg,.jpeg,.png"
+                accept=".pdf"
                 style="display: none"
                 @change="handleFileSelect"
               >
