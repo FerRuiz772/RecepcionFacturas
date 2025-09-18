@@ -375,8 +375,7 @@ const invoiceController = {
 
                     // Crear nombre del archivo: proveedor_fecha_tipo.ext
                     const ext = path.extname(file.originalname);
-                    const timeStamp = new Date().toTimeString().split(' ')[0].replace(/:/g, ''); // HHMMSS
-                    const newFileName = `${providerName}_${currentDate}_${timeStamp}_${docType}${ext}`;
+                    const newFileName = `${providerName}_${currentDate}_${docType}${ext}`;
                     const finalPath = path.join(invoiceDir, newFileName);
 
                     // Mover archivo desde temp a la ubicación final
