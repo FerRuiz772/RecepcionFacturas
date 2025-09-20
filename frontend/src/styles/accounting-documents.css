@@ -4,34 +4,32 @@
   min-height: 100vh;
 }
 
-/* Maximizar el uso del ancho disponible */
+/* Reducir padding del contenedor principal */
 .accounting-layout .v-container {
-  max-width: 95vw !important;
-  width: 95vw !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
 
 .breadcrumb-container {
   background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   padding: 12px 0;
 }
 
 .breadcrumb-item {
-  color: #64748b;
+  color: #6b7280;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .breadcrumb-item.active {
-  color: #0f172a;
+  color: #374151;
 }
 
 .page-header {
   background: white;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   padding: 32px 0;
   margin-bottom: 32px;
 }
@@ -39,19 +37,38 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #374151;
   margin-bottom: 4px;
 }
 
 .page-subtitle {
   font-size: 16px;
-  color: #64748b;
+  color: #6b7280;
   margin: 0;
+}
+
+.action-button {
+  text-transform: none;
+  font-weight: 600;
+}
+
+.back-btn {
+  text-transform: none;
+  font-weight: 600;
 }
 
 /* Información de la factura */
 .invoice-info-card {
   margin-bottom: 24px;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease;
+}
+
+.invoice-info-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1px);
 }
 
 .card-title-bg {
@@ -116,7 +133,7 @@
 
 .file-selector {
   background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .file-viewer {
@@ -143,7 +160,7 @@
 
 .file-controls {
   background: #f8fafc;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   gap: 12px;
 }
@@ -151,6 +168,29 @@
 /* Panel de gestión de documentos */
 .documents-management-card {
   height: fit-content;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease;
+}
+
+.documents-management-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1px);
+}
+
+/* Visualización de la factura */
+.invoice-viewer-card {
+  height: fit-content;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 12px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06) !important;
+  transition: all 0.2s ease;
+}
+
+.invoice-viewer-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08) !important;
+  transform: translateY(-1px);
 }
 
 .completion-indicator {
@@ -162,7 +202,7 @@
   background: #f8fafc;
   padding: 16px;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
 }
 
 .section-title {
@@ -180,7 +220,7 @@
 }
 
 .document-upload-item {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 16px;
   background: white;
@@ -263,7 +303,7 @@
   justify-content: center;
   align-items: center;
   min-height: 400px;
-  color: #64748b;
+  color: #6b7280;
 }
 
 .error-container {
@@ -324,7 +364,7 @@
 
 /* Frame específico para PDFs */
 .file-viewer iframe[src*=".pdf"] {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
 }
 
 /* Mejoras visuales para alertas */

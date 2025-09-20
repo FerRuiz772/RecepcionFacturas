@@ -15,6 +15,10 @@ const Payment = sequelize.define('Payment', {
     password_generated: {
         type: DataTypes.STRING
     },
+    password_file: {
+        type: DataTypes.STRING,
+        comment: 'Ruta del archivo de contraseña subido'
+    },
     isr_retention_file: {
         type: DataTypes.STRING
     },

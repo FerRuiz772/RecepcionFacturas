@@ -21,6 +21,7 @@
           </div>
           <div>
             <v-btn 
+              v-if="auth.canCreateUsers"
               color="primary" 
               @click="openCreateDialog"
               prepend-icon="mdi-plus"
@@ -148,6 +149,7 @@
           <template v-slot:item.actions="{ item }">
             <div class="actions-cell">
               <v-btn
+                v-if="auth.canViewUsers"
                 variant="outlined"
                 size="small"
                 color="primary"
@@ -158,6 +160,7 @@
               </v-btn>
               
               <v-btn
+                v-if="auth.canEditUsers"
                 variant="outlined"
                 size="small"
                 color="warning"
@@ -167,25 +170,15 @@
                 <v-icon class="mr-1" size="16">mdi-pencil-outline</v-icon>
                 Editar
               </v-btn>
-              
-              <v-btn
-                v-if="canManagePermissions"
-                variant="outlined"
-                size="small"
-                color="primary"
-                @click="editUserPermissions(item)"
-                class="ml-2"
-              >
-                <v-icon class="mr-1" size="16">mdi-shield-account-outline</v-icon>
-                Permisos
-              </v-btn>
 
               <v-btn
+                v-if="auth.canEditUsers"
                 variant="outlined"
                 size="small"
                 :color="item.is_active ? 'error' : 'success'"
                 @click="toggleUser(item)"
                 class="ml-2"
+                :disabled="isCurrentUser(item)"
               >
                 <v-icon class="mr-1" size="16">
                   {{ item.is_active ? 'mdi-pause' : 'mdi-play' }}
@@ -218,16 +211,25 @@
     </v-container>
 
     <!-- Dialog para crear/editar usuario -->
-    <v-dialog v-model="userDialog" max-width="900">
-      <v-card>
-        <v-card-title>
+    <v-dialog 
+      v-model="userDialog" 
+      max-width="800"
+      scrollable
+      persistent
+    >
+      <v-card height="600">
+        <v-card-title class="px-6 py-4">
           {{ editMode ? 'Editar Usuario' : 'Nuevo Usuario' }}
         </v-card-title>
         
         <v-tabs v-model="activeTab" class="px-4" show-arrows>
           <v-tab value="general">
             <v-icon class="mr-2">mdi-account</v-icon>
-            Datos Generales
+            Información Básica
+          </v-tab>
+          <v-tab value="password" v-if="editMode">
+            <v-icon class="mr-2">mdi-lock-reset</v-icon>
+            Cambiar Contraseña
           </v-tab>
           <v-tab value="permissions" v-if="editMode && canManagePermissions">
             <v-icon class="mr-2">mdi-shield-account</v-icon>
@@ -235,9 +237,9 @@
           </v-tab>
         </v-tabs>
 
-        <v-card-text>
+        <v-card-text class="px-6 pb-6" style="height: 450px; overflow-y: auto;">
           <v-tabs-window v-model="activeTab">
-            <!-- Pestaña de datos generales -->
+            <!-- Pestaña de información básica -->
             <v-tabs-window-item value="general">
               <v-form ref="userFormRef" v-model="formValid">
                 <v-row>
@@ -258,7 +260,7 @@
                       variant="outlined"
                       :rules="[
                         v => !!v || 'Email requerido',
-                        v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
+                        v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || 'Email debe ser válido (debe contener @)'
                       ]"
                       required
                     ></v-text-field>
@@ -267,13 +269,15 @@
                     <v-text-field
                       v-model="userForm.password"
                       label="Contraseña"
-                      type="password"
+                      :type="showPassword ? 'text' : 'password'"
                       variant="outlined"
                       :rules="[
                         v => !!v || 'Contraseña requerida',
                         v => v.length >= 6 || 'Contraseña debe tener al menos 6 caracteres'
                       ]"
                       required
+                      :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showPassword = !showPassword"
                     ></v-text-field>
                   </v-col>
                   <v-col cols="12">
@@ -303,7 +307,78 @@
                       v-model="userForm.is_active"
                       label="Usuario Activo"
                       color="success"
+                      :disabled="isCurrentUser(userForm)"
                     ></v-switch>
+                    <v-alert
+                      v-if="isCurrentUser(userForm)"
+                      type="info"
+                      variant="tonal"
+                      density="compact"
+                      class="mt-2"
+                    >
+                      No puedes cambiar tu propio estado de activación
+                    </v-alert>
+                  </v-col>
+                </v-row>
+              </v-form>
+            </v-tabs-window-item>
+
+            <!-- Pestaña de cambio de contraseña -->
+            <v-tabs-window-item value="password" v-if="editMode">
+              <v-form ref="passwordFormRef">
+                <v-alert 
+                  type="info" 
+                  variant="tonal" 
+                  class="mb-6"
+                  icon="mdi-information-outline"
+                >
+                  Cambia la contraseña del usuario. Todos los campos son obligatorios.
+                </v-alert>
+
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="currentPassword"
+                      label="Contraseña Actual"
+                      :type="showCurrentPassword ? 'text' : 'password'"
+                      variant="outlined"
+                      :rules="passwordRules"
+                      :append-inner-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showCurrentPassword = !showCurrentPassword"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="newPassword"
+                      label="Nueva Contraseña"
+                      :type="showNewPassword ? 'text' : 'password'"
+                      variant="outlined"
+                      :rules="newPasswordRules"
+                      :append-inner-icon="showNewPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showNewPassword = !showNewPassword"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="confirmPassword"
+                      label="Confirmar Nueva Contraseña"
+                      :type="showConfirmPassword ? 'text' : 'password'"
+                      variant="outlined"
+                      :rules="confirmPasswordRules"
+                      :append-inner-icon="showConfirmPassword ? 'mdi-eye' : 'mdi-eye-off'"
+                      @click:append-inner="showConfirmPassword = !showConfirmPassword"
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-btn
+                      color="primary"
+                      @click="changePassword"
+                      :loading="changingPassword"
+                      :disabled="!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword"
+                      prepend-icon="mdi-lock-reset"
+                    >
+                      Cambiar Contraseña
+                    </v-btn>
                   </v-col>
                 </v-row>
               </v-form>
@@ -311,20 +386,338 @@
 
             <!-- Pestaña de permisos -->
             <v-tabs-window-item value="permissions" v-if="editMode && canManagePermissions">
-              <ModularPermissionsGrid
-                v-if="userForm.id"
-                :user-id="userForm.id"
-                :user-name="userForm.name"
-                :user-role="userForm.role"
-                @saved="onPermissionsSaved"
-              />
+              <div class="permissions-content">
+                <!-- Alert informativo -->
+                <v-alert 
+                  type="info" 
+                  variant="tonal" 
+                  class="mb-6"
+                  icon="mdi-information-outline"
+                >
+                  Los permisos determinan las acciones que el usuario puede realizar en cada módulo del sistema.
+                </v-alert>
+
+                <!-- Grid de permisos -->
+                <v-row>
+                  <!-- Sección Facturas -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="primary">mdi-file-document-outline</v-icon>
+                          Facturas
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('invoices') === 4 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('invoices') }}/4
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.invoices?.view }"
+                            @click="togglePermission('invoices', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver facturas</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.invoices?.create }"
+                            @click="togglePermission('invoices', 'create')"
+                          >
+                            <v-icon size="20">mdi-plus-circle-outline</v-icon>
+                            <span>Crear facturas</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.invoices?.edit }"
+                            @click="togglePermission('invoices', 'edit')"
+                          >
+                            <v-icon size="20">mdi-pencil-outline</v-icon>
+                            <span>Editar facturas</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.invoices?.delete }"
+                            @click="togglePermission('invoices', 'delete')"
+                          >
+                            <v-icon size="20">mdi-delete-outline</v-icon>
+                            <span>Eliminar facturas</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+
+                  <!-- Sección Documentos -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="secondary">mdi-folder-outline</v-icon>
+                          Documentos
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('documents') === 3 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('documents') }}/3
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.documents?.view }"
+                            @click="togglePermission('documents', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver documentos</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.documents?.upload }"
+                            @click="togglePermission('documents', 'upload')"
+                          >
+                            <v-icon size="20">mdi-upload-outline</v-icon>
+                            <span>Subir documentos</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.documents?.download }"
+                            @click="togglePermission('documents', 'download')"
+                          >
+                            <v-icon size="20">mdi-download-outline</v-icon>
+                            <span>Descargar documentos</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+
+                  <!-- Sección Usuarios -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="warning">mdi-account-multiple-outline</v-icon>
+                          Usuarios
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('users') === 4 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('users') }}/4
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.users?.view }"
+                            @click="togglePermission('users', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver usuarios</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.users?.create }"
+                            @click="togglePermission('users', 'create')"
+                          >
+                            <v-icon size="20">mdi-account-plus-outline</v-icon>
+                            <span>Crear usuarios</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.users?.edit }"
+                            @click="togglePermission('users', 'edit')"
+                          >
+                            <v-icon size="20">mdi-account-edit-outline</v-icon>
+                            <span>Editar usuarios</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.users?.delete }"
+                            @click="togglePermission('users', 'delete')"
+                          >
+                            <v-icon size="20">mdi-account-remove-outline</v-icon>
+                            <span>Eliminar usuarios</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+
+                  <!-- Sección Proveedores -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="info">mdi-office-building-outline</v-icon>
+                          Proveedores
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('suppliers') === 4 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('suppliers') }}/4
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.suppliers?.view }"
+                            @click="togglePermission('suppliers', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver proveedores</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.suppliers?.create }"
+                            @click="togglePermission('suppliers', 'create')"
+                          >
+                            <v-icon size="20">mdi-plus-circle-outline</v-icon>
+                            <span>Crear proveedores</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.suppliers?.edit }"
+                            @click="togglePermission('suppliers', 'edit')"
+                          >
+                            <v-icon size="20">mdi-pencil-outline</v-icon>
+                            <span>Editar proveedores</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.suppliers?.delete }"
+                            @click="togglePermission('suppliers', 'delete')"
+                          >
+                            <v-icon size="20">mdi-delete-outline</v-icon>
+                            <span>Eliminar proveedores</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+
+                  <!-- Sección Dashboard -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="blue">mdi-view-dashboard-outline</v-icon>
+                          Dashboard
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('dashboard') === 3 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('dashboard') }}/3
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.dashboard?.view }"
+                            @click="togglePermission('dashboard', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver dashboard</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.dashboard?.view_stats }"
+                            @click="togglePermission('dashboard', 'view_stats')"
+                          >
+                            <v-icon size="20">mdi-chart-box-outline</v-icon>
+                            <span>Ver estadísticas</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.dashboard?.view_charts }"
+                            @click="togglePermission('dashboard', 'view_charts')"
+                          >
+                            <v-icon size="20">mdi-chart-pie</v-icon>
+                            <span>Ver gráficos</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+
+                <!-- Segunda fila para módulos adicionales -->
+                <v-row>
+                  <!-- Sección Documentos Contables -->
+                  <v-col cols="12" md="6">
+                    <v-card class="permission-section" elevation="2">
+                      <v-card-title class="d-flex justify-space-between align-center">
+                        <div class="d-flex align-center">
+                          <v-icon class="mr-2" color="purple">mdi-folder-account-outline</v-icon>
+                          Documentos Contables
+                        </div>
+                        <v-chip 
+                          :color="getPermissionCount('accounting_documents') === 4 ? 'success' : 'grey'"
+                          size="small"
+                        >
+                          {{ getPermissionCount('accounting_documents') }}/4
+                        </v-chip>
+                      </v-card-title>
+                      <v-card-text class="pt-2">
+                        <div class="permission-grid">
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.accounting_documents?.view }"
+                            @click="togglePermission('accounting_documents', 'view')"
+                          >
+                            <v-icon size="20">mdi-eye-outline</v-icon>
+                            <span>Ver documentos</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.accounting_documents?.upload }"
+                            @click="togglePermission('accounting_documents', 'upload')"
+                          >
+                            <v-icon size="20">mdi-upload-outline</v-icon>
+                            <span>Subir documentos</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.accounting_documents?.download }"
+                            @click="togglePermission('accounting_documents', 'download')"
+                          >
+                            <v-icon size="20">mdi-download-outline</v-icon>
+                            <span>Descargar documentos</span>
+                          </div>
+                          <div 
+                            class="permission-box"
+                            :class="{ 'active': userPermissions.accounting_documents?.manage }"
+                            @click="togglePermission('accounting_documents', 'manage')"
+                          >
+                            <v-icon size="20">mdi-cog-outline</v-icon>
+                            <span>Gestionar documentos</span>
+                          </div>
+                        </div>
+                      </v-card-text>
+                    </v-card>
+                  </v-col>
+                </v-row>
+              </div>
             </v-tabs-window-item>
           </v-tabs-window>
         </v-card-text>
         
-        <v-card-actions>
+        <v-card-actions class="px-6 py-4">
           <v-spacer></v-spacer>
-          <v-btn @click="closeUserDialog">Cancelar</v-btn>
+          <v-btn @click="closeUserDialogAndClearPassword">Cancelar</v-btn>
           <v-btn 
             v-if="activeTab === 'general'"
             color="primary" 
@@ -337,9 +730,19 @@
           <v-btn 
             v-if="activeTab === 'permissions' && editMode"
             color="success"
-            @click="closeUserDialog"
+            @click="savePermissions"
+            :loading="savingPermissions"
           >
-            Guardar y Cerrar
+            Guardar Permisos
+          </v-btn>
+          <v-btn 
+            v-if="activeTab === 'permissions' && editMode"
+            color="primary"
+            @click="savePermissionsAndClose"
+            :loading="savingPermissions"
+            class="ml-2"
+          >
+            Guardar y Salir
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -351,12 +754,48 @@
 import { onMounted, ref, computed, watch } from 'vue'
 import { useUsers } from '../scripts/users.js'
 import { useAuthStore } from '../stores/auth.js'
-import ModularPermissionsGrid from '../components/ModularPermissionsGrid.vue'
+import axios from '../utils/axios.js'
 
 const auth = useAuthStore()
 
 // Variable para las pestañas - mantener estado de permisos si viene de ahí
 const activeTab = ref('general')
+
+// Variables para el manejo de permisos
+const userPermissions = ref({
+  invoices: { view: false, create: false, edit: false, delete: false },
+  documents: { view: false, upload: false, download: false },
+  users: { view: false, create: false, edit: false, delete: false },
+  suppliers: { view: false, create: false, edit: false, delete: false },
+  dashboard: { view: false, view_stats: false, view_charts: false },
+  accounting_documents: { view: false, upload: false, download: false, manage: false }
+})
+const savingPermissions = ref(false)
+
+// Variables para cambio de contraseña
+const currentPassword = ref('')
+const newPassword = ref('')
+const confirmPassword = ref('')
+const changingPassword = ref(false)
+const showCurrentPassword = ref(false)
+const showNewPassword = ref(false)
+const showConfirmPassword = ref(false)
+const passwordFormRef = ref(null)
+
+// Reglas de validación para contraseñas
+const passwordRules = computed(() => [
+  v => !!v || 'Contraseña actual requerida'
+])
+
+const newPasswordRules = computed(() => [
+  v => !!v || 'Nueva contraseña requerida',
+  v => (v && v.length >= 8) || 'La contraseña debe tener al menos 8 caracteres'
+])
+
+const confirmPasswordRules = computed(() => [
+  v => !!v || 'Confirmación de contraseña requerida',
+  v => v === newPassword.value || 'Las contraseñas no coinciden'
+])
 
 // Importar todas las funciones y variables de useUsers PRIMERO
 const {
@@ -402,13 +841,182 @@ const {
   initializeUsers,
   openPermissionsDialog,
   closePermissionsDialog,
-  showMessage
+  showMessage,
+  
+  // Password visibility
+  showPassword
 } = useUsers()
 
 // Computed para verificar si puede gestionar permisos
 const canManagePermissions = computed(() => {
   return auth.user?.role === 'super_admin' || auth.user?.role === 'admin_contaduria'
 })
+
+// Función para verificar si es el usuario actual
+const isCurrentUser = (user) => {
+  return auth.user?.id === user?.id
+}
+
+// Funciones para el manejo de permisos
+const getPermissionCount = (module) => {
+  const permissions = userPermissions.value[module]
+  if (!permissions) return 0
+  return Object.values(permissions).filter(Boolean).length
+}
+
+const togglePermission = (module, permission) => {
+  userPermissions.value[module][permission] = !userPermissions.value[module][permission]
+}
+
+const loadUserPermissions = async (userId) => {
+  if (!userId) return
+  
+  try {
+    console.log('🔍 Cargando permisos para usuario ID:', userId)
+    const response = await axios.get(`/api/users/${userId}/permissions`)
+    console.log('📋 Respuesta completa de permisos:', response.data)
+    
+    if (response.data && response.data.data && response.data.data.permissions) {
+      // El backend devuelve un array de strings con los permisos
+      const permissionsList = response.data.data.permissions
+      console.log('📝 Lista de permisos recibida:', permissionsList)
+      
+      // Reiniciar permisos
+      userPermissions.value = {
+        invoices: { view: false, create: false, edit: false, delete: false },
+        documents: { view: false, upload: false, download: false },
+        users: { view: false, create: false, edit: false, delete: false },
+        suppliers: { view: false, create: false, edit: false, delete: false },
+        dashboard: { view: false, view_stats: false, view_charts: false },
+        accounting_documents: { view: false, upload: false, download: false, manage: false }
+      }
+      
+      // Mapear cada permiso del array a la estructura del frontend
+      permissionsList.forEach(permission => {
+        const [module, action] = permission.split('.')
+        console.log(`🔧 Procesando permiso: ${permission} -> módulo: ${module}, acción: ${action}`)
+        
+        if (userPermissions.value[module] && userPermissions.value[module].hasOwnProperty(action)) {
+          userPermissions.value[module][action] = true
+          console.log(`✅ Permiso activado: ${module}.${action}`)
+        } else {
+          console.log(`❌ Permiso no reconocido o módulo inexistente: ${permission}`)
+        }
+      })
+      
+      console.log('🎯 Estado final de userPermissions:', userPermissions.value)
+    } else {
+      console.log('❌ Estructura de respuesta inesperada:', response.data)
+    }
+  } catch (error) {
+    console.error('Error cargando permisos:', error)
+    showMessage('Error al cargar los permisos del usuario', 'error')
+  }
+}
+
+const savePermissions = async () => {
+  if (!userForm.value?.id) return
+  
+  savingPermissions.value = true
+  try {
+    // Convertir la estructura de permisos del frontend a array para el backend
+    const permissionsArray = []
+    
+    Object.keys(userPermissions.value).forEach(module => {
+      Object.keys(userPermissions.value[module]).forEach(action => {
+        if (userPermissions.value[module][action]) {
+          permissionsArray.push(`${module}.${action}`)
+        }
+      })
+    })
+    
+    console.log('💾 Guardando permisos:', permissionsArray)
+    
+    await axios.put(`/api/users/${userForm.value.id}/permissions`, {
+      permissions: permissionsArray
+    })
+    
+    showMessage('Permisos actualizados correctamente', 'success')
+    
+    // Si el usuario editado es el usuario actual, recargar sus permisos
+    if (auth.user && auth.user.id === userForm.value.id) {
+      console.log('🔄 Recargando permisos del usuario actual...')
+      await auth.loadUserPermissions()
+      console.log('✅ Permisos del usuario actual actualizados')
+    }
+    
+  } catch (error) {
+    console.error('Error guardando permisos:', error)
+    showMessage('Error al guardar los permisos', 'error')
+  } finally {
+    savingPermissions.value = false
+  }
+}
+
+const savePermissionsAndClose = async () => {
+  await savePermissions()
+  if (!savingPermissions.value) { // Solo cerrar si no hubo error
+    closeUserDialog()
+  }
+}
+
+// Función para cambiar contraseña
+const changePassword = async () => {
+  if (!passwordFormRef.value?.validate()) {
+    return
+  }
+  
+  if (!userForm.value?.id) {
+    showMessage('Error: No se puede cambiar la contraseña sin un usuario válido', 'error')
+    return
+  }
+  
+  changingPassword.value = true
+  try {
+    await axios.put(`/api/users/${userForm.value.id}/change-password`, {
+      currentPassword: currentPassword.value,
+      newPassword: newPassword.value
+    })
+    
+    showMessage('Contraseña cambiada correctamente', 'success')
+    
+    // Limpiar campos
+    currentPassword.value = ''
+    newPassword.value = ''
+    confirmPassword.value = ''
+    
+    // Cerrar el diálogo si es exitoso
+    closeUserDialog()
+    
+  } catch (error) {
+    console.error('Error cambiando contraseña:', error)
+    const message = error.response?.data?.message || 'Error al cambiar la contraseña'
+    showMessage(message, 'error')
+  } finally {
+    changingPassword.value = false
+  }
+}
+
+// Función personalizada para cerrar el diálogo y limpiar campos de contraseña
+const closeUserDialogAndClearPassword = () => {
+  // Limpiar campos de contraseña
+  currentPassword.value = ''
+  newPassword.value = ''
+  confirmPassword.value = ''
+  showCurrentPassword.value = false
+  showNewPassword.value = false
+  showConfirmPassword.value = false
+  
+  // Llamar la función original de cierre
+  closeUserDialog()
+}
+
+// Watch para cargar permisos cuando se edita un usuario
+watch([userForm, activeTab], ([newUserForm, newTab]) => {
+  if (newUserForm?.id && newTab === 'permissions') {
+    loadUserPermissions(newUserForm.id)
+  }
+}, { deep: true })
 
 // Watch para cambiar a la pestaña de permisos si se está editando un usuario y tiene permisos
 watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
@@ -419,6 +1027,15 @@ watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
   } else if (!isEditMode) {
     // Solo resetear cuando se cierra completamente el modal
     activeTab.value = 'general'
+    // Limpiar permisos usando estructura moderna
+    userPermissions.value = {
+      invoices: { view: false, create: false, edit: false, delete: false },
+      documents: { view: false, upload: false, download: false },
+      users: { view: false, create: false, edit: false, delete: false },
+      suppliers: { view: false, create: false, edit: false, delete: false },
+      dashboard: { view: false, view_stats: false, view_charts: false },
+      accounting_documents: { view: false, upload: false, download: false, manage: false }
+    }
   }
 })
 
@@ -427,6 +1044,7 @@ const editUserPermissions = (user) => {
   editUser(user)
   activeTab.value = 'permissions'
 }
+
 // Función para manejar cuando se guardan los permisos
 const onPermissionsSaved = async () => {
   console.log('Permisos guardados exitosamente')

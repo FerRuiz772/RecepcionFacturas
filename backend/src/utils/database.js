@@ -6,10 +6,10 @@ const initializeDatabase = async () => {
         await sequelize.authenticate();
         console.log('✅ Conexión a la base de datos establecida correctamente.');
 
-        // Sincronizar modelos (solo en desarrollo)
+        // Sincronizar modelos (solo verificar, no alterar)
         if (process.env.NODE_ENV === 'development') {
-            await sequelize.sync({ alter: true });
-            console.log('✅ Modelos sincronizados con la base de datos.');
+            await sequelize.sync({ force: false, alter: false });
+            console.log('✅ Modelos verificados con la base de datos.');
         }
 
         return true;

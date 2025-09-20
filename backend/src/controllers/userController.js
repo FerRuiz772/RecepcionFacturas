@@ -1,16 +1,60 @@
 const { validationResult } = require('express-validator');
-const { User, Supplier, Op } = require('../models');
+const { User, Supplier, UserPermission, Op } = require('../models');
 const { createResponse } = require('../utils/response');
-const { getDefaultPermissions, getPermissionInfo } = require('../middleware/permissions');
 
 const userController = {
+    // Función para asignar permisos por defecto según el rol
+    async assignDefaultPermissions(userId, role) {
+        const defaultPermissions = {
+            super_admin: [
+                'facturas.ver', 'facturas.crear', 'facturas.editar', 'facturas.eliminar',
+                'documentos.ver', 'documentos.subir', 'documentos.descargar',
+                'usuarios.ver', 'usuarios.crear', 'usuarios.editar', 'usuarios.eliminar',
+                'proveedores.ver', 'proveedores.crear', 'proveedores.editar', 'proveedores.eliminar'
+            ],
+            admin_contaduria: [
+                'facturas.ver', 'facturas.crear', 'facturas.editar', 'facturas.eliminar',
+                'documentos.ver', 'documentos.subir', 'documentos.descargar',
+                'usuarios.ver', 'usuarios.crear',
+                'proveedores.ver', 'proveedores.crear'
+            ],
+            trabajador_contaduria: [
+                'facturas.ver', 'facturas.crear',
+                'documentos.ver', 'documentos.subir',
+                'proveedores.ver'
+            ],
+            proveedor: [
+                'facturas.ver', 'facturas.crear',
+                'documentos.ver', 'documentos.subir', 'documentos.descargar',
+                'proveedores.ver', 'proveedores.editar'
+            ]
+        };
+
+        const permissions = defaultPermissions[role] || [];
+        
+        // Eliminar permisos existentes
+        await UserPermission.destroy({ where: { user_id: userId } });
+        
+        // Asignar nuevos permisos
+        const permissionData = permissions.map(permission => ({
+            user_id: userId,
+            permission_key: permission,
+            granted: true
+        }));
+        
+        await UserPermission.bulkCreate(permissionData);
+    },
     async getAllUsers(req, res) {
         try {
             const { page = 1, limit = 10, search = '', role } = req.query;
             const offset = (page - 1) * limit;
             
             const where = {};
-            if (role) where.role = role;
+            if (role) {
+                // Manejar múltiples roles separados por comas
+                const roles = role.split(',').map(r => r.trim());
+                where.role = { [Op.in]: roles };
+            }
             if (search) {
                 where.name = { [Op.like]: `%${search}%` };
             }
@@ -86,6 +130,9 @@ const userController = {
                 supplier_id
             });
 
+            // Asignar permisos por defecto según el rol
+            await userController.assignDefaultPermissions(user.id, role);
+
             const responseUser = user.toJSON();
             delete responseUser.password_hash;
 
@@ -137,6 +184,59 @@ const userController = {
         }
     },
 
+    // Obtener permisos de usuario
+    async getUserPermissions(req, res) {
+        try {
+            const { id } = req.params;
+            const requestingUserId = req.user.id;
+            const requestingUserRole = req.user.role;
+            
+            // Verificar si el usuario puede ver estos permisos
+            const canViewPermissions = 
+                // Es super admin
+                requestingUserRole === 'super_admin' ||
+                // Es admin de contaduría
+                requestingUserRole === 'admin_contaduria' ||
+                // Es el mismo usuario viendo sus propios permisos
+                parseInt(id) === requestingUserId ||
+                // Tiene el permiso específico de usuarios.editar
+                (req.user.permissions && req.user.permissions.includes('users.edit'));
+            
+            if (!canViewPermissions) {
+                return res.status(403).json(createResponse(false, 'No tienes permisos para ver estos permisos', null));
+            }
+            
+            const user = await User.findByPk(id);
+
+            if (!user) {
+                return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
+            }
+
+            // Extraer permisos del campo JSON permissions
+            let permissions = [];
+            if (user.permissions && typeof user.permissions === 'object') {
+                // Convertir el objeto JSON a array de strings de permisos
+                for (const [module, actions] of Object.entries(user.permissions)) {
+                    for (const [action, granted] of Object.entries(actions)) {
+                        if (granted === true) {
+                            permissions.push(`${module}.${action}`);
+                        }
+                    }
+                }
+            }
+            
+            res.json(createResponse(true, 'Permisos obtenidos exitosamente', {
+                user_id: user.id,
+                name: user.name,
+                role: user.role,
+                permissions
+            }));
+        } catch (error) {
+            console.error('Error al obtener permisos de usuario:', error);
+            res.status(500).json(createResponse(false, 'Error interno del servidor', null));
+        }
+    },
+
     // Actualizar permisos de usuario
     async updateUserPermissions(req, res) {
         try {
@@ -148,148 +248,32 @@ const userController = {
                 return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
             }
 
-            await user.update({ permissions });
+            // Validar que los permisos sean un array
+            if (!Array.isArray(permissions)) {
+                return res.status(400).json(createResponse(false, 'Los permisos deben ser un array', null));
+            }
 
-            const responseUser = user.toJSON();
-            delete responseUser.password_hash;
+            // Eliminar permisos existentes
+            await UserPermission.destroy({ where: { user_id: id } });
 
-            res.json(createResponse(true, 'Permisos actualizados exitosamente', responseUser));
+            // Crear nuevos permisos
+            if (permissions.length > 0) {
+                const permissionData = permissions.map(permission => ({
+                    user_id: id,
+                    permission_key: permission,
+                    granted: true
+                }));
+                
+                await UserPermission.bulkCreate(permissionData);
+            }
+
+            res.json(createResponse(true, 'Permisos actualizados exitosamente', {
+                user_id: id,
+                permissions
+            }));
         } catch (error) {
             console.error('Error al actualizar permisos:', error);
             res.status(500).json(createResponse(false, 'Error interno del servidor', null));
-        }
-    },
-
-    // Obtener información de permisos para un rol
-    async getPermissionInfo(req, res) {
-        try {
-            const { role } = req.params;
-            const permissionInfo = getPermissionInfo(role);
-            res.json(createResponse(true, 'Información de permisos obtenida exitosamente', permissionInfo));
-        } catch (error) {
-            console.error('Error al obtener información de permisos:', error);
-            res.status(500).json(createResponse(false, 'Error interno del servidor', null));
-        }
-    },
-
-    // Obtener permisos por defecto según rol
-    async getDefaultPermissions(req, res) {
-        try {
-            const { role } = req.params;
-            const permissions = getDefaultPermissions(role);
-            res.json(createResponse(true, 'Permisos por defecto obtenidos exitosamente', permissions));
-        } catch (error) {
-            console.error('Error al obtener permisos por defecto:', error);
-            res.status(500).json(createResponse(false, 'Error interno del servidor', null));
-        }
-    },
-
-    // Obtener permisos modulares de usuario
-    async getModularPermissions(req, res) {
-        try {
-            const { id } = req.params;
-            const user = await User.findByPk(id);
-            
-            if (!user) {
-                return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
-            }
-
-            // Mapear permisos existentes a la nueva estructura modular
-            const existingPermissions = user.permissions || getDefaultPermissions(user.role);
-            
-            const modularPermissions = {
-                dashboard: {
-                    ver: existingPermissions.dashboard?.ver || true // Todos pueden ver dashboard
-                },
-                facturas: {
-                    ver: existingPermissions.facturas?.ver_todas || existingPermissions.facturas?.ver_propias || false,
-                    crear: existingPermissions.facturas?.crear || false,
-                    editar: existingPermissions.facturas?.editar || false,
-                    asignar: existingPermissions.facturas?.gestionar || false,
-                    aprobar: existingPermissions.facturas?.gestionar || false
-                },
-                documentos: {
-                    ver: existingPermissions.documentos?.ver_todas || existingPermissions.documentos?.ver_propias || false,
-                    subir: existingPermissions.documentos?.crear || false,
-                    eliminar: existingPermissions.documentos?.eliminar || false,
-                    validar: existingPermissions.documentos?.gestionar || false
-                },
-                proveedores: {
-                    ver: existingPermissions.proveedores?.ver_todas || existingPermissions.proveedores?.ver_propias || false,
-                    crear: existingPermissions.proveedores?.crear || false,
-                    editar: existingPermissions.proveedores?.editar || false
-                },
-                usuarios: {
-                    ver: existingPermissions.usuarios?.ver_todas || existingPermissions.usuarios?.ver_propias || false,
-                    crear: existingPermissions.usuarios?.crear || false,
-                    editar: existingPermissions.usuarios?.editar || false
-                }
-            };
-            
-            res.json(createResponse(true, 'Permisos modulares obtenidos exitosamente', modularPermissions));
-        } catch (error) {
-            console.error('Error obteniendo permisos modulares:', error);
-            res.status(500).json(createResponse(false, 'Error obteniendo permisos del usuario', null));
-        }
-    },
-
-    // Actualizar permisos modulares de usuario
-    async updateModularPermissions(req, res) {
-        try {
-            const { id } = req.params;
-            const { permissions } = req.body;
-
-            const user = await User.findByPk(id);
-            
-            if (!user) {
-                return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
-            }
-
-            // Convertir permisos modulares a estructura interna
-            const internalPermissions = {
-                facturas: {
-                    ver_todas: permissions.facturas?.ver || false,
-                    ver_propias: permissions.facturas?.ver || false,
-                    crear: permissions.facturas?.crear || false,
-                    editar: permissions.facturas?.editar || false,
-                    gestionar: permissions.facturas?.asignar || permissions.facturas?.aprobar || false,
-                    eliminar: permissions.facturas?.editar || false
-                },
-                documentos: {
-                    ver_todas: permissions.documentos?.ver || false,
-                    ver_propias: permissions.documentos?.ver || false,
-                    crear: permissions.documentos?.subir || false,
-                    editar: permissions.documentos?.eliminar || false,
-                    gestionar: permissions.documentos?.validar || false,
-                    eliminar: permissions.documentos?.eliminar || false
-                },
-                proveedores: {
-                    ver_todas: permissions.proveedores?.ver || false,
-                    ver_propias: permissions.proveedores?.ver || false,
-                    crear: permissions.proveedores?.crear || false,
-                    editar: permissions.proveedores?.editar || false,
-                    gestionar: permissions.proveedores?.editar || false,
-                    eliminar: permissions.proveedores?.editar || false
-                },
-                usuarios: {
-                    ver_todas: permissions.usuarios?.ver || false,
-                    ver_propias: permissions.usuarios?.ver || false,
-                    crear: permissions.usuarios?.crear || false,
-                    editar: permissions.usuarios?.editar || false,
-                    gestionar: permissions.usuarios?.editar || false,
-                    eliminar: permissions.usuarios?.editar || false
-                }
-            };
-
-            // Actualizar permisos
-            await user.update({
-                permissions: internalPermissions
-            });
-
-            res.json(createResponse(true, 'Permisos actualizados exitosamente', permissions));
-        } catch (error) {
-            console.error('Error actualizando permisos modulares:', error);
-            res.status(500).json(createResponse(false, 'Error actualizando permisos del usuario', null));
         }
     }
 };

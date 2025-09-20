@@ -1,11 +1,37 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
+// Funciones utilitarias para localStorage seguro
+const safeGetItem = (key) => {
+  try {
+    return localStorage.getItem(key)
+  } catch (error) {
+    console.warn(`Error al leer ${key} del localStorage:`, error)
+    return null
+  }
+}
+
+const safeSetItem = (key, value) => {
+  try {
+    localStorage.setItem(key, value)
+  } catch (error) {
+    console.warn(`Error al guardar ${key} en localStorage:`, error)
+  }
+}
+
+const safeRemoveItem = (key) => {
+  try {
+    localStorage.removeItem(key)
+  } catch (error) {
+    console.warn(`Error al eliminar ${key} del localStorage:`, error)
+  }
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null,
-    token: localStorage.getItem('token'),
-    refreshToken: localStorage.getItem('refreshToken'),
+    token: safeGetItem('token'),
+    refreshToken: safeGetItem('refreshToken'),
     loading: false
   }),
 
@@ -14,84 +40,150 @@ export const useAuthStore = defineStore('auth', {
     userRole: (state) => state.user?.role,
     userName: (state) => state.user?.name,
     userEmail: (state) => state.user?.email,
-    userPermissions: (state) => state.user?.permissions || {},
+    userPermissions: (state) => state.user?.permissions || [],
     isProveedor: (state) => state.user?.role === 'proveedor',
     isAdmin: (state) => ['super_admin', 'admin_contaduria'].includes(state.user?.role),
     isContaduria: (state) => ['admin_contaduria', 'trabajador_contaduria'].includes(state.user?.role),
     isSuperAdmin: (state) => state.user?.role === 'super_admin',
     
-    // Verificador de permisos
-    hasPermission: (state) => (module, action) => {
+    // Verificador de permisos granulares
+    hasPermission: (state) => (permission) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
       
-      const permissions = state.user.permissions || {}
-      const modulePermissions = permissions[module]
+      const permissions = state.user.permissions || []
+      return permissions.includes(permission)
+    },
+
+    // Verificador de múltiples permisos (AND lógico)
+    hasAllPermissions: (state) => (permissionArray) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
       
-      if (!modulePermissions) return false
+      const userPermissions = state.user.permissions || []
+      return permissionArray.every(permission => userPermissions.includes(permission))
+    },
+
+    // Verificador de al menos uno de múltiples permisos (OR lógico)
+    hasAnyPermission: (state) => (permissionArray) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
       
-      // Mapear acciones del frontend a las del backend
-      const actionMapping = {
-        'ver': ['ver_todas', 'ver_propias', 'ver'],
-        'crear': ['crear'],
-        'editar': ['editar'],
-        'eliminar': ['eliminar'],
-        'gestionar': ['gestionar'],
-        'aprobar': ['aprobar'],
-        'ver_todas': ['ver_todas'],
-        'ver_propias': ['ver_propias']
-      }
-      
-      const possibleActions = actionMapping[action] || [action]
-      
-      return possibleActions.some(possibleAction => 
-        modulePermissions[possibleAction] === true
-      )
+      const userPermissions = state.user.permissions || []
+      return permissionArray.some(permission => userPermissions.includes(permission))
     },
 
     // Getters específicos para módulos comunes
     canViewDashboard: (state) => {
       if (!state.user) return false
-      if (state.user.role === 'super_admin') return true
       // Todos los usuarios autenticados pueden ver dashboard
       return true
     },
-    canManageUsers: (state) => state.user?.role === 'super_admin' || state.user?.role === 'admin_contaduria',
+
+    // Permisos de usuarios
+    canViewUsers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('users.view')
+    },
+    canCreateUsers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('users.create')
+    },
+    canEditUsers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('users.edit')
+    },
+    canDeleteUsers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('users.delete')
+    },
+
+    // Permisos de facturas
+    canViewInvoices: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('invoices.view')
+    },
     canCreateInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.facturas?.crear === true
+      const permissions = state.user.permissions || []
+      return permissions.includes('invoices.create')
     },
     canEditInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.facturas?.editar === true
+      const permissions = state.user.permissions || []
+      return permissions.includes('invoices.edit')
     },
     canDeleteInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.facturas?.eliminar === true
+      const permissions = state.user.permissions || []
+      return permissions.includes('invoices.delete')
     },
-    canApproveInvoices: (state) => {
+
+    // Permisos de documentos
+    canViewDocuments: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.facturas?.aprobar === true
-    },
-    canManageSuppliers: (state) => {
-      if (!state.user) return false
-      if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.proveedores?.crear === true
+      const permissions = state.user.permissions || []
+      return permissions.includes('documents.view')
     },
     canUploadDocuments: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || {}
-      return permissions.documentos?.subir === true
+      const permissions = state.user.permissions || []
+      return permissions.includes('documents.upload')
+    },
+    canDownloadDocuments: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('documents.download')
+    },
+
+    // Permisos de proveedores
+    canViewSuppliers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('suppliers.view')
+    },
+    canCreateSuppliers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('suppliers.create')
+    },
+    canEditSuppliers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('suppliers.edit')
+    },
+    canDeleteSuppliers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('suppliers.delete')
+    },
+
+    // Permisos para documentos contables
+    canViewAccountingDocuments: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || []
+      return permissions.includes('accounting_documents.view')
     }
   },
 
@@ -115,8 +207,11 @@ export const useAuthStore = defineStore('auth', {
         this.refreshToken = refreshToken
         this.user = user
 
-        localStorage.setItem('token', token)
-        localStorage.setItem('refreshToken', refreshToken)
+        safeSetItem('token', token)
+        safeSetItem('refreshToken', refreshToken)
+
+        // Cargar permisos del usuario después del login
+        await this.loadUserPermissions()
 
         console.log('💾 Datos guardados en localStorage')
         return { success: true }
@@ -158,8 +253,8 @@ export const useAuthStore = defineStore('auth', {
         this.user = null
         this.token = null
         this.refreshToken = null
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
+        safeRemoveItem('token')
+        safeRemoveItem('refreshToken')
         delete axios.defaults.headers.common['Authorization']
         console.log('🚪 Logout completo')
       }
@@ -181,13 +276,18 @@ export const useAuthStore = defineStore('auth', {
         console.log('📡 Cargando usuario desde token...')
         console.log('🔑 Token actual:', this.token.substring(0, 20) + '...')
         
+        // Cargar información básica del usuario
         const response = await axios.get('/api/auth/me')
         this.user = response.data.user
+        
+        // Cargar permisos del usuario
+        await this.loadUserPermissions()
         
         console.log('Usuario cargado exitosamente:', {
           email: this.user.email,
           role: this.user.role,
-          id: this.user.id
+          id: this.user.id,
+          permissions: this.user.permissions?.length || 0
         })
         return true
       } catch (error) {
@@ -205,6 +305,31 @@ export const useAuthStore = defineStore('auth', {
         return false
       } finally {
         this.loading = false
+      }
+    },
+
+    async loadUserPermissions() {
+      try {
+        if (!this.user?.id) {
+          console.log('No hay usuario para cargar permisos')
+          return
+        }
+
+        console.log('📡 Cargando permisos del usuario...')
+        const response = await axios.get(`/api/users/${this.user.id}/permissions`)
+        
+        // El endpoint devuelve { user_id, name, role, permissions: ['permiso1', 'permiso2'] }
+        this.user.permissions = response.data.data.permissions || []
+        
+        console.log('Permisos cargados exitosamente:', {
+          userId: this.user.id,
+          permissionsCount: this.user.permissions.length,
+          permissions: this.user.permissions
+        })
+      } catch (error) {
+        console.error('Error cargando permisos del usuario:', error)
+        // Si no se pueden cargar permisos, asignar array vacío
+        this.user.permissions = []
       }
     },
 

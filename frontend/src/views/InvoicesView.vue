@@ -19,7 +19,7 @@
               <h1 class="page-title">Gestión de Facturas</h1>
               <p class="page-subtitle">Administra todas las facturas del sistema</p>
             </div>
-            <div v-if="authStore.isProveedor">
+            <div v-if="authStore.canCreateInvoices">
               <v-btn 
                 color="primary" 
                 @click="$router.push('/invoices/new')"
@@ -68,7 +68,7 @@
                   prepend-inner-icon="mdi-domain"
                 ></v-select>
               </v-col>
-              <v-col cols="12" md="2" v-if="!authStore.isProveedor">
+              <v-col cols="12" md="2" v-if="authStore.isAdmin">
                 <v-select
                   v-model="filters.assigned_to"
                   :items="users"
@@ -316,19 +316,6 @@
                     <v-icon class="mr-1" size="16">mdi-cog</v-icon>
                     Gestionar
                   </v-btn>
-                  
-                  <!-- Cambiar estado -->
-                  <v-btn
-                    v-if="canChangeStatus(item)"
-                    variant="outlined"
-                    size="small"
-                    color="warning"
-                    @click="changeStatus(item)"
-                    :title="`Modificar el estado actual de la factura #${item.number}`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-swap-horizontal</v-icon>
-                    Estado
-                  </v-btn>
                 </template>
 
                 <!-- Menú de más opciones -->
@@ -345,12 +332,6 @@
                     </v-btn>
                   </template>
                   <v-list>
-                    <v-list-item v-if="!authStore.isProveedor" @click="viewInvoiceHistory(item)">
-                      <template v-slot:prepend>
-                        <v-icon size="20">mdi-history</v-icon>
-                      </template>
-                      <v-list-item-title>Ver historial</v-list-item-title>
-                    </v-list-item>
                     <v-list-item v-if="authStore.isContaduria && canGeneratePassword(item)" @click="generatePassword(item)">
                       <template v-slot:prepend>
                         <v-icon size="20">mdi-key</v-icon>
@@ -390,33 +371,6 @@
           </v-data-table-server>
         </v-card>
       </v-container>
-
-    <!-- Dialog para cambiar estado -->
-    <v-dialog v-model="statusDialog" max-width="500">
-      <v-card>
-        <v-card-title>Cambiar Estado de Factura</v-card-title>
-        <v-card-text>
-          <v-select
-            v-model="newStatus"
-            :items="availableStatuses"
-            label="Nuevo Estado"
-            variant="outlined"
-          ></v-select>
-          <v-textarea
-            v-model="statusNotes"
-            label="Notas (opcional)"
-            variant="outlined"
-            rows="3"
-            class="mt-4"
-          ></v-textarea>
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer></v-spacer>
-          <v-btn @click="statusDialog = false">Cancelar</v-btn>
-          <v-btn color="primary" @click="updateStatus">Actualizar</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
   </div>
 </template>
 

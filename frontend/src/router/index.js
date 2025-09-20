@@ -40,7 +40,7 @@ const routes = [
     path: '/invoices/new',
     name: 'NewInvoice',
     component: () => import('../views/NewInvoiceView.vue'),
-    meta: { requiresAuth: true, roles: ['proveedor'] }
+    meta: { requiresAuth: true, permission: 'invoices.create' }
   },
   // NUEVA RUTA: Gestión de documentos para contaduría
   {
@@ -49,20 +49,26 @@ const routes = [
     component: () => import('../views/AccountingDocumentsView.vue'),
     meta: { 
       requiresAuth: true, 
-      roles: ['admin_contaduria', 'trabajador_contaduria', 'super_admin'] 
+      permission: 'invoices.edit'
     }
   },
   {
     path: '/suppliers',
     name: 'Suppliers',
     component: () => import('../views/SuppliersView.vue'),
-    meta: { requiresAuth: true, roles: ['super_admin', 'admin_contaduria'] }
+    meta: { requiresAuth: true, permission: 'suppliers.view' }
   },
   {
     path: '/users',
     name: 'Users',
     component: () => import('../views/UsersView.vue'),
-    meta: { requiresAuth: true, roles: ['super_admin', 'admin_contaduria'] }
+    meta: { requiresAuth: true, permission: 'users.view' }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: () => import('../views/ProfileView.vue'),
+    meta: { requiresAuth: true }
   },
   // NUEVA RUTA: Vista detallada de factura (para todos los roles)
   {
@@ -108,8 +114,8 @@ router.beforeEach(async (to, from, next) => {
       console.log('✅ Usuario ya autenticado, redirigiendo a dashboard')
       next('/dashboard')
     } 
-    else if (to.meta.roles && !to.meta.roles.includes(authStore.userRole)) {
-      console.log(`❌ Acceso denegado: rol ${authStore.userRole} no permitido para ${to.path}`)
+    else if (to.meta.permission && !authStore.hasPermission(to.meta.permission)) {
+      console.log(`❌ Acceso denegado: no tiene permiso ${to.meta.permission} para ${to.path}`)
       next('/dashboard')
     } 
     else if (to.name === 'AccountingDocuments' || to.name === 'InvoiceDetail') {

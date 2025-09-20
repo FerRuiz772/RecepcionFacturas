@@ -17,7 +17,7 @@ export function usePasswordRecovery() {
   
   const emailRules = [
     v => !!v || 'El correo electrónico es requerido',
-    v => /.+@.+\..+/.test(v) || 'Ingrese un correo electrónico válido'
+    v => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) || 'Ingrese un correo electrónico válido (debe contener @)'
   ]
   
   const startCooldown = () => {

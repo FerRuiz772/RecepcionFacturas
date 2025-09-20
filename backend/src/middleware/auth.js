@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User, Supplier } = require('../models');
+const { User, Supplier, UserPermission } = require('../models');
 const rateLimit = require('express-rate-limit');
 
 // Rate limiting para autenticación
@@ -42,15 +42,23 @@ const authenticate = async (req, res, next) => {
       });
     }
 
-    // Buscar usuario en la base de datos con datos del proveedor si aplica
+    // Buscar usuario en la base de datos con datos del proveedor y permisos
     const user = await User.findByPk(decoded.userId, {
       attributes: { exclude: ['password_hash'] },
-      include: [{
-        model: Supplier,
-        as: 'supplier',
-        required: false,
-        attributes: ['id', 'business_name', 'nit']
-      }]
+      include: [
+        {
+          model: Supplier,
+          as: 'supplier',
+          required: false,
+          attributes: ['id', 'business_name', 'nit']
+        },
+        {
+          model: UserPermission,
+          as: 'userPermissions',
+          required: false,
+          attributes: ['permission_key', 'granted']
+        }
+      ]
     });
 
     if (!user) {
@@ -75,6 +83,44 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    // Cargar permisos del usuario
+    let userPermissions = [];
+    
+    // Si el usuario tiene permisos en formato JSON (nuevo sistema)
+    if (user.permissions && typeof user.permissions === 'object') {
+      // Convertir el objeto JSON a un array de strings de permisos
+      for (const [module, actions] of Object.entries(user.permissions)) {
+        for (const [action, granted] of Object.entries(actions)) {
+          if (granted === true) {
+            userPermissions.push(`${module}.${action}`);
+          }
+        }
+      }
+    } else {
+      // Sistema legacy con tabla user_permissions
+      const permissions = user.userPermissions || [];
+      userPermissions = permissions
+        .filter(p => p.granted)
+        .map(p => p.permission_key);
+    }
+
+    // Función helper para verificar permisos
+    const hasPermission = (permissionKey) => {
+      // Super admin tiene todos los permisos
+      if (user.role === 'super_admin') return true;
+      return userPermissions.includes(permissionKey);
+    };
+
+    const hasAllPermissions = (permissionKeys) => {
+      if (user.role === 'super_admin') return true;
+      return permissionKeys.every(key => userPermissions.includes(key));
+    };
+
+    const hasAnyPermission = (permissionKeys) => {
+      if (user.role === 'super_admin') return true;
+      return permissionKeys.some(key => userPermissions.includes(key));
+    };
+
     // Agregar datos completos del usuario al request
     req.user = {
       userId: user.id,
@@ -82,15 +128,19 @@ const authenticate = async (req, res, next) => {
       email: user.email,
       name: user.name,
       role: user.role,
-      permissions: user.permissions, // Agregar permisos
+      permissions: userPermissions, // Lista de permisos activos
       supplier_id: user.supplier_id,
       ...(user.supplier && {
         supplier_name: user.supplier.business_name,
         supplier_nit: user.supplier.nit
-      })
+      }),
+      // Métodos helper para verificar permisos
+      hasPermission,
+      hasAllPermissions,
+      hasAnyPermission
     };
 
-    // Helpers
+    // Helpers legacy (mantenemos por compatibilidad)
     req.user.isProveedor = user.role === 'proveedor';
     req.user.isContaduria = ['super_admin', 'admin_contaduria', 'trabajador_contaduria'].includes(user.role);
     req.user.isAdmin = ['super_admin', 'admin_contaduria'].includes(user.role);
@@ -118,7 +168,51 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Middleware de autorización por roles
+// Nuevo middleware de autorización basado en permisos granulares
+const requirePermission = (permissionKeys, options = {}) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ 
+        error: 'Usuario no autenticado',
+        code: 'NOT_AUTHENTICATED' 
+      });
+    }
+
+    // Si no se especifican permisos, permitir acceso
+    if (!permissionKeys || permissionKeys.length === 0) {
+      return next();
+    }
+
+    // Convertir a array si es string
+    const permissions = Array.isArray(permissionKeys) ? permissionKeys : [permissionKeys];
+    
+    // Determinar el tipo de verificación (ALL por defecto, o ANY)
+    const requireAll = options.requireAll !== false; // Por defecto true
+
+    let hasAccess = false;
+    
+    if (requireAll) {
+      // Requiere TODOS los permisos especificados
+      hasAccess = req.user.hasAllPermissions(permissions);
+    } else {
+      // Requiere AL MENOS UNO de los permisos especificados
+      hasAccess = req.user.hasAnyPermission(permissions);
+    }
+
+    if (!hasAccess) {
+      return res.status(403).json({ 
+        error: 'Permisos insuficientes',
+        code: 'INSUFFICIENT_PERMISSIONS',
+        required: permissions,
+        userPermissions: req.user.permissions
+      });
+    }
+
+    next();
+  };
+};
+
+// Middleware de autorización por roles (mantenido por compatibilidad)
 const authorize = (allowedRoles = []) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -141,7 +235,7 @@ const authorize = (allowedRoles = []) => {
   };
 };
 
-// Middleware específico para proveedores
+// Middleware específico para proveedores (legacy)
 const requireProveedor = (req, res, next) => {
   if (!req.user.isProveedor) {
     return res.status(403).json({ 
@@ -152,7 +246,7 @@ const requireProveedor = (req, res, next) => {
   next();
 };
 
-// Middleware específico para contaduría
+// Middleware específico para contaduría (legacy)
 const requireContaduria = (req, res, next) => {
   if (!req.user.isContaduria) {
     return res.status(403).json({ 
@@ -247,9 +341,10 @@ const checkPasswordChange = async (req, res, next) => {
 
 module.exports = {
   authenticate,
-  authorize,
-  requireProveedor,
-  requireContaduria,
+  requirePermission,    // Nuevo middleware principal
+  authorize,           // Legacy - mantenido por compatibilidad
+  requireProveedor,    // Legacy
+  requireContaduria,   // Legacy
   requireAdmin,
   validateInvoiceAccess,
   logAccess,

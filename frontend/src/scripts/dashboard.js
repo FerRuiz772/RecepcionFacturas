@@ -53,12 +53,14 @@ export function useDashboard() {
       clearInterval(refreshInterval)
     }
     
-    // Configurar nuevo intervalo (cada 30 segundos)
+    // Configurar nuevo intervalo (cada 15 segundos para mejor tiempo real)
     refreshInterval = setInterval(async () => {
       try {
         refreshing.value = true
+        console.log('🔄 Auto-refresh iniciado...')
         await loadDashboardStats()
         await loadRecentInvoices()
+        await loadPaymentTrends()
         
         // Actualizar datos específicos según el rol
         if (authStore.isProveedor) {
@@ -67,12 +69,13 @@ export function useDashboard() {
           await loadWorkQueue()
           await loadPendingInvoices()
         }
+        console.log('✅ Auto-refresh completado')
       } catch (error) {
         console.error('Error durante auto-refresh:', error)
       } finally {
         refreshing.value = false
       }
-    }, 30000) // 30 segundos
+    }, 15000) // 15 segundos para mejor experiencia en tiempo real
   }
   
   // Función para detener auto-refresh
@@ -156,7 +159,6 @@ export function useDashboard() {
     { title: 'Proveedor', key: 'supplier' },
     { title: 'Monto', key: 'amount', width: '120px' },
     { title: 'Estado', key: 'status', width: '120px' },
-    { title: 'Fecha', key: 'date', width: '100px' },
     { title: 'Acciones', key: 'actions', sortable: false, width: '180px' }
   ]
 
@@ -202,33 +204,25 @@ export function useDashboard() {
             title: 'Total Facturas',
             value: storeStats?.summary?.total_invoices?.toString() || '0',
             emoji: '📊',
-            colorClass: 'primary',
-            trend: 'up',
-            change: '+12%'
+            colorClass: 'primary'
           },
           {
             title: 'Pagos Completados',
             value: '0',
             emoji: '✅',
-            colorClass: 'success',
-            trend: 'up',
-            change: '+0%'
+            colorClass: 'success'
           },
           {
             title: 'En Proceso',
             value: '0',
             emoji: '⏳',
-            colorClass: 'warning',
-            trend: 'down',
-            change: '0%'
+            colorClass: 'warning'
           },
           {
             title: 'Rechazadas',
             value: '0',
             emoji: '❌',
-            colorClass: 'error',
-            trend: 'down',
-            change: '0%'
+            colorClass: 'error'
           }
         ]
       }

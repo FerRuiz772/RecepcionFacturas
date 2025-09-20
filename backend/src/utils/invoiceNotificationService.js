@@ -16,15 +16,29 @@ class InvoiceNotificationService {
       console.log(`🔍 Datos del supplier:`, supplier);
       console.log(`🔍 Datos del assignedUser:`, assignedUser);
       
+      // Buscar al usuario proveedor que subió la factura
+      const { User } = require('../models');
+      const proveedorUser = await User.findOne({
+        where: { supplier_id: supplier.id, role: 'proveedor' }
+      });
+
+      console.log(`🔍 Usuario proveedor encontrado:`, proveedorUser ? proveedorUser.email : 'No encontrado');
+
+      // Buscar al admin de contaduría para notificación
+      const adminContaduria = await User.findOne({
+        where: { role: 'admin_contaduria', is_active: true }
+      });
+
+      console.log(`🔍 Admin contaduría encontrado:`, adminContaduria ? adminContaduria.email : 'No encontrado');
+
       // Notificar al proveedor que su factura fue recibida
-      // Los proveedores ya no tienen contact_email individual
-      // if (supplier?.contact_email) {
-      //   console.log(`📧 Enviando notificación al proveedor: ${supplier.contact_email}`);
-      //   await this.sendInvoiceReceivedNotification(supplier, invoice);
-      //   console.log(`✅ Notificación al proveedor enviada exitosamente`);
-      // } else {
-      //   console.log(`⚠️ Proveedor no tiene contact_email configurado:`, supplier);
-      // }
+      if (proveedorUser?.email) {
+        console.log(`📧 Enviando notificación al proveedor: ${proveedorUser.email}`);
+        await this.sendInvoiceReceivedNotification(supplier, invoice, proveedorUser);
+        console.log(`✅ Notificación al proveedor enviada exitosamente`);
+      } else {
+        console.log(`⚠️ No se encontró usuario proveedor para supplier_id: ${supplier.id}`);
+      }
 
       // Notificar al usuario asignado que tiene una nueva factura pendiente
       if (assignedUser?.email) {
@@ -33,6 +47,17 @@ class InvoiceNotificationService {
         console.log(`✅ Notificación al usuario asignado enviada exitosamente`);
       } else {
         console.log(`⚠️ Usuario asignado no tiene email configurado:`, assignedUser);
+      }
+
+      // Notificar al admin de contaduría para que esté al tanto de todas las facturas
+      if (adminContaduria?.email && adminContaduria.id !== assignedUser?.id) {
+        console.log(`📧 Enviando notificación al admin contaduría: ${adminContaduria.email}`);
+        await this.sendAdminNotificationInvoiceUploaded(adminContaduria, invoice, supplier, assignedUser);
+        console.log(`✅ Notificación al admin contaduría enviada exitosamente`);
+      } else if (adminContaduria?.id === assignedUser?.id) {
+        console.log(`ℹ️ Admin contaduría es el mismo que el usuario asignado, evitando duplicación`);
+      } else {
+        console.log(`⚠️ No se encontró admin de contaduría activo`);
       }
 
       console.log(`📧 Notificaciones enviadas para factura ${invoice.number}`);
@@ -47,6 +72,11 @@ class InvoiceNotificationService {
    */
   async notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier) {
     try {
+      console.log(`📧 notifyStatusChange iniciado para factura: ${invoice.number}`);
+      console.log(`📧 Cambio de estado: ${fromStatus} → ${toStatus}`);
+      console.log(`📧 Cambiado por: ${changedBy.name}`);
+      console.log(`📧 Supplier:`, supplier);
+
       const statusMessages = {
         'asignada_contaduria': 'Tu factura ha sido asignada al departamento de contaduría',
         'en_proceso': 'Tu factura está siendo procesada',
@@ -59,21 +89,38 @@ class InvoiceNotificationService {
       };
 
       const message = statusMessages[toStatus];
-      // Los proveedores ya no tienen contact_email individual
-      // if (message && supplier?.contact_email) {
-      //   await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy);
-      // }
+      
+      if (message) {
+        // Buscar al usuario proveedor que debe recibir la notificación
+        const { User } = require('../models');
+        const proveedorUser = await User.findOne({
+          where: { supplier_id: supplier.id, role: 'proveedor' }
+        });
 
-      console.log(`📧 Notificación de cambio de estado enviada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
+        console.log(`🔍 Usuario proveedor para notificación:`, proveedorUser ? proveedorUser.email : 'No encontrado');
+
+        if (proveedorUser?.email) {
+          console.log(`📧 Enviando notificación de cambio de estado a: ${proveedorUser.email}`);
+          await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy, proveedorUser);
+          console.log(`✅ Notificación de cambio de estado enviada exitosamente`);
+        } else {
+          console.log(`⚠️ No se encontró usuario proveedor para supplier_id: ${supplier.id}`);
+        }
+      } else {
+        console.log(`⚠️ No hay mensaje definido para el estado: ${toStatus}`);
+      }
+
+      console.log(`📧 Notificación de cambio de estado completada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
     } catch (error) {
       console.error('❌ Error enviando notificación de cambio de estado:', error);
+      console.error('❌ Stack trace:', error.stack);
     }
   }
 
   /**
    * Notifica al proveedor que su factura fue recibida
    */
-  async sendInvoiceReceivedNotification(supplier, invoice) {
+  async sendInvoiceReceivedNotification(supplier, invoice, proveedorUser) {
     const subject = `✅ Factura ${invoice.number} recibida correctamente`;
     
     const htmlContent = `
@@ -86,7 +133,7 @@ class InvoiceNotificationService {
           
           <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin-bottom: 25px;">
             <h2 style="color: #15803d; margin: 0 0 10px 0;">✅ Factura Recibida</h2>
-            <p style="color: #166534; margin: 0;">Tu factura ha sido recibida exitosamente y está en proceso de revisión.</p>
+            <p style="color: #166534; margin: 0;">Hola ${proveedorUser.name}, tu factura ha sido recibida exitosamente y está en proceso de revisión.</p>
           </div>
 
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
@@ -102,19 +149,19 @@ class InvoiceNotificationService {
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Monto:</td>
-                <td style="padding: 8px 0; color: #0f172a;">Q${parseFloat(invoice.amount).toLocaleString('es-GT', {minimumFractionDigits: 2})}</td>
+                <td style="padding: 8px 0; color: #0f172a;">Q${parseFloat(invoice.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2})}</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado:</td>
                 <td style="padding: 8px 0;">
                   <span style="background-color: #dbeafe; color: #1e40af; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
-                    ${invoice.status.replace('_', ' ').toUpperCase()}
+                    RECIBIDA
                   </span>
                 </td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha de subida:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${new Date(invoice.created_at).toLocaleDateString('es-GT')}</td>
+                <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-GT')}</td>
               </tr>
             </table>
           </div>
@@ -122,7 +169,7 @@ class InvoiceNotificationService {
           <div style="background-color: #fffbeb; border: 1px solid #fde68a; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
             <h4 style="color: #92400e; margin: 0 0 10px 0;">⏱️ Próximos Pasos</h4>
             <p style="color: #92400e; margin: 0; line-height: 1.5;">
-              Tu factura será revisada por nuestro equipo de contaduría. Te mantendremos informado sobre cualquier cambio en el estado de procesamiento.
+              Tu factura será revisada por nuestro equipo de contaduría. Te mantendremos informado sobre cualquier cambio en el estado de procesamiento a través de notificaciones por correo electrónico.
             </p>
           </div>
 
@@ -142,14 +189,12 @@ class InvoiceNotificationService {
     `;
 
     try {
-      // Los proveedores ya no tienen contact_email individual
-      console.log(`📧 Función de notificación de factura recibida - proveedor: ${supplier.business_name}`);
-      console.log(`ℹ️ Las notificaciones por email a proveedores están deshabilitadas`);
-      // const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
-      // console.log(`✅ Notificación enviada exitosamente al proveedor ${supplier.business_name}:`, result);
-      return { success: true, message: 'Notificación omitida - sin email individual' };
+      console.log(`📧 Enviando notificación de factura recibida a proveedor: ${proveedorUser.email}`);
+      const result = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+      console.log(`✅ Notificación enviada exitosamente al proveedor ${supplier.business_name} (${proveedorUser.email}):`, result);
+      return result;
     } catch (error) {
-      console.error(`❌ Error enviando notificación al proveedor ${supplier.business_name}:`, error);
+      console.error(`❌ Error enviando notificación al proveedor ${supplier.business_name} (${proveedorUser.email}):`, error);
       throw error;
     }
   }
@@ -236,7 +281,7 @@ class InvoiceNotificationService {
   /**
    * Notifica cambio de estado al proveedor
    */
-  async sendStatusChangeNotification(supplier, invoice, newStatus, message, changedBy) {
+  async sendStatusChangeNotification(supplier, invoice, newStatus, message, changedBy, proveedorUser) {
     const subject = `📄 Actualización de factura ${invoice.number}`;
     
     const statusColors = {
@@ -271,7 +316,7 @@ class InvoiceNotificationService {
           
           <div style="background-color: #f8fafc; border-left: 4px solid ${statusColors[newStatus] || '#64748b'}; padding: 20px; margin-bottom: 25px;">
             <h2 style="color: ${statusColors[newStatus] || '#64748b'}; margin: 0 0 10px 0;">${statusIcons[newStatus] || '📄'} Actualización de Estado</h2>
-            <p style="color: #0f172a; margin: 0; font-size: 16px;">${message}</p>
+            <p style="color: #0f172a; margin: 0; font-size: 16px;">Hola ${proveedorUser.name}, ${message}</p>
           </div>
 
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
@@ -320,17 +365,341 @@ class InvoiceNotificationService {
     `;
 
     try {
-      // Los proveedores ya no tienen contact_email individual
-      console.log(`📧 Función de notificación de cambio de estado - proveedor: ${supplier.business_name}`);
-      console.log(`ℹ️ Las notificaciones por email a proveedores están deshabilitadas`);
-      // const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
-      // console.log(`✅ Notificación de cambio de estado enviada exitosamente al proveedor ${supplier.business_name}:`, result);
-      return { success: true, message: 'Notificación omitida - sin email individual' };
+      console.log(`📧 Enviando notificación de cambio de estado a proveedor: ${proveedorUser.email}`);
+      const result = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+      console.log(`✅ Notificación de cambio de estado enviada exitosamente al proveedor ${supplier.business_name} (${proveedorUser.email}):`, result);
       return result;
     } catch (error) {
-      console.error(`❌ Error enviando notificación de cambio de estado al proveedor ${supplier.business_name}:`, error);
+      console.error(`❌ Error enviando notificación de cambio de estado al proveedor ${supplier.business_name} (${proveedorUser.email}):`, error);
       throw error;
     }
+  }
+
+  /**
+   * Envía notificación cuando se sube un documento para una factura
+   */
+  async notifyDocumentUploaded(invoice, proveedorUser, uploaderUser, documentType, documentTypeName) {
+    try {
+      console.log(`📧 notifyDocumentUploaded iniciado para factura: ${invoice.number}`);
+      console.log(`📧 Tipo de documento: ${documentType} (${documentTypeName})`);
+      console.log(`📧 Proveedor: ${proveedorUser.email}`);
+      console.log(`📧 Usuario que subió: ${uploaderUser.name}`);
+
+      if (!proveedorUser?.email) {
+        console.log('⚠️ Proveedor no tiene email configurado');
+        return { success: false, message: 'No email address' };
+      }
+
+      const subject = `📄 Nuevo documento subido para tu factura ${invoice.number}`;
+      
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #0f172a; margin: 0;">🧾 Recepción de Facturas</h1>
+              <div style="width: 60px; height: 3px; background-color: #3b82f6; margin: 10px auto;"></div>
+            </div>
+            
+            <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; padding: 20px; margin-bottom: 25px;">
+              <h2 style="color: #1d4ed8; margin: 0 0 10px 0;">📄 Documento Subido</h2>
+              <p style="color: #1e40af; margin: 0;">Se ha subido un nuevo documento para tu factura. Te mantendremos informado sobre el progreso del procesamiento.</p>
+            </div>
+
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h3 style="color: #0f172a; margin: 0 0 15px 0;">📋 Detalles del Documento</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Factura:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${invoice.number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Documento:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${documentTypeName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Subido por:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${uploaderUser.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-ES')}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.getStatusText(invoice.status)}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="background-color: #fefce8; border-left: 4px solid #eab308; padding: 15px; margin-bottom: 25px;">
+              <p style="color: #a16207; margin: 0; font-size: 14px;">
+                <strong>ℹ️ Información:</strong> Este documento es parte del proceso de gestión de tu factura. 
+                Te notificaremos cuando haya actualizaciones adicionales.
+              </p>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                📊 Ver Estado de la Factura
+              </a>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                © 2025 Sistema de Recepción de Facturas. Todos los derechos reservados.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const result = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+      console.log(`✅ Notificación de documento subido enviada exitosamente al proveedor ${proveedorUser.email}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación de documento subido al proveedor:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Envía notificación cuando se reemplaza un documento de una factura
+   */
+  async notifyDocumentReplaced(invoice, proveedorUser, uploaderUser, documentType, documentTypeName, oldFileName, newFileName) {
+    try {
+      console.log(`📧 notifyDocumentReplaced iniciado para factura: ${invoice.number}`);
+      console.log(`📧 Tipo de documento: ${documentType} (${documentTypeName})`);
+      console.log(`📧 Proveedor: ${proveedorUser.email}`);
+      console.log(`📧 Usuario que reemplazó: ${uploaderUser.name}`);
+      console.log(`📧 Archivo anterior: ${oldFileName}`);
+      console.log(`📧 Archivo nuevo: ${newFileName}`);
+
+      if (!proveedorUser?.email) {
+        console.log('⚠️ Proveedor no tiene email configurado');
+        return { success: false, message: 'No email address' };
+      }
+
+      const subject = `🔄 Documento reemplazado para tu factura ${invoice.number}`;
+      
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #0f172a; margin: 0;">🧾 Recepción de Facturas</h1>
+              <div style="width: 60px; height: 3px; background-color: #f59e0b; margin: 10px auto;"></div>
+            </div>
+            
+            <div style="background-color: #fff7ed; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 25px;">
+              <h2 style="color: #c2410c; margin: 0 0 10px 0;">🔄 Documento Reemplazado</h2>
+              <p style="color: #ea580c; margin: 0;">Hola ${proveedorUser.name}, se ha actualizado un documento de tu factura. El documento anterior ha sido reemplazado con una nueva versión.</p>
+            </div>
+
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h3 style="color: #0f172a; margin: 0 0 15px 0;">📋 Detalles del Reemplazo</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Factura:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${invoice.number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Documento:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${documentTypeName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Reemplazado por:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${uploaderUser.name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha del reemplazo:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-ES')}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado actual:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.getStatusText(invoice.status)}</td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 25px;">
+              <p style="color: #92400e; margin: 0; font-size: 14px;">
+                <strong>ℹ️ Información importante:</strong> El documento anterior ha sido reemplazado. 
+                Te mantendremos informado sobre el progreso de la revisión de la nueva versión.
+              </p>
+            </div>
+
+            <div style="background-color: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 25px;">
+              <h4 style="color: #475569; margin: 0 0 10px 0;">📄 Archivos</h4>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <div style="color: #64748b; font-size: 14px;">
+                  <span style="font-weight: bold;">Archivo anterior:</span> ${oldFileName}
+                </div>
+                <div style="color: #059669; font-size: 14px;">
+                  <span style="font-weight: bold;">Archivo nuevo:</span> ${newFileName}
+                </div>
+              </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" style="background-color: #f59e0b; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+                📊 Ver Estado de la Factura
+              </a>
+            </div>
+
+            <div style="text-align: center; margin-top: 20px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
+              <p style="color: #6b7280; font-size: 12px; margin: 0;">
+                © 2025 Sistema de Recepción de Facturas. Todos los derechos reservados.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const result = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+      console.log(`✅ Notificación de documento reemplazado enviada exitosamente al proveedor ${proveedorUser.email}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación de documento reemplazado al proveedor:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Envía notificación al admin de contaduría cuando se sube una nueva factura
+   */
+  async sendAdminNotificationInvoiceUploaded(adminUser, invoice, supplier, assignedUser) {
+    try {
+      console.log(`📧 Preparando notificación de supervisión para admin: ${adminUser.email}`);
+      
+      const subject = `[SUPERVISIÓN] Nueva Factura Subida - ${invoice.number}`;
+      
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #f8fafc;">
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center;">
+            <h1 style="margin: 0; font-size: 28px; font-weight: 300;">🔍 Supervisión de Facturas</h1>
+            <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Nueva factura requiere supervisión</p>
+          </div>
+          
+          <div style="padding: 30px; background-color: white; margin: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin-bottom: 25px; border-radius: 4px;">
+              <h3 style="color: #92400e; margin: 0 0 5px 0; font-size: 16px;">
+                📋 Notificación de Supervisión
+              </h3>
+              <p style="color: #92400e; margin: 0; font-size: 14px;">
+                Se ha subido una nueva factura que requiere su supervisión para generación de contraseñas.
+              </p>
+            </div>
+
+            <h2 style="color: #1e293b; margin: 0 0 20px 0; font-size: 24px;">Nueva Factura: ${invoice.number}</h2>
+            
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 6px; margin-bottom: 25px;">
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569; width: 40%;">
+                    Número de Factura:
+                  </td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                    ${invoice.number}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">
+                    Proveedor:
+                  </td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                    ${supplier.business_name}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">
+                    Monto:
+                  </td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                    Q${parseFloat(invoice.amount).toLocaleString('es-GT', { minimumFractionDigits: 2 })}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">
+                    Asignado a:
+                  </td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                    ${assignedUser ? assignedUser.name : 'Sin asignar'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; font-weight: bold; color: #475569;">
+                    Descripción:
+                  </td>
+                  <td style="padding: 8px 12px; border-bottom: 1px solid #e2e8f0; color: #1e293b;">
+                    ${invoice.description || 'Sin descripción'}
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 12px; font-weight: bold; color: #475569;">
+                    Estado Actual:
+                  </td>
+                  <td style="padding: 8px 12px; color: #1e293b;">
+                    <span style="background-color: #fbbf24; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold;">
+                      ${this.getStatusText(invoice.status)}
+                    </span>
+                  </td>
+                </tr>
+              </table>
+            </div>
+
+            <div style="background-color: #e0f2fe; border-left: 4px solid #0284c7; padding: 15px; margin-bottom: 25px; border-radius: 4px;">
+              <h4 style="color: #0369a1; margin: 0 0 8px 0; font-size: 16px;">🔧 Acciones Requeridas:</h4>
+              <ul style="color: #0369a1; margin: 5px 0; padding-left: 20px; font-size: 14px;">
+                <li>Revisar la factura y su documentación</li>
+                <li>Generar contraseña cuando corresponda</li>
+                <li>Supervisar el progreso del proceso</li>
+                <li>Coordinar con el equipo de contaduría si es necesario</li>
+              </ul>
+            </div>
+
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" 
+                 style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);">
+                🔍 Ver Factura en Sistema
+              </a>
+            </div>
+
+            <div style="border-top: 1px solid #e2e8f0; padding-top: 20px; margin-top: 30px; font-size: 12px; color: #64748b; text-align: center;">
+              <p style="margin: 0;">
+                Este es un correo automático de supervisión. Como administrador de contaduría, recibirás notificaciones de todas las facturas subidas al sistema.
+              </p>
+              <p style="margin: 10px 0 0 0;">
+                © 2025 Sistema de Recepción de Facturas. Todos los derechos reservados.
+              </p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const result = await emailService.sendEmail(adminUser.email, subject, htmlContent);
+      console.log(`✅ Notificación de supervisión enviada exitosamente al admin ${adminUser.email}:`, result);
+      return result;
+    } catch (error) {
+      console.error(`❌ Error enviando notificación de supervisión al admin:`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Obtiene el texto descriptivo del estado
+   */
+  getStatusText(status) {
+    const statusLabels = {
+      'factura_subida': 'Factura Subida',
+      'asignada_contaduria': 'Asignada a Contaduría',
+      'en_proceso': 'En Proceso',
+      'contrasena_generada': 'Contraseña Generada',
+      'retencion_isr_generada': 'Retención ISR Generada',
+      'retencion_iva_generada': 'Retención IVA Generada',
+      'pago_realizado': 'Pago Realizado',
+      'proceso_completado': 'Proceso Completado',
+      'rechazada': 'Rechazada'
+    };
+    return statusLabels[status] || status;
   }
 }
 

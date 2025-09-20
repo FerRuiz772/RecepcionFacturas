@@ -14,8 +14,28 @@
       <v-container>
         <div class="d-flex align-center justify-space-between">
           <div>
-            <h1 class="page-title">Dashboard</h1>
-            <p class="page-subtitle">Bienvenido de vuelta, {{ authStore.userName }}</p>
+            <h1 class="page-title">
+              Dashboard
+              <v-progress-circular 
+                v-if="refreshing"
+                indeterminate
+                size="20"
+                width="2"
+                color="primary"
+                class="ml-3"
+              ></v-progress-circular>
+            </h1>
+            <p class="page-subtitle">
+              Bienvenido de vuelta, {{ authStore.userName }}
+              <v-chip 
+                v-if="refreshing" 
+                size="x-small" 
+                color="primary"
+                class="ml-2"
+              >
+                Actualizando...
+              </v-chip>
+            </p>
           </div>
           <div v-if="authStore.isProveedor">
             <v-btn 
@@ -42,10 +62,6 @@
             </div>
             <div class="stats-value">{{ stat.value }}</div>
             <div class="stats-label">{{ stat.title }}</div>
-            <div :class="['stats-change', stat.trend === 'up' ? 'positive' : 'negative']">
-              <v-icon size="14">{{ stat.trend === 'up' ? 'mdi-trending-up' : 'mdi-trending-down' }}</v-icon>
-              {{ stat.change }}
-            </div>
           </div>
         </v-col>
       </v-row>

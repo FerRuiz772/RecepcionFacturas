@@ -21,6 +21,7 @@
           </div>
           <div>
             <v-btn 
+              v-if="authStore.canCreateSuppliers"
               color="primary" 
               @click="openCreateDialog"
               prepend-icon="mdi-plus"
@@ -94,14 +95,6 @@
 
           <template v-slot:item.nit="{ item }">
             <div class="nit-cell">{{ item.nit }}</div>
-          </template>
-
-          <template v-slot:item.contact_email="{ item }">
-            <div class="email-cell">{{ item.contact_email }}</div>
-          </template>
-
-          <template v-slot:item.contact_phone="{ item }">
-            <div class="phone-cell">{{ item.contact_phone || 'N/A' }}</div>
           </template>
 
           <template v-slot:item.is_active="{ item }">
@@ -206,26 +199,6 @@
                 ></v-text-field>
               </v-col>
               <v-col cols="12">
-                <v-text-field
-                  v-model="supplierForm.contact_email"
-                  label="Email de Contacto"
-                  type="email"
-                  variant="outlined"
-                  :rules="[
-                    v => !!v || 'Email requerido',
-                    v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
-                  ]"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="supplierForm.contact_phone"
-                  label="Teléfono de Contacto"
-                  variant="outlined"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
                 <v-textarea
                   v-model="supplierForm.address"
                   label="Dirección"
@@ -263,6 +236,9 @@
 <script setup>
 import { onMounted } from 'vue'
 import { useSuppliers } from '../scripts/suppliers.js'
+import { useAuthStore } from '../stores/auth.js'
+
+const authStore = useAuthStore()
 
 const {
   // Reactive state

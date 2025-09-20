@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <v-app-bar 
     app 
     fixed
@@ -64,13 +64,6 @@
             <v-list-item-title>Mi Perfil</v-list-item-title>
           </v-list-item>
           
-          <v-list-item @click="goToSettings" class="user-menu-item">
-            <template v-slot:prepend>
-              <v-icon color="#64748b" size="20">mdi-cog-outline</v-icon>
-            </template>
-            <v-list-item-title>Configuración</v-list-item-title>
-          </v-list-item>
-          
           <v-divider class="my-1" />
           
           <v-list-item @click="logout" class="user-menu-item logout-item">
@@ -132,10 +125,6 @@ const roleDisplayName = computed(() => {
 // Funciones del menú de usuario
 const goToProfile = () => {
   router.push('/profile')
-}
-
-const goToSettings = () => {
-  router.push('/settings')
 }
 
 const logout = async () => {

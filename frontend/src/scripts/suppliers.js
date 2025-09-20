@@ -23,8 +23,6 @@ export function useSuppliers() {
   const supplierForm = ref({
     business_name: '',
     nit: '',
-    contact_email: '',
-    contact_phone: '',
     address: '',
     is_active: true
   })
@@ -37,8 +35,6 @@ export function useSuppliers() {
   const headers = [
     { title: 'Empresa', key: 'business_name', width: '250px' },
     { title: 'NIT', key: 'nit', width: '150px' },
-    { title: 'Email', key: 'contact_email', width: '200px' },
-    { title: 'Teléfono', key: 'contact_phone', width: '150px' },
     { title: 'Estado', key: 'is_active', width: '100px' },
     { title: 'Registrado', key: 'created_at', width: '120px' },
     { title: 'Acciones', key: 'actions', sortable: false, width: '280px' }
@@ -55,8 +51,15 @@ export function useSuppliers() {
       }
 
       const response = await axios.get('/api/suppliers', { params })
-      suppliers.value = response.data.suppliers
-      totalSuppliers.value = response.data.total
+      
+      // Manejar diferentes estructuras de respuesta del API
+      if (response.data.success && response.data.data) {
+        suppliers.value = response.data.data.suppliers || []
+        totalSuppliers.value = response.data.data.total || 0
+      } else {
+        suppliers.value = response.data.suppliers || response.data || []
+        totalSuppliers.value = response.data.total || 0
+      }
     } catch (error) {
       console.error('Error loading suppliers:', error)
       toast.error('Error al cargar los proveedores')
@@ -78,8 +81,6 @@ export function useSuppliers() {
     supplierForm.value = {
       business_name: '',
       nit: '',
-      contact_email: '',
-      contact_phone: '',
       address: '',
       is_active: true
     }
@@ -101,8 +102,6 @@ export function useSuppliers() {
     supplierForm.value = {
       business_name: '',
       nit: '',
-      contact_email: '',
-      contact_phone: '',
       address: '',
       is_active: true
     }

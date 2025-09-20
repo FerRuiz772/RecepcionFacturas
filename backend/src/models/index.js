@@ -8,12 +8,17 @@ const InvoiceState = require('./InvoiceState');
 const Payment = require('./Payment');
 const SystemLog = require('./SystemLog');
 const PasswordResetToken = require('./PasswordResetToken')(sequelize);
+const UserPermission = require('./UserPermission');
 
 // ========== RELACIONES ==========
 
 // Supplier - Users
 Supplier.hasMany(User, { foreignKey: 'supplier_id', as: 'users', onDelete: 'SET NULL' });
 User.belongsTo(Supplier, { foreignKey: 'supplier_id', as: 'supplier', allowNull: true });
+
+// User - UserPermissions (nueva relación para sistema de permisos)
+User.hasMany(UserPermission, { foreignKey: 'user_id', as: 'userPermissions', onDelete: 'CASCADE' });
+UserPermission.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: false });
 
 // User - Assigned Invoices
 User.hasMany(Invoice, { foreignKey: 'assigned_to', as: 'assignedInvoices', onDelete: 'SET NULL' });
@@ -137,6 +142,7 @@ const syncDatabase = async (force = false) => {
     await Payment.sync({ force });
     await SystemLog.sync({ force });
     await PasswordResetToken.sync({ force });
+    await UserPermission.sync({ force });
 };
 
 module.exports = {
@@ -147,6 +153,9 @@ module.exports = {
     Invoice,
     InvoiceState,
     Payment,
+    SystemLog,
+    PasswordResetToken,
+    UserPermission,
     SystemLog,
     PasswordResetToken,
     syncDatabase

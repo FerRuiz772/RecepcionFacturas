@@ -18,6 +18,9 @@ router.post('/login', [
 // Obtener usuario actual
 router.get('/me', authenticate, authController.me);
 
+// Obtener perfil completo del usuario
+router.get('/profile', authenticate, authController.profile);
+
 // Logout
 router.post('/logout', authenticate, authController.logout);
 

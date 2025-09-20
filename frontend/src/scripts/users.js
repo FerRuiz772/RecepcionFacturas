@@ -23,6 +23,7 @@ export function useUsers() {
   const userFormRef = ref(null)
   const permissionsDialog = ref(false)
   const selectedUserForPermissions = ref(null)
+  const showPassword = ref(false)
 
   const userForm = ref({
     name: '',
@@ -66,8 +67,15 @@ export function useUsers() {
       }
 
       const response = await axios.get('/api/users', { params })
-      users.value = response.data.data.users
-      totalUsers.value = response.data.data.total
+      
+      // Manejar diferentes estructuras de respuesta del API
+      if (response.data.success && response.data.data) {
+        users.value = response.data.data.users || []
+        totalUsers.value = response.data.data.total || 0
+      } else {
+        users.value = response.data.users || response.data || []
+        totalUsers.value = response.data.total || 0
+      }
     } catch (error) {
       console.error('Error loading users:', error)
       toast.error('Error al cargar los usuarios')
@@ -79,9 +87,16 @@ export function useUsers() {
   const loadSuppliers = async () => {
     try {
       const response = await axios.get('/api/suppliers?is_active=true')
-      suppliers.value = response.data.suppliers || response.data
+      
+      // Manejar diferentes estructuras de respuesta del API
+      if (response.data.success && response.data.data) {
+        suppliers.value = response.data.data.suppliers || []
+      } else {
+        suppliers.value = response.data.suppliers || response.data || []
+      }
     } catch (error) {
       console.error('Error loading suppliers:', error)
+      suppliers.value = []
     }
   }
 
@@ -121,6 +136,7 @@ export function useUsers() {
 
   const closeUserDialog = () => {
     userDialog.value = false
+    showPassword.value = false
     userForm.value = {
       name: '',
       email: '',
@@ -161,7 +177,27 @@ export function useUsers() {
       loadUsers()
     } catch (error) {
       console.error('Error saving user:', error)
-      toast.error(error.response?.data?.error || 'Error al guardar el usuario')
+      console.error('Error response data:', error.response?.data)
+      
+      // Extraer el mensaje de error del backend
+      let errorMessage = 'Error al guardar el usuario'
+      
+      if (error.response?.data) {
+        // El backend devuelve un objeto con estructura: { success: false, message: "..." }
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message
+        }
+        // Fallback para otros formatos
+        else if (error.response.data.error) {
+          errorMessage = error.response.data.error
+        }
+        // Si el backend devuelve solo texto
+        else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data
+        }
+      }
+      
+      toast.error(errorMessage)
     } finally {
       saving.value = false
     }
@@ -281,6 +317,7 @@ export function useUsers() {
     userForm,
     permissionsDialog,
     selectedUserForPermissions,
+    showPassword,
     
     // Static data
     roleOptions,

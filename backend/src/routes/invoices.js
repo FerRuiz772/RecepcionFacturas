@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoiceController');
-const { authenticate, validateInvoiceAccess, requireProveedor, requireContaduria, requireAdmin } = require('../middleware/auth');
-const { checkPermission } = require('../middleware/permissions');
+const { authenticate, validateInvoiceAccess, requirePermission } = require('../middleware/auth');
 const { body } = require('express-validator');
 const multer = require('multer');
 const path = require('path');
@@ -41,15 +40,15 @@ const upload = multer({
 router.use(authenticate);
 
 // ===== DASHBOARD PRIMERO (rutas específicas) =====
-router.get('/dashboard/available-documents', checkPermission('facturas', 'ver_todas'), invoiceController.getAvailableDocuments);
-router.get('/dashboard/work-queue', checkPermission('facturas', 'ver_todas'), invoiceController.getWorkQueue);
-router.get('/dashboard/pending-invoices', checkPermission('facturas', 'ver_todas'), invoiceController.getPendingInvoices);
+router.get('/dashboard/available-documents', requirePermission(['accounting_documents.view'], { requireAll: false }), invoiceController.getAvailableDocuments);
+router.get('/dashboard/work-queue', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getWorkQueue);
+router.get('/dashboard/pending-invoices', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getPendingInvoices);
 
 // ===== Rutas básicas =====
-router.get('/', checkPermission('facturas', 'ver_propias'), invoiceController.getAllInvoices);
+router.get('/', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getAllInvoices);
 
 // Crear factura (proveedores solo suben archivos, contaduría incluye datos)
-router.post('/', checkPermission('facturas', 'crear'),
+router.post('/', requirePermission(['invoices.create']),
     invoiceController.uploadMiddleware,
     // Validación condicional basada en el rol del usuario
     (req, res, next) => {
@@ -77,25 +76,25 @@ router.post('/', checkPermission('facturas', 'crear'),
 );
 
 // ===== Rutas con parámetros dinámicos AL FINAL =====
-router.get('/:id', checkPermission('facturas', 'ver_propias'), validateInvoiceAccess, invoiceController.getInvoiceById);
+router.get('/:id', requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.getInvoiceById);
 
 // Actualizar factura
-router.put('/:id', checkPermission('facturas', 'editar'), validateInvoiceAccess, invoiceController.updateInvoice);
+router.put('/:id', requirePermission(['invoices.edit']), validateInvoiceAccess, invoiceController.updateInvoice);
 
 // Cambiar estado
-router.put('/:id/status', checkPermission('facturas', 'gestionar'), [
+router.put('/:id/status', requirePermission(['invoices.edit']), [
     body('status').notEmpty(),
     body('notes').optional().trim()
 ], validateInvoiceAccess, invoiceController.updateInvoiceStatus);
 
 // Eliminar factura
-router.delete('/:id', requireAdmin, invoiceController.deleteInvoice);
+router.delete('/:id', requirePermission(['invoices.delete']), invoiceController.deleteInvoice);
 
 // ===== Rutas para documentos =====
-router.post('/:id/generate-password', checkPermission('documentos', 'gestionar'), validateInvoiceAccess, invoiceController.generatePassword);
+router.post('/:id/generate-password', requirePermission(['accounting_documents.view']), validateInvoiceAccess, invoiceController.generatePassword);
 
 // Ruta para subir documentos
-router.post('/:id/upload-document', checkPermission('documentos', 'crear'),
+router.post('/:id/upload-document', requirePermission(['accounting_documents.upload']),
     upload.single('file'),
     [
         body('type').isIn(['retention_isr', 'retention_iva', 'payment_proof'])
@@ -122,21 +121,22 @@ router.post('/:id/upload-document', checkPermission('documentos', 'crear'),
 );
 
 // ===== Descargas =====
-router.get('/:id/download-invoice', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
-router.get('/:id/download-all-files', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
-router.get('/:id/download-retention-isr', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadRetentionISR);
-router.get('/:id/download-retention-iva', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadRetentionIVA);
-router.get('/:id/download-payment-proof', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadPaymentProof);
+router.get('/:id/download-invoice', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
+router.get('/:id/download-all-files', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
+router.get('/:id/download-retention-isr', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadRetentionISR);
+router.get('/:id/download-retention-iva', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadRetentionIVA);
+router.get('/:id/download-payment-proof', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadPaymentProof);
+router.get('/:id/download-password-file', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadPasswordFile);
 
 // ===== Visualización y descarga de archivos específicos =====
-router.get('/:id/view-file/:filename', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.viewInvoiceFile);
-router.get('/:id/download-file/:filename', checkPermission('documentos', 'ver'), validateInvoiceAccess, invoiceController.downloadInvoiceFile);
+router.get('/:id/view-file/:filename', requirePermission(['accounting_documents.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.viewInvoiceFile);
+router.get('/:id/download-file/:filename', requirePermission(['accounting_documents.download'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadInvoiceFile);
 
 // Ruta para reemplazar documentos específicos
-router.put('/:id/replace-document/:type', checkPermission('documentos', 'gestionar'),
+router.put('/:id/replace-document/:type', requirePermission(['accounting_documents.upload']),
     upload.single('file'),
     [
-        body('type').isIn(['retention_isr', 'retention_iva', 'payment_proof'])
+        body('type').isIn(['retention_isr', 'retention_iva', 'payment_proof', 'password_file'])
     ],
     validateInvoiceAccess,
     invoiceController.replaceDocument

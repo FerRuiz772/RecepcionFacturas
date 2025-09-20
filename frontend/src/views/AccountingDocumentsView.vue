@@ -562,6 +562,83 @@
 
                 <v-divider class="my-6"></v-divider>
 
+                <!-- Documento de Contraseña -->
+                <div class="password-documents">
+                  <h3 class="section-title mb-4">
+                    <v-icon class="mr-2" color="purple">mdi-key-variant</v-icon>
+                    Documento de Contraseña
+                  </h3>
+
+                  <!-- Documento de Contraseña -->
+                  <div class="document-upload-item mb-4">
+                    <div class="document-header">
+                      <div class="document-info">
+                        <h4>Documento de Contraseña</h4>
+                        <p class="text-caption">Documento físico con contraseña de acceso</p>
+                      </div>
+                      <div class="document-status">
+                        <v-chip 
+                          :color="hasPasswordFile ? 'success' : 'warning'" 
+                          size="small"
+                        >
+                          {{ hasPasswordFile ? 'Subido' : 'Pendiente' }}
+                        </v-chip>
+                      </div>
+                    </div>
+                    
+                    <div v-if="hasPasswordFile" class="document-completed">
+                      <v-alert type="success" variant="tonal" class="mb-3">
+                        <div class="d-flex justify-space-between align-center">
+                          <span>Documento de contraseña subido</span>
+                          <div>
+                            <v-btn 
+                              variant="outlined" 
+                              color="primary" 
+                              size="small"
+                              @click="downloadPassword"
+                              prepend-icon="mdi-download"
+                            >
+                              Descargar
+                            </v-btn>
+                            <v-btn 
+                              variant="outlined" 
+                              color="warning" 
+                              size="small"
+                              @click="triggerReplacePassword"
+                              prepend-icon="mdi-refresh"
+                              class="ml-2"
+                            >
+                              Reemplazar
+                            </v-btn>
+                          </div>
+                        </div>
+                      </v-alert>
+                    </div>
+                    
+                    <div v-else class="document-upload">
+                      <input
+                        ref="passwordFileInput"
+                        type="file"
+                        accept=".pdf"
+                        style="display: none"
+                        @change="handlePasswordUpload"
+                      >
+                      <v-btn 
+                        color="purple"
+                        variant="outlined"
+                        @click="$refs.passwordFileInput?.click()"
+                        :loading="uploadingPassword"
+                        prepend-icon="mdi-upload"
+                        block
+                      >
+                        Subir Documento de Contraseña
+                      </v-btn>
+                    </div>
+                  </div>
+                </div>
+
+                <v-divider class="my-6"></v-divider>
+
               </v-card-text>
             </v-card>
           </v-col>
@@ -597,6 +674,13 @@
       style="display: none" 
       @change="replaceProof"
     />
+    <input 
+      id="replace-password-input" 
+      type="file" 
+      accept=".pdf" 
+      style="display: none" 
+      @change="replacePassword"
+    />
   </div>
 </template>
 
@@ -611,6 +695,7 @@ const {
   uploadingISR,
   uploadingIVA,
   uploadingProof,
+  uploadingPassword,
   completingProcess,
   selectedFileIndex,
   
@@ -626,6 +711,7 @@ const {
   hasISRRetention,
   hasIVARetention,
   hasPaymentProof,
+  hasPasswordFile,
   documentsProgress,
   
   // Functions
@@ -639,16 +725,20 @@ const {
   handleISRUpload,
   handleIVAUpload,
   handleProofUpload,
+  handlePasswordUpload,
   triggerReplaceISR,
   triggerReplaceIVA,
   triggerReplaceProof,
+  triggerReplacePassword,
   replaceISR,
   replaceIVA,
   replaceProof,
+  replacePassword,
   completeProcess,
   downloadISR,
   downloadIVA,
   downloadProof,
+  downloadPassword,
   downloadCurrentFile,
   openInNewTab,
   handleFrameError,

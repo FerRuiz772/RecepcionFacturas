@@ -185,6 +185,58 @@ const authController = {
     }
   },
 
+  async profile(req, res) {
+    try {
+      const userId = req.user.userId;
+
+      const user = await User.findByPk(userId, {
+        attributes: { exclude: ['password_hash'] },
+        include: [{
+          model: Supplier,
+          as: 'supplier',
+          required: false,
+          attributes: ['id', 'business_name', 'nit', 'contact_email', 'phone']
+        }]
+      });
+
+      if (!user || !user.is_active) {
+        return res.status(401).json({ 
+          error: 'Usuario no válido o inactivo',
+          code: 'USER_INVALID' 
+        });
+      }
+
+      // Preparar respuesta del perfil
+      const profileData = {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        supplier_id: user.supplier_id,
+        last_login: user.last_login,
+        created_at: user.created_at,
+        permissions: user.permissions || getDefaultPermissions(user.role)
+      };
+
+      // Agregar datos completos del proveedor si aplica
+      if (user.role === 'proveedor' && user.supplier) {
+        profileData.supplier_name = user.supplier.business_name;
+        profileData.supplier_nit = user.supplier.nit;
+        profileData.supplier_email = user.supplier.contact_email;
+        profileData.supplier_phone = user.supplier.phone;
+      }
+
+      res.json(profileData);
+
+    } catch (error) {
+      console.error('❌ Error en /profile:', error);
+      res.status(500).json({ 
+        error: 'Error interno del servidor',
+        code: 'INTERNAL_ERROR' 
+      });
+    }
+  },
+
   async logout(req, res) {
     try {
       const userId = req.user?.userId;
@@ -530,15 +582,19 @@ const authController = {
       } catch (emailError) {
         console.error('Error sending password reset email:', emailError);
         
-        // Eliminar token si no se pudo enviar el email
-        await PasswordResetToken.destroy({
-          where: { token: resetToken }
+        // Log del error pero no fallar la operación
+        await SystemLog.create({
+          user_id: user.id,
+          action: 'password_reset_email_error',
+          ip_address: clientIP,
+          details: { 
+            email: user.email, 
+            error: emailError.message 
+          }
         });
 
-        return res.status(500).json({
-          error: 'No se pudo enviar el correo de recuperación. Inténtalo más tarde.',
-          code: 'EMAIL_ERROR'
-        });
+        // Mantener el token para uso futuro manual si es necesario
+        // No eliminar el token para permitir reset manual
       }
 
       res.json(response);

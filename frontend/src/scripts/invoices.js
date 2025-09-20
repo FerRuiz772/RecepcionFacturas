@@ -16,10 +16,6 @@ export function useInvoices() {
   const users = ref([])
   const totalInvoices = ref(0)
   const itemsPerPage = ref(10)
-  const statusDialog = ref(false)
-  const selectedInvoice = ref(null)
-  const newStatus = ref('')
-  const statusNotes = ref('')
 
   const filters = ref({
     status: null,
@@ -98,10 +94,6 @@ export function useInvoices() {
     return ['proceso_completado'].includes(invoice.status)
   }
 
-  const canChangeStatus = (invoice) => {
-    return authStore.isContaduria || authStore.isAdmin
-  }
-
   const canGeneratePassword = (invoice) => {
     return ['en_proceso'].includes(invoice.status)
   }
@@ -139,9 +131,15 @@ export function useInvoices() {
     
     try {
       const response = await axios.get('/api/suppliers')
-      suppliers.value = response.data.suppliers || response.data
+      // Manejar diferentes estructuras de respuesta del API
+      if (response.data.success && response.data.data) {
+        suppliers.value = response.data.data.suppliers || []
+      } else {
+        suppliers.value = response.data.suppliers || response.data || []
+      }
     } catch (error) {
       console.error('Error loading suppliers:', error)
+      suppliers.value = []
     }
   }
 
@@ -149,10 +147,21 @@ export function useInvoices() {
     if (authStore.isProveedor) return
     
     try {
+      console.log('🔍 Cargando usuarios para filtro...')
       const response = await axios.get('/api/users?role=trabajador_contaduria,admin_contaduria')
-      users.value = response.data.users || response.data
+      console.log('📊 Respuesta de usuarios:', response.data)
+      
+      // Manejar diferentes estructuras de respuesta del API
+      if (response.data.success && response.data.data) {
+        users.value = response.data.data.users || []
+      } else {
+        users.value = response.data.users || response.data || []
+      }
+      
+      console.log('👥 Usuarios cargados para filtro:', users.value.length, users.value)
     } catch (error) {
       console.error('Error loading users:', error)
+      users.value = []
     }
   }
 
@@ -244,33 +253,6 @@ export function useInvoices() {
     router.push(`/invoices/${invoice.id}/manage`)
   }
 
-  const viewInvoiceHistory = (invoice) => {
-    router.push(`/invoices/${invoice.id}/history`)
-  }
-
-  const changeStatus = (invoice) => {
-    selectedInvoice.value = invoice
-    newStatus.value = invoice.status
-    statusNotes.value = ''
-    statusDialog.value = true
-  }
-
-  const updateStatus = async () => {
-    try {
-      await axios.put(`/api/invoices/${selectedInvoice.value.id}/status`, {
-        status: newStatus.value,
-        notes: statusNotes.value
-      })
-
-      toast.success('Estado actualizado exitosamente')
-      statusDialog.value = false
-      loadInvoices()
-    } catch (error) {
-      console.error('Error updating status:', error)
-      toast.error('Error al actualizar el estado')
-    }
-  }
-
   const reassignInvoice = (invoice) => {
     toast.info('Función de reasignación en desarrollo')
   }
@@ -355,10 +337,6 @@ export function useInvoices() {
     users,
     totalInvoices,
     itemsPerPage,
-    statusDialog,
-    selectedInvoice,
-    newStatus,
-    statusNotes,
     filters,
     statusOptions,
     
@@ -371,7 +349,6 @@ export function useInvoices() {
     hasRetentionISR,
     hasRetentionIVA,
     hasPaymentProof,
-    canChangeStatus,
     canGeneratePassword,
     loadInvoices,
     loadSuppliers,
@@ -383,9 +360,6 @@ export function useInvoices() {
     generatePassword,
     viewInvoice,
     manageInvoice,
-    viewInvoiceHistory,
-    changeStatus,
-    updateStatus,
     reassignInvoice,
     applyFilters,
     resetFilters,

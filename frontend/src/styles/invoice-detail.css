@@ -11,28 +11,28 @@
 
 .breadcrumb-container {
   background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   padding: 12px 0;
 }
 
 .breadcrumb-item {
-  color: #64748b;
+  color: #6b7280;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .breadcrumb-item.active {
-  color: #0f172a;
+  color: #374151;
 }
 
 .breadcrumb-item:hover {
-  color: #0f172a;
+  color: #374151;
 }
 
 .page-header {
   background: white;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   padding: 32px 0;
   margin-bottom: 32px;
 }
@@ -40,13 +40,13 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #374151;
   margin-bottom: 4px;
 }
 
 .page-subtitle {
   font-size: 16px;
-  color: #64748b;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -57,7 +57,7 @@
 
 .back-btn {
   border-color: #cbd5e1 !important;
-  color: #64748b !important;
+  color: #6b7280 !important;
 }
 
 .back-btn:hover {
@@ -80,7 +80,7 @@
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  color: #64748b;
+  color: #6b7280;
   text-align: center;
 }
 
@@ -90,29 +90,29 @@
 
 .loading-text {
   margin-left: 16px;
-  color: #64748b;
+  color: #6b7280;
   font-size: 16px;
 }
 
 .invoice-info-card, .status-card, .files-card, .documents-card, .history-card {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
 }
 
 .detail-card {
   background: white;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .card-title-bg {
   background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e5e7eb;
   font-size: 18px;
   font-weight: 600;
-  color: #0f172a;
+  color: #374151;
   padding: 16px 24px;
 }
 
@@ -122,7 +122,7 @@
 
 .info-field label {
   font-size: 12px;
-  color: #64748b;
+  color: #6b7280;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -145,7 +145,7 @@
 .info-label {
   font-size: 12px;
   font-weight: 600;
-  color: #64748b;
+  color: #6b7280;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
@@ -154,7 +154,7 @@
 .info-value {
   font-size: 14px;
   font-weight: 500;
-  color: #0f172a;
+  color: #374151;
 }
 
 .info-value.amount {
@@ -164,7 +164,7 @@
 
 .info-subtitle {
   font-size: 12px;
-  color: #64748b;
+  color: #6b7280;
   margin-top: 2px;
 }
 
@@ -176,7 +176,7 @@
 
 .amount-currency {
   font-size: 16px;
-  color: #64748b;
+  color: #6b7280;
   margin-left: 4px;
 }
 
@@ -210,7 +210,7 @@
 .no-files, .no-documents {
   text-align: center;
   padding: 40px 20px;
-  color: #64748b;
+  color: #6b7280;
 }
 
 .documents-section {
@@ -222,7 +222,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e5e7eb;
   border-radius: 8px;
   margin-bottom: 12px;
   transition: all 0.2s ease;
@@ -252,13 +252,13 @@
 .document-details h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #374151;
   margin: 0 0 4px 0;
 }
 
 .document-details p {
   font-size: 12px;
-  color: #64748b;
+  color: #6b7280;
   margin: 0;
 }
 
@@ -309,26 +309,26 @@
 
 .timeline-time {
   font-size: 12px;
-  color: #64748b;
+  color: #6b7280;
   font-weight: 500;
 }
 
 .timeline-title {
   font-size: 14px;
   font-weight: 600;
-  color: #0f172a;
+  color: #374151;
   margin-bottom: 4px;
 }
 
 .timeline-subtitle {
   font-size: 13px;
-  color: #64748b;
+  color: #6b7280;
   margin-bottom: 4px;
 }
 
 .timeline-description {
   font-size: 13px;
-  color: #64748b;
+  color: #6b7280;
   margin-bottom: 4px;
 }
 

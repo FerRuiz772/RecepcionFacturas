@@ -39,6 +39,24 @@ const supplierController = {
             const where = {};
             if (is_active !== undefined) where.is_active = is_active === 'true';
 
+            // Filtrar por rol del usuario
+            if (req.user.role === 'proveedor') {
+                // Los proveedores solo ven su propio registro
+                const user = await User.findByPk(req.user.userId);
+                if (user.supplier_id) {
+                    where.id = user.supplier_id;
+                } else {
+                    // Si el proveedor no tiene supplier_id, no ve ningún proveedor
+                    return res.json({
+                        suppliers: [],
+                        total: 0,
+                        page: parseInt(page),
+                        totalPages: 0
+                    });
+                }
+            }
+            // super_admin, admin_contaduria y trabajador_contaduria ven todos los proveedores
+
             const suppliers = await Supplier.findAndCountAll({
                 where,
                 include: [{
@@ -66,6 +84,15 @@ const supplierController = {
     async getSupplierById(req, res) {
         try {
             const { id } = req.params;
+            
+            // Filtrar por rol del usuario
+            if (req.user.role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                if (!user.supplier_id || user.supplier_id !== parseInt(id)) {
+                    return res.status(403).json({ error: 'No tienes permisos para ver este proveedor' });
+                }
+            }
+            
             const supplier = await Supplier.findByPk(id, {
                 include: [{
                     model: User,

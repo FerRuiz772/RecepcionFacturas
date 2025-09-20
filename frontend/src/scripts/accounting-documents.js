@@ -18,6 +18,7 @@ export function useAccountingDocuments() {
   const uploadingISR = ref(false)
   const uploadingIVA = ref(false)
   const uploadingProof = ref(false)
+  const uploadingPassword = ref(false)
   const selectedFileIndex = ref(0)
   
   // Estados para edición
@@ -65,6 +66,10 @@ export function useAccountingDocuments() {
     return invoice.value?.payment?.payment_proof_file != null
   })
 
+  const hasPasswordFile = computed(() => {
+    return invoice.value?.payment?.password_file != null
+  })
+
   const documentsProgress = computed(() => {
     let completedSteps = 0
     let totalSteps = 0
@@ -77,6 +82,9 @@ export function useAccountingDocuments() {
     totalSteps++
 
     // Verificar documentos subidos
+    if (hasPasswordFile.value) completedSteps++
+    totalSteps++
+
     if (hasISRRetention.value) completedSteps++
     totalSteps++
 
@@ -90,8 +98,16 @@ export function useAccountingDocuments() {
   })
 
   // Cargar datos de la factura
+  let loadingInvoice = false
   const loadInvoice = async () => {
+    if (loadingInvoice) {
+      console.log('📋 LoadInvoice ya en progreso, saltando...')
+      return
+    }
+    
     loading.value = true
+    loadingInvoice = true
+    
     try {
       const response = await axios.get(`/api/invoices/${route.params.id}`)
       invoice.value = response.data
@@ -105,6 +121,7 @@ export function useAccountingDocuments() {
       toast.error('Error al cargar la factura')
     } finally {
       loading.value = false
+      loadingInvoice = false
     }
   }
 
@@ -119,6 +136,8 @@ export function useAccountingDocuments() {
         return !!invoice.value.payment.iva_retention_file
       case 'proof':
         return !!invoice.value.payment.payment_proof_file
+      case 'password':
+        return !!invoice.value.payment.password_file
       default:
         return false
     }
@@ -158,6 +177,17 @@ export function useAccountingDocuments() {
 
 
   // Funciones de subida de documentos
+  // Debounce para actualizaciones de estado
+  let updateTimeout = null
+  const debouncedUpdateInvoice = () => {
+    if (updateTimeout) {
+      clearTimeout(updateTimeout)
+    }
+    updateTimeout = setTimeout(async () => {
+      await loadInvoice()
+    }, 300)
+  }
+
   const handleISRUpload = async (event) => {
     const file = event.target.files[0]
     if (!file) return
@@ -179,14 +209,17 @@ export function useAccountingDocuments() {
       
       toast.success('Retención ISR subida exitosamente')
       
-      // Actualizar la factura local
-      await loadInvoice()
-      
       // Actualizar el store global con la factura actualizada
       if (response.data.invoice) {
         invoicesStore.updateInvoiceInList(response.data.invoice)
         console.log('📊 Store actualizado con estado:', response.data.invoice.status)
+        // Actualizar factura local usando respuesta del servidor
+        invoice.value = response.data.invoice
       }
+      
+      // Actualización debounced para evitar llamadas múltiples
+      debouncedUpdateInvoice()
+      
     } catch (error) {
       console.error('Error uploading ISR:', error)
       toast.error('Error al subir retención ISR')
@@ -217,14 +250,17 @@ export function useAccountingDocuments() {
       
       toast.success('Retención IVA subida exitosamente')
       
-      // Actualizar la factura local
-      await loadInvoice()
-      
       // Actualizar el store global con la factura actualizada
       if (response.data.invoice) {
         invoicesStore.updateInvoiceInList(response.data.invoice)
         console.log('📊 Store actualizado con estado:', response.data.invoice.status)
+        // Actualizar factura local usando respuesta del servidor
+        invoice.value = response.data.invoice
       }
+      
+      // Actualización debounced para evitar llamadas múltiples
+      debouncedUpdateInvoice()
+      
     } catch (error) {
       console.error('Error uploading IVA:', error)
       toast.error('Error al subir retención IVA')
@@ -255,13 +291,12 @@ export function useAccountingDocuments() {
       
       toast.success('Comprobante de pago subido exitosamente')
       
-      // Actualizar la factura local
-      await loadInvoice()
-      
       // Actualizar el store global con la factura actualizada
       if (response.data.invoice) {
         invoicesStore.updateInvoiceInList(response.data.invoice)
         console.log('📊 Store actualizado con estado:', response.data.invoice.status)
+        // Actualizar factura local usando respuesta del servidor
+        invoice.value = response.data.invoice
         
         // Si se completó el proceso, mostrar notificación especial
         if (response.data.invoice.status === 'proceso_completado') {
@@ -270,11 +305,63 @@ export function useAccountingDocuments() {
           })
         }
       }
+      
+      // Actualización debounced para evitar llamadas múltiples
+      debouncedUpdateInvoice()
+      
     } catch (error) {
       console.error('Error uploading proof:', error)
       toast.error('Error al subir comprobante')
     } finally {
       uploadingProof.value = false
+      event.target.value = ''
+    }
+  }
+
+  const handlePasswordUpload = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se permiten archivos PDF')
+      return
+    }
+
+    uploadingPassword.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'password_file')
+
+      const response = await axios.post(`/api/invoices/${route.params.id}/upload-document`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      toast.success('Documento de contraseña subido exitosamente')
+      
+      // Actualizar el store global con la factura actualizada
+      if (response.data.invoice) {
+        invoicesStore.updateInvoiceInList(response.data.invoice)
+        console.log('📊 Store actualizado con estado:', response.data.invoice.status)
+        // Actualizar factura local usando respuesta del servidor
+        invoice.value = response.data.invoice
+        
+        // Si se completó el proceso, mostrar notificación especial
+        if (response.data.invoice.status === 'proceso_completado') {
+          toast.success('🎉 ¡Proceso completado! Todos los documentos han sido subidos.', {
+            timeout: 5000
+          })
+        }
+      }
+      
+      // Actualización debounced para evitar llamadas múltiples
+      debouncedUpdateInvoice()
+      
+    } catch (error) {
+      console.error('Error uploading password:', error)
+      toast.error('Error al subir documento de contraseña')
+    } finally {
+      uploadingPassword.value = false
       event.target.value = ''
     }
   }
@@ -292,6 +379,11 @@ export function useAccountingDocuments() {
 
   const triggerReplaceProof = () => {
     const input = document.getElementById('replace-proof-input')
+    if (input) input.click()
+  }
+
+  const triggerReplacePassword = () => {
+    const input = document.getElementById('replace-password-input')
     if (input) input.click()
   }
 
@@ -404,6 +496,42 @@ export function useAccountingDocuments() {
     }
   }
 
+  const replacePassword = async (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Solo se permiten archivos PDF')
+      return
+    }
+
+    if (!hasPasswordFile.value) {
+      toast.error('No hay archivo previo para reemplazar')
+      return
+    }
+
+    uploadingPassword.value = true
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('type', 'password_file')
+
+      await axios.put(`/api/invoices/${route.params.id}/replace-document/password_file`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+      
+      toast.success('Documento de contraseña reemplazado exitosamente')
+      await loadInvoice()
+    } catch (error) {
+      console.error('Error replacing password:', error)
+      toast.error('Error al reemplazar documento de contraseña')
+    } finally {
+      uploadingPassword.value = false
+      // Limpiar el input
+      event.target.value = ''
+    }
+  }
+
   // Funciones de descarga
   const downloadISR = async () => {
     try {
@@ -450,6 +578,22 @@ export function useAccountingDocuments() {
       toast.success('Comprobante descargado')
     } catch (error) {
       toast.error('Error al descargar comprobante')
+    }
+  }
+
+  const downloadPassword = async () => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-password-file`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `documento-contrasena-${invoice.value.number}.pdf`
+      link.click()
+      toast.success('Documento de contraseña descargado')
+    } catch (error) {
+      toast.error('Error al descargar documento de contraseña')
     }
   }
 
@@ -590,6 +734,7 @@ export function useAccountingDocuments() {
     uploadingISR,
     uploadingIVA,
     uploadingProof,
+    uploadingPassword,
     selectedFileIndex,
     
     // Edit state
@@ -612,15 +757,19 @@ export function useAccountingDocuments() {
     handleISRUpload,
     handleIVAUpload,
     handleProofUpload,
+    handlePasswordUpload,
     triggerReplaceISR,
     triggerReplaceIVA,
     triggerReplaceProof,
+    triggerReplacePassword,
     replaceISR,
     replaceIVA,
     replaceProof,
+    replacePassword,
     downloadISR,
     downloadIVA,
     downloadProof,
+    downloadPassword,
     downloadCurrentFile,
     openInNewTab,
     handleFrameError,
@@ -638,6 +787,7 @@ export function useAccountingDocuments() {
     hasISRRetention,
     hasIVARetention,
     hasPaymentProof,
+    hasPasswordFile,
     documentsProgress
   }
 }

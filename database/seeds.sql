@@ -26,6 +26,43 @@ INSERT IGNORE INTO users (id, email, password_hash, name, role, supplier_id, pro
 (10, 'aquiles14troya@gmail.com', '$2b$12$ed6LQilBLnlW9tH0s6qNPekglVoYyqnKHv0k5FHfxpiDWisZYbQG6', 'Aquiles González', 'proveedor', 6, JSON_OBJECT('phone', '2234-5678', 'position', 'Director Técnico'), TRUE),
 (11, 'mmargen811@gmail.com', '$2b$12$ed6LQilBLnlW9tH0s6qNPekglVoYyqnKHv0k5FHfxpiDWisZYbQG6', 'Mario Margen', 'trabajador_contaduria', NULL, JSON_OBJECT('phone', '2567-0001', 'department', 'Contaduría', 'area', 'Análisis'), TRUE);
 
+-- ==================== ASIGNACIÓN DE PERMISOS POR ROL ====================
+-- Permisos para Super Admin: acceso completo a todo
+UPDATE users SET permissions = JSON_OBJECT(
+    'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', true),
+    'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'approve', true, 'reject', true, 'export', true, 'view_payments', true, 'manage_payments', true),
+    'suppliers', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'export', true),
+    'users', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'manage_permissions', true, 'reset_passwords', true),
+    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', true, 'manage', true)
+) WHERE role = 'super_admin';
+
+-- Permisos para Admin Contaduría: permisos amplios excepto gestión completa de usuarios
+UPDATE users SET permissions = JSON_OBJECT(
+    'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', true),
+    'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'approve', true, 'reject', true, 'export', true, 'view_payments', true, 'manage_payments', true),
+    'suppliers', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'export', true),
+    'users', JSON_OBJECT('view', true, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
+    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', true, 'manage', true)
+) WHERE role = 'admin_contaduria';
+
+-- Permisos para Trabajador Contaduría: permisos limitados para operaciones diarias
+UPDATE users SET permissions = JSON_OBJECT(
+    'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', false),
+    'invoices', JSON_OBJECT('view', true, 'create', false, 'edit', true, 'delete', false, 'approve', false, 'reject', false, 'export', true, 'view_payments', true, 'manage_payments', true),
+    'suppliers', JSON_OBJECT('view', true, 'create', false, 'edit', false, 'delete', false, 'export', false),
+    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
+    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', false, 'manage', true)
+) WHERE role = 'trabajador_contaduria';
+
+-- Permisos para Proveedor: acceso limitado solo a sus propias facturas
+UPDATE users SET permissions = JSON_OBJECT(
+    'dashboard', JSON_OBJECT('view', true, 'view_stats', false, 'view_charts', false, 'export_data', false),
+    'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', false, 'delete', false, 'approve', false, 'reject', false, 'export', false, 'view_payments', false, 'manage_payments', false),
+    'suppliers', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'export', false),
+    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
+    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', false, 'manage', false)
+) WHERE role = 'proveedor';
+
 -- ==================== FACTURAS DE EJEMPLO ====================
 INSERT IGNORE INTO invoices (id, number, supplier_id, assigned_to, amount, description, due_date, uploaded_files, status, priority, processing_data) VALUES
 (1, 'FACT-2025-001', 1, 3, 2500.00, 'Desarrollo de módulo CRM personalizado', '2025-10-15', JSON_ARRAY(JSON_OBJECT('originalName', 'factura_001.pdf', 'filename', 'files-1757430510253-981292481.pdf', 'size', 222218)), 'en_proceso', 'alta', JSON_OBJECT('received_date', '2024-09-01', 'estimated_completion', '2024-09-15')),
