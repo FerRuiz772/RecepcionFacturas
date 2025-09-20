@@ -124,9 +124,9 @@
           </template>
 
           <template v-slot:item.supplier="{ item }">
-            <div v-if="item.Supplier" class="supplier-info">
-              <div class="supplier-name">{{ item.Supplier.business_name }}</div>
-              <div class="supplier-nit">{{ item.Supplier.nit }}</div>
+            <div v-if="item.supplier" class="supplier-info">
+              <div class="supplier-name">{{ item.supplier.business_name }}</div>
+              <div class="supplier-nit">{{ item.supplier.nit }}</div>
             </div>
             <span v-else class="text-grey">N/A</span>
           </template>
@@ -167,6 +167,18 @@
                 <v-icon class="mr-1" size="16">mdi-pencil-outline</v-icon>
                 Editar
               </v-btn>
+              
+              <v-btn
+                v-if="canManagePermissions"
+                variant="outlined"
+                size="small"
+                color="primary"
+                @click="editUserPermissions(item)"
+                class="ml-2"
+              >
+                <v-icon class="mr-1" size="16">mdi-shield-account-outline</v-icon>
+                Permisos
+              </v-btn>
 
               <v-btn
                 variant="outlined"
@@ -206,91 +218,128 @@
     </v-container>
 
     <!-- Dialog para crear/editar usuario -->
-    <v-dialog v-model="userDialog" max-width="600">
+    <v-dialog v-model="userDialog" max-width="900">
       <v-card>
         <v-card-title>
           {{ editMode ? 'Editar Usuario' : 'Nuevo Usuario' }}
         </v-card-title>
+        
+        <v-tabs v-model="activeTab" class="px-4" show-arrows>
+          <v-tab value="general">
+            <v-icon class="mr-2">mdi-account</v-icon>
+            Datos Generales
+          </v-tab>
+          <v-tab value="permissions" v-if="editMode && canManagePermissions">
+            <v-icon class="mr-2">mdi-shield-account</v-icon>
+            Permisos
+          </v-tab>
+        </v-tabs>
+
         <v-card-text>
-          <v-form ref="userFormRef" v-model="formValid">
-            <v-row>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="userForm.name"
-                  label="Nombre Completo"
-                  variant="outlined"
-                  :rules="[v => !!v || 'Nombre requerido']"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-text-field
-                  v-model="userForm.email"
-                  label="Email"
-                  type="email"
-                  variant="outlined"
-                  :rules="[
-                    v => !!v || 'Email requerido',
-                    v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
-                  ]"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" v-if="!editMode">
-                <v-text-field
-                  v-model="userForm.password"
-                  label="Contraseña"
-                  type="password"
-                  variant="outlined"
-                  :rules="[
-                    v => !!v || 'Contraseña requerida',
-                    v => v.length >= 6 || 'Contraseña debe tener al menos 6 caracteres'
-                  ]"
-                  required
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12">
-                <v-select
-                  v-model="userForm.role"
-                  :items="roleOptions"
-                  label="Rol"
-                  variant="outlined"
-                  :rules="[v => !!v || 'Rol requerido']"
-                  @update:model-value="onRoleChange"
-                  required
-                ></v-select>
-              </v-col>
-              <v-col cols="12" v-if="userForm.role === 'proveedor'">
-                <v-select
-                  v-model="userForm.supplier_id"
-                  :items="suppliers"
-                  item-title="business_name"
-                  item-value="id"
-                  label="Empresa Proveedor"
-                  variant="outlined"
-                  :rules="userForm.role === 'proveedor' ? [v => !!v || 'Empresa requerida'] : []"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" v-if="editMode">
-                <v-switch
-                  v-model="userForm.is_active"
-                  label="Usuario Activo"
-                  color="success"
-                ></v-switch>
-              </v-col>
-            </v-row>
-          </v-form>
+          <v-tabs-window v-model="activeTab">
+            <!-- Pestaña de datos generales -->
+            <v-tabs-window-item value="general">
+              <v-form ref="userFormRef" v-model="formValid">
+                <v-row>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="userForm.name"
+                      label="Nombre Completo"
+                      variant="outlined"
+                      :rules="[v => !!v || 'Nombre requerido']"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="userForm.email"
+                      label="Email"
+                      type="email"
+                      variant="outlined"
+                      :rules="[
+                        v => !!v || 'Email requerido',
+                        v => /.+@.+\..+/.test(v) || 'Email debe ser válido'
+                      ]"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12" v-if="!editMode">
+                    <v-text-field
+                      v-model="userForm.password"
+                      label="Contraseña"
+                      type="password"
+                      variant="outlined"
+                      :rules="[
+                        v => !!v || 'Contraseña requerida',
+                        v => v.length >= 6 || 'Contraseña debe tener al menos 6 caracteres'
+                      ]"
+                      required
+                    ></v-text-field>
+                  </v-col>
+                  <v-col cols="12">
+                    <v-select
+                      v-model="userForm.role"
+                      :items="roleOptions"
+                      label="Rol"
+                      variant="outlined"
+                      :rules="[v => !!v || 'Rol requerido']"
+                      @update:model-value="onRoleChange"
+                      required
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="12" v-if="userForm.role === 'proveedor'">
+                    <v-select
+                      v-model="userForm.supplier_id"
+                      :items="suppliers"
+                      item-title="business_name"
+                      item-value="id"
+                      label="Empresa Proveedor"
+                      variant="outlined"
+                      :rules="userForm.role === 'proveedor' ? [v => !!v || 'Empresa requerida'] : []"
+                    ></v-select>
+                  </v-col>
+                  <v-col cols="12" v-if="editMode">
+                    <v-switch
+                      v-model="userForm.is_active"
+                      label="Usuario Activo"
+                      color="success"
+                    ></v-switch>
+                  </v-col>
+                </v-row>
+              </v-form>
+            </v-tabs-window-item>
+
+            <!-- Pestaña de permisos -->
+            <v-tabs-window-item value="permissions" v-if="editMode && canManagePermissions">
+              <ModularPermissionsGrid
+                v-if="userForm.id"
+                :user-id="userForm.id"
+                :user-name="userForm.name"
+                :user-role="userForm.role"
+                @saved="onPermissionsSaved"
+              />
+            </v-tabs-window-item>
+          </v-tabs-window>
         </v-card-text>
+        
         <v-card-actions>
           <v-spacer></v-spacer>
           <v-btn @click="closeUserDialog">Cancelar</v-btn>
           <v-btn 
+            v-if="activeTab === 'general'"
             color="primary" 
             @click="saveUser"
             :loading="saving"
             :disabled="!formValid"
           >
             {{ editMode ? 'Actualizar' : 'Crear' }}
+          </v-btn>
+          <v-btn 
+            v-if="activeTab === 'permissions' && editMode"
+            color="success"
+            @click="closeUserDialog"
+          >
+            Guardar y Cerrar
           </v-btn>
         </v-card-actions>
       </v-card>
@@ -299,9 +348,17 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useUsers } from '../scripts/users.js'
+import { useAuthStore } from '../stores/auth.js'
+import ModularPermissionsGrid from '../components/ModularPermissionsGrid.vue'
 
+const auth = useAuthStore()
+
+// Variable para las pestañas - mantener estado de permisos si viene de ahí
+const activeTab = ref('general')
+
+// Importar todas las funciones y variables de useUsers PRIMERO
 const {
   // Reactive state
   loading,
@@ -317,6 +374,8 @@ const {
   saving,
   formValid,
   userFormRef,
+  permissionsDialog,
+  selectedUserForPermissions,
   userForm,
   
   // Static data
@@ -340,8 +399,41 @@ const {
   getRoleColor,
   getRoleText,
   formatDate,
-  initializeUsers
+  initializeUsers,
+  openPermissionsDialog,
+  closePermissionsDialog,
+  showMessage
 } = useUsers()
+
+// Computed para verificar si puede gestionar permisos
+const canManagePermissions = computed(() => {
+  return auth.user?.role === 'super_admin' || auth.user?.role === 'admin_contaduria'
+})
+
+// Watch para cambiar a la pestaña de permisos si se está editando un usuario y tiene permisos
+watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
+  // Solo cambiar a permisos si es edición y puede gestionar permisos
+  // y si no se ha configurado una pestaña específica manualmente
+  if (isEditMode && canManage && userForm.value?.id) {
+    // Mantener la pestaña activa, no resetear
+  } else if (!isEditMode) {
+    // Solo resetear cuando se cierra completamente el modal
+    activeTab.value = 'general'
+  }
+})
+
+//Funciones personalizadas para manejo de tabs
+const editUserPermissions = (user) => {
+  editUser(user)
+  activeTab.value = 'permissions'
+}
+// Función para manejar cuando se guardan los permisos
+const onPermissionsSaved = async () => {
+  console.log('Permisos guardados exitosamente')
+  // Refresh user data to update permissions in auth store
+  await auth.refreshUser()
+  showMessage('Permisos actualizados correctamente', 'success')
+}
 
 onMounted(initializeUsers)
 </script>

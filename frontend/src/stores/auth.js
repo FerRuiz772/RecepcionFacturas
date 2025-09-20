@@ -14,10 +14,85 @@ export const useAuthStore = defineStore('auth', {
     userRole: (state) => state.user?.role,
     userName: (state) => state.user?.name,
     userEmail: (state) => state.user?.email,
+    userPermissions: (state) => state.user?.permissions || {},
     isProveedor: (state) => state.user?.role === 'proveedor',
     isAdmin: (state) => ['super_admin', 'admin_contaduria'].includes(state.user?.role),
     isContaduria: (state) => ['admin_contaduria', 'trabajador_contaduria'].includes(state.user?.role),
-    isSuperAdmin: (state) => state.user?.role === 'super_admin'
+    isSuperAdmin: (state) => state.user?.role === 'super_admin',
+    
+    // Verificador de permisos
+    hasPermission: (state) => (module, action) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      
+      const permissions = state.user.permissions || {}
+      const modulePermissions = permissions[module]
+      
+      if (!modulePermissions) return false
+      
+      // Mapear acciones del frontend a las del backend
+      const actionMapping = {
+        'ver': ['ver_todas', 'ver_propias', 'ver'],
+        'crear': ['crear'],
+        'editar': ['editar'],
+        'eliminar': ['eliminar'],
+        'gestionar': ['gestionar'],
+        'aprobar': ['aprobar'],
+        'ver_todas': ['ver_todas'],
+        'ver_propias': ['ver_propias']
+      }
+      
+      const possibleActions = actionMapping[action] || [action]
+      
+      return possibleActions.some(possibleAction => 
+        modulePermissions[possibleAction] === true
+      )
+    },
+
+    // Getters específicos para módulos comunes
+    canViewDashboard: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      // Todos los usuarios autenticados pueden ver dashboard
+      return true
+    },
+    canManageUsers: (state) => state.user?.role === 'super_admin' || state.user?.role === 'admin_contaduria',
+    canCreateInvoices: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.facturas?.crear === true
+    },
+    canEditInvoices: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.facturas?.editar === true
+    },
+    canDeleteInvoices: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.facturas?.eliminar === true
+    },
+    canApproveInvoices: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.facturas?.aprobar === true
+    },
+    canManageSuppliers: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.proveedores?.crear === true
+    },
+    canUploadDocuments: (state) => {
+      if (!state.user) return false
+      if (state.user.role === 'super_admin') return true
+      const permissions = state.user.permissions || {}
+      return permissions.documentos?.subir === true
+    }
   },
 
   actions: {
@@ -174,6 +249,20 @@ export const useAuthStore = defineStore('auth', {
         // Si el refresh falla, limpiar todo
         console.log('🧹 Refresh falló, limpiando sesión...')
         await this.logout()
+        return false
+      }
+    },
+
+    // Refrescar datos del usuario (útil después de actualizar permisos)
+    async refreshUser() {
+      try {
+        console.log('🔄 Refrescando datos del usuario...')
+        const response = await axios.get('/api/auth/me')
+        this.user = response.data.user
+        console.log('✅ Usuario refrescado exitosamente')
+        return true
+      } catch (error) {
+        console.error('Error refrescando usuario:', error)
         return false
       }
     },

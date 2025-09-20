@@ -104,12 +104,17 @@ app.use(cors({
 
 // Rate limiting
 const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW) || 15; // 15 minutos por defecto
-const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || 100; // 100 peticiones por defecto
+const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'development' ? 1000 : 100); // 1000 en dev, 100 en prod
 
 const limiter = rateLimit({
     windowMs: windowMs * 60 * 1000, // Convertir minutos a milisegundos
     max: maxRequests,
-    message: 'Demasiadas peticiones, intente nuevamente más tarde'
+    message: 'Demasiadas peticiones, intente nuevamente más tarde',
+    skip: (req) => {
+        // Saltar rate limiting para IPs locales en desarrollo
+        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.startsWith('192.168.') || req.ip.startsWith('::ffff:192.168.')
+        return process.env.NODE_ENV === 'development' && isLocal
+    }
 });
 app.use('/api/', limiter);
 

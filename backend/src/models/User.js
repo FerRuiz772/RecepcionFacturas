@@ -14,6 +14,7 @@ const User = sequelize.define('User', {
     supplier_id: { type: DataTypes.INTEGER, allowNull: true },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
     profile_data: { type: DataTypes.JSON, defaultValue: {} },
+    permissions: { type: DataTypes.JSON, defaultValue: null },
     last_login: { type: DataTypes.DATE }
 }, {
     tableName: 'users',

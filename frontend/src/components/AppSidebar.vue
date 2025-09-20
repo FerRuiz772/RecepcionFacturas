@@ -71,32 +71,41 @@ const menuItems = [
     title: 'Dashboard', 
     icon: 'mdi-view-dashboard-outline', 
     to: '/dashboard', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor']
+    permission: { module: 'dashboard', action: 'view' } // Todos pueden ver dashboard
   },
   { 
     title: 'Facturas', 
     icon: 'mdi-receipt-text-outline', 
     to: '/invoices', 
-    roles: ['super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor']
+    permission: { module: 'facturas', action: 'ver_propias' } // Ver facturas propias o todas
   },
   { 
     title: 'Proveedores', 
     icon: 'mdi-account-group-outline', 
     to: '/suppliers', 
-    roles: ['super_admin', 'admin_contaduria']
+    permission: { module: 'proveedores', action: 'ver' } // Ver proveedores
   },
   { 
     title: 'Usuarios', 
     icon: 'mdi-account-multiple-outline', 
     to: '/users', 
-    roles: ['super_admin', 'admin_contaduria']
+    permission: { module: 'usuarios', action: 'ver' } // Ver usuarios
   }
 ]
 
-// Filtrado de elementos del menú basado en el rol
+// Filtrado de elementos del menú basado en permisos
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
-    return item.roles.includes(authStore.userRole)
+    // Super admin puede ver todo
+    if (authStore.isSuperAdmin) return true
+    
+    // Para otros roles, verificar permisos específicos
+    if (item.permission) {
+      return authStore.hasPermission(item.permission.module, item.permission.action) ||
+             authStore.hasPermission(item.permission.module, 'ver_todas') // Permitir también "ver_todas"
+    }
+    
+    return false
   })
 })
 

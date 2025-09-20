@@ -17,13 +17,14 @@ class InvoiceNotificationService {
       console.log(`🔍 Datos del assignedUser:`, assignedUser);
       
       // Notificar al proveedor que su factura fue recibida
-      if (supplier?.contact_email) {
-        console.log(`📧 Enviando notificación al proveedor: ${supplier.contact_email}`);
-        await this.sendInvoiceReceivedNotification(supplier, invoice);
-        console.log(`✅ Notificación al proveedor enviada exitosamente`);
-      } else {
-        console.log(`⚠️ Proveedor no tiene contact_email configurado:`, supplier);
-      }
+      // Los proveedores ya no tienen contact_email individual
+      // if (supplier?.contact_email) {
+      //   console.log(`📧 Enviando notificación al proveedor: ${supplier.contact_email}`);
+      //   await this.sendInvoiceReceivedNotification(supplier, invoice);
+      //   console.log(`✅ Notificación al proveedor enviada exitosamente`);
+      // } else {
+      //   console.log(`⚠️ Proveedor no tiene contact_email configurado:`, supplier);
+      // }
 
       // Notificar al usuario asignado que tiene una nueva factura pendiente
       if (assignedUser?.email) {
@@ -58,9 +59,10 @@ class InvoiceNotificationService {
       };
 
       const message = statusMessages[toStatus];
-      if (message && supplier?.contact_email) {
-        await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy);
-      }
+      // Los proveedores ya no tienen contact_email individual
+      // if (message && supplier?.contact_email) {
+      //   await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy);
+      // }
 
       console.log(`📧 Notificación de cambio de estado enviada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
     } catch (error) {
@@ -140,10 +142,12 @@ class InvoiceNotificationService {
     `;
 
     try {
-      console.log(`📧 Enviando notificación de factura recibida a proveedor: ${supplier.contact_email}`);
-      const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
-      console.log(`✅ Notificación enviada exitosamente al proveedor ${supplier.business_name}:`, result);
-      return result;
+      // Los proveedores ya no tienen contact_email individual
+      console.log(`📧 Función de notificación de factura recibida - proveedor: ${supplier.business_name}`);
+      console.log(`ℹ️ Las notificaciones por email a proveedores están deshabilitadas`);
+      // const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+      // console.log(`✅ Notificación enviada exitosamente al proveedor ${supplier.business_name}:`, result);
+      return { success: true, message: 'Notificación omitida - sin email individual' };
     } catch (error) {
       console.error(`❌ Error enviando notificación al proveedor ${supplier.business_name}:`, error);
       throw error;
@@ -316,9 +320,12 @@ class InvoiceNotificationService {
     `;
 
     try {
-      console.log(`📧 Enviando notificación de cambio de estado al proveedor: ${supplier.contact_email}`);
-      const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
-      console.log(`✅ Notificación de cambio de estado enviada exitosamente al proveedor ${supplier.business_name}:`, result);
+      // Los proveedores ya no tienen contact_email individual
+      console.log(`📧 Función de notificación de cambio de estado - proveedor: ${supplier.business_name}`);
+      console.log(`ℹ️ Las notificaciones por email a proveedores están deshabilitadas`);
+      // const result = await emailService.sendEmail(supplier.contact_email, subject, htmlContent);
+      // console.log(`✅ Notificación de cambio de estado enviada exitosamente al proveedor ${supplier.business_name}:`, result);
+      return { success: true, message: 'Notificación omitida - sin email individual' };
       return result;
     } catch (error) {
       console.error(`❌ Error enviando notificación de cambio de estado al proveedor ${supplier.business_name}:`, error);

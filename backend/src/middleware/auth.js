@@ -82,6 +82,7 @@ const authenticate = async (req, res, next) => {
       email: user.email,
       name: user.name,
       role: user.role,
+      permissions: user.permissions, // Agregar permisos
       supplier_id: user.supplier_id,
       ...(user.supplier && {
         supplier_name: user.supplier.business_name,

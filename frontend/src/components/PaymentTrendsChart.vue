@@ -256,6 +256,46 @@ watch(() => [props.chartData, props.loading], () => {
   if (!props.loading && props.chartData.length > 0) {
     createChart()
   }
+}, { deep: true, immediate: true })
+
+// Función reactiva para actualizar datos del gráfico sin recrearlo
+const updateChartData = () => {
+  if (!chartInstance || !props.chartData.length) return
+
+  const labels = props.chartData.map(item => item.month)
+  const amounts = props.chartData.map(item => item.amount)
+  const counts = props.chartData.map(item => item.count)
+
+  // Actualizar datos
+  chartInstance.data.labels = labels
+  chartInstance.data.datasets[0].data = amounts
+  chartInstance.data.datasets[1].data = counts
+
+  // Actualizar escalas dinámicamente
+  const maxAmount = Math.max(...amounts)
+  const maxCount = Math.max(...counts)
+  
+  const minAmountScale = maxAmount === 0 ? 1000 : Math.max(maxAmount * 1.2, 1000)
+  const minCountScale = maxCount === 0 ? 5 : Math.max(maxCount * 1.3, 5)
+
+  chartInstance.options.scales.y.max = minAmountScale
+  chartInstance.options.scales.y1.max = minCountScale
+
+  // Actualizar el gráfico
+  chartInstance.update('active')
+}
+
+// Watch específico para actualizar datos sin recrear el gráfico
+watch(() => props.chartData, (newData, oldData) => {
+  if (chartInstance && newData && newData.length > 0) {
+    // Si la estructura básica es la misma, solo actualizar datos
+    if (oldData && oldData.length === newData.length) {
+      updateChartData()
+    } else {
+      // Si cambió la estructura, recrear el gráfico
+      createChart()
+    }
+  }
 }, { deep: true })
 
 onMounted(() => {

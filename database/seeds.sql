@@ -2,13 +2,13 @@
 USE recepcion_facturas;
 
 -- ==================== PROVEEDORES ====================
-INSERT IGNORE INTO suppliers (id, business_name, nit, contact_email, contact_phone, address, bank_details, is_active) VALUES
-(1, 'Tecnología Avanzada S.A.', '12345678-9', 'contacto@tecavanzada.com', '2234-5678', 'Zona 10, Torre Empresarial, Oficina 501, Ciudad de Guatemala', JSON_OBJECT('banco', 'Banco Industrial', 'cuenta', '1234567890123', 'tipo', 'monetaria', 'nombre_cuenta', 'Tecnología Avanzada S.A.'), TRUE),
-(2, 'Servicios Gráficos Guatemala', '98765432-1', 'ventas@graficosguat.com', '2345-6789', 'Zona 1, Avenida Central 15-20', JSON_OBJECT('banco', 'Banco G&T Continental', 'cuenta', '9876543210987', 'tipo', 'monetaria', 'nombre_cuenta', 'Servicios Gráficos Guatemala'), TRUE),
-(3, 'Suministros de Oficina Central', '55443322-7', 'administracion@suministroscentral.com', '2456-7890', 'Zona 4, Calzada Roosevelt 12-34', JSON_OBJECT('banco', 'Banco Promerica', 'cuenta', '5544332211445', 'tipo', 'monetaria', 'nombre_cuenta', 'Suministros de Oficina Central'), TRUE),
-(4, 'Consultoría Legal Moderna', '11223344-5', 'info@legalmoderna.com', '2567-8901', 'Zona 9, Edificio Murano Center, Nivel 8', JSON_OBJECT('banco', 'Banco Industrial', 'cuenta', '1122334455667', 'tipo', 'monetaria', 'nombre_cuenta', 'Consultoría Legal Moderna, S.A.'), TRUE),
-(5, 'Sistema Interno Empresa', '00000000-0', 'sistema@empresa.com', '0000-0000', 'Oficinas Centrales', JSON_OBJECT('banco', 'N/A', 'cuenta', 'N/A', 'tipo', 'interno'), TRUE),
-(6, 'Aquiles Tech Solutions S.A.', '87654321-0', 'aquiles14troya@gmail.com', '+502 2234-5678', 'Zona 10, Ciudad de Guatemala', JSON_OBJECT('banco', 'Banco BAM', 'cuenta', '8765432100001', 'tipo', 'monetaria', 'nombre_cuenta', 'Aquiles Tech Solutions S.A.'), TRUE);
+INSERT IGNORE INTO suppliers (id, business_name, nit, contact_phone, address, bank_details, is_active) VALUES
+(1, 'Tecnología Avanzada S.A.', '12345678-9', '2234-5678', 'Zona 10, Torre Empresarial, Oficina 501, Ciudad de Guatemala', JSON_OBJECT('banco', 'Banco Industrial', 'cuenta', '1234567890123', 'tipo', 'monetaria', 'nombre_cuenta', 'Tecnología Avanzada S.A.'), TRUE),
+(2, 'Servicios Gráficos Guatemala', '98765432-1', '2345-6789', 'Zona 1, Avenida Central 15-20', JSON_OBJECT('banco', 'Banco G&T Continental', 'cuenta', '9876543210987', 'tipo', 'monetaria', 'nombre_cuenta', 'Servicios Gráficos Guatemala'), TRUE),
+(3, 'Suministros de Oficina Central', '55443322-7', '2456-7890', 'Zona 4, Calzada Roosevelt 12-34', JSON_OBJECT('banco', 'Banco Promerica', 'cuenta', '5544332211445', 'tipo', 'monetaria', 'nombre_cuenta', 'Suministros de Oficina Central'), TRUE),
+(4, 'Consultoría Legal Moderna', '11223344-5', '2567-8901', 'Zona 9, Edificio Murano Center, Nivel 8', JSON_OBJECT('banco', 'Banco Industrial', 'cuenta', '1122334455667', 'tipo', 'monetaria', 'nombre_cuenta', 'Consultoría Legal Moderna, S.A.'), TRUE),
+(5, 'Sistema Interno Empresa', '00000000-0', '0000-0000', 'Oficinas Centrales', JSON_OBJECT('banco', 'N/A', 'cuenta', 'N/A', 'tipo', 'interno'), TRUE),
+(6, 'Aquiles Tech Solutions S.A.', '87654321-0', '+502 2234-5678', 'Zona 10, Ciudad de Guatemala', JSON_OBJECT('banco', 'Banco BAM', 'cuenta', '8765432100001', 'tipo', 'monetaria', 'nombre_cuenta', 'Aquiles Tech Solutions S.A.'), TRUE);
 
 -- ==================== USUARIOS ====================
 -- Contraseñas: admin123 / contaduria123 / trabajador123 / proveedor123

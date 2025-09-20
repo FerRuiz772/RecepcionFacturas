@@ -1,0 +1,60 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Test files
+test_*.pdf
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Backup files
+*.backup
+*.bak
+*.orig
+backups/
+
+# Lock files (global)
+package-lock.json
+
+# Environment files (global)
+.env*
+
+# Upload directories
+uploads/
+backend/uploads/
+backend/src/uploads/
+
+# Build artifacts
+dist/
+build/
+
+# Temporary folders
+tmp/
+temp/
+
+# Salesforce (if any)
+.sfdx/

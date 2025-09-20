@@ -193,7 +193,7 @@ const invoiceController = {
                     {
                         model: Supplier,
                         as: 'supplier',
-                        attributes: ['id', 'business_name', 'nit', 'contact_email', 'contact_phone']
+                        attributes: ['id', 'business_name', 'nit', 'contact_phone']
                     },
                     {
                         model: User,
@@ -436,7 +436,7 @@ const invoiceController = {
             // Obtener factura completa para respuesta ANTES del commit
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'contact_email'] },
+                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] },
                     { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false }
                 ],
                 transaction
@@ -646,7 +646,7 @@ const invoiceController = {
             try {
                 const invoiceWithDetails = await Invoice.findByPk(id, {
                     include: [
-                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'contact_email'] }
+                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name'] }
                     ]
                 });
                 
@@ -2448,7 +2448,7 @@ const invoiceController = {
                     // Obtener datos completos de la factura para notificaciones
                     const completeInvoice = await Invoice.findByPk(invoice.id, {
                         include: [
-                            { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'contact_email'] }
+                            { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] }
                         ]
                     });
 

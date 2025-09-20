@@ -10,7 +10,6 @@ CREATE TABLE IF NOT EXISTS suppliers (
   id INT AUTO_INCREMENT PRIMARY KEY,
   business_name VARCHAR(255) NOT NULL,
   nit VARCHAR(20) UNIQUE NOT NULL,
-  contact_email VARCHAR(255),
   contact_phone VARCHAR(20),
   address TEXT,
   bank_details JSON,

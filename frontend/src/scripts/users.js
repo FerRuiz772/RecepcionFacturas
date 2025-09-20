@@ -21,6 +21,8 @@ export function useUsers() {
   const saving = ref(false)
   const formValid = ref(false)
   const userFormRef = ref(null)
+  const permissionsDialog = ref(false)
+  const selectedUserForPermissions = ref(null)
 
   const userForm = ref({
     name: '',
@@ -64,8 +66,8 @@ export function useUsers() {
       }
 
       const response = await axios.get('/api/users', { params })
-      users.value = response.data.users
-      totalUsers.value = response.data.total
+      users.value = response.data.data.users
+      totalUsers.value = response.data.data.total
     } catch (error) {
       console.error('Error loading users:', error)
       toast.error('Error al cargar los usuarios')
@@ -227,6 +229,40 @@ export function useUsers() {
     await loadSuppliers()
   }
 
+  // Funciones para manejo de permisos
+  const openPermissionsDialog = (user) => {
+    selectedUserForPermissions.value = user
+    permissionsDialog.value = true
+  }
+
+  const closePermissionsDialog = () => {
+    permissionsDialog.value = false
+    selectedUserForPermissions.value = null
+  }
+
+  const onPermissionsSaved = (permissions) => {
+    toast.success('Permisos guardados exitosamente')
+    // Actualizar usuario en la lista
+    const userIndex = users.value.findIndex(u => u.id === selectedUserForPermissions.value.id)
+    if (userIndex !== -1) {
+      users.value[userIndex].permissions = permissions
+    }
+    closePermissionsDialog()
+  }
+
+  const onPermissionsChanged = (permissions) => {
+    // Actualización en tiempo real si es necesario
+    console.log('Permisos actualizados:', permissions)
+  }
+
+  const showMessage = (message) => {
+    if (message.type === 'success') {
+      toast.success(message.message)
+    } else if (message.type === 'error') {
+      toast.error(message.message)
+    }
+  }
+
   return {
     // Reactive state
     loading,
@@ -243,6 +279,8 @@ export function useUsers() {
     formValid,
     userFormRef,
     userForm,
+    permissionsDialog,
+    selectedUserForPermissions,
     
     // Static data
     roleOptions,
@@ -265,6 +303,11 @@ export function useUsers() {
     getRoleColor,
     getRoleText,
     formatDate,
-    initializeUsers
+    initializeUsers,
+    openPermissionsDialog,
+    closePermissionsDialog,
+    onPermissionsSaved,
+    onPermissionsChanged,
+    showMessage
   }
 }

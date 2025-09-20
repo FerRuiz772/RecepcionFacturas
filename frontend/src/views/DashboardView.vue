@@ -352,16 +352,6 @@
                   <v-icon class="mr-1">mdi-eye-outline</v-icon>
                   Ver
                 </v-btn>
-                <v-btn
-                  v-if="canEdit(item)"
-                  variant="text"
-                  color="warning"
-                  size="small"
-                  @click="editInvoice(item)"
-                >
-                  <v-icon class="mr-1">mdi-pencil-outline</v-icon>
-                  Editar
-                </v-btn>
               </template>
             </v-data-table>
           </div>
@@ -372,7 +362,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useDashboard } from '../scripts/dashboard.js'
 
@@ -392,6 +382,7 @@ const {
   loadingRecentInvoices,
   loadingTrends,
   invoiceHeaders,
+  refreshing,
   
   // Functions
   downloadDocument,
@@ -404,15 +395,19 @@ const {
   getStatusInitials,
   viewAllInvoices,
   viewInvoice,
-  editInvoice,
-  canEdit,
   getStatusClass,
   formatDate,
   formatNumber,
-  initializeDashboard
+  initializeDashboard,
+  stopAutoRefresh
 } = useDashboard()
 
-onMounted(initializeDashboard)
+onMounted(() => {
+  initializeDashboard().catch(error => {
+    console.error('❌ Error en inicialización del dashboard:', error)
+  })
+})
+onUnmounted(stopAutoRefresh)
 </script>
 
 <style src="../styles/dashboard.css" scoped></style>

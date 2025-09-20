@@ -4,6 +4,7 @@ const { validationResult } = require('express-validator');
 const { User, Supplier, SystemLog, PasswordResetToken } = require('../models');
 const { Op } = require('sequelize'); // AÑADIDO: Para operadores Sequelize
 const emailService = require('../utils/emailService');
+const { getDefaultPermissions } = require('../middleware/permissions');
 
 const authController = {
   async login(req, res) {
@@ -95,7 +96,8 @@ const authController = {
         email: user.email,
         name: user.name,
         role: user.role,
-        supplier_id: user.supplier_id
+        supplier_id: user.supplier_id,
+        permissions: user.permissions || getDefaultPermissions(user.role)
       };
 
       // Agregar datos del proveedor si aplica
@@ -162,7 +164,8 @@ const authController = {
         name: user.name,
         role: user.role,
         supplier_id: user.supplier_id,
-        last_login: user.last_login
+        last_login: user.last_login,
+        permissions: user.permissions || getDefaultPermissions(user.role)
       };
 
       // Agregar datos del proveedor si aplica

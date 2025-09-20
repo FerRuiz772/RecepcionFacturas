@@ -141,7 +141,17 @@ dist/
 # Uploaded files content (keep structure)
 uploads/*
 !uploads/.gitkeep
+src/uploads/*
+!src/uploads/.gitkeep
 
 # Specific large files that might be in logs
 logs/*.log
 logs/*
+src/logs/*
+
+# Don't include other services or large files
+../frontend/
+../database/
+../uploads/
+../test_*.pdf
+../backups/

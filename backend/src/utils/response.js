@@ -22,8 +22,27 @@ const sendValidationError = (res, errors) => {
     });
 };
 
+// Función helper para crear respuestas consistentes
+const createResponse = (success, message, data = null, errors = null) => {
+    const response = {
+        success,
+        message
+    };
+    
+    if (data !== null) {
+        response.data = data;
+    }
+    
+    if (errors !== null) {
+        response.errors = errors;
+    }
+    
+    return response;
+};
+
 module.exports = {
     sendSuccess,
     sendError,
-    sendValidationError
+    sendValidationError,
+    createResponse
 };

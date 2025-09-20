@@ -34,7 +34,9 @@ export const useInvoicesStore = defineStore('invoices', {
         this.loading = true
         console.log('📊 Cargando facturas...')
         
-        const response = await axios.get('/api/invoices')
+        const response = await axios.get('/api/invoices', {
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
         console.log('📋 Respuesta completa:', response.data)
         
         // El backend devuelve { invoices: [...], total: N, ... }
@@ -68,7 +70,9 @@ export const useInvoicesStore = defineStore('invoices', {
       try {
         console.log('📊 Cargando estadísticas del dashboard...')
         
-        const response = await axios.get('/api/dashboard/stats')
+        const response = await axios.get('/api/dashboard/stats', {
+          headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' }
+        })
         this.dashboardStats = response.data
         
         console.log('✅ Estadísticas cargadas:', this.dashboardStats)

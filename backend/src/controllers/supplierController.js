@@ -92,7 +92,7 @@ const supplierController = {
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { business_name, nit, contact_email, contact_phone, address, bank_details } = req.body;
+            const { business_name, nit, contact_phone, address, bank_details } = req.body;
 
             // Verificar que el NIT no exista
             const existingSupplier = await Supplier.findOne({ where: { nit } });
@@ -103,7 +103,6 @@ const supplierController = {
             const supplier = await Supplier.create({
                 business_name,
                 nit,
-                contact_email,
                 contact_phone,
                 address,
                 bank_details: bank_details || {}
@@ -125,7 +124,7 @@ const supplierController = {
     async updateSupplier(req, res) {
         try {
             const { id } = req.params;
-            const { business_name, contact_email, contact_phone, address, bank_details, is_active } = req.body;
+            const { business_name, contact_phone, address, bank_details, is_active } = req.body;
 
             const supplier = await Supplier.findByPk(id);
             if (!supplier) {
@@ -134,7 +133,6 @@ const supplierController = {
 
             await supplier.update({
                 business_name,
-                contact_email,
                 contact_phone,
                 address,
                 bank_details,
