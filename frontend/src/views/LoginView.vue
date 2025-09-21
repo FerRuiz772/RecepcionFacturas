@@ -39,10 +39,17 @@
                 density="comfortable"
                 class="custom-input"
                 prepend-inner-icon="mdi-lock-outline"
-                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showPassword = !showPassword"
                 hide-details="auto"
-              ></v-text-field>
+              >
+                <template v-slot:append-inner>
+                  <span 
+                    @click="showPassword = !showPassword" 
+                    style="cursor: pointer; font-size: 20px; user-select: none;"
+                  >
+                    {{ showPassword ? '🙈' : '👁️' }}
+                  </span>
+                </template>
+              </v-text-field>
               
               <div class="d-flex justify-space-between align-center mb-6">
                 <div class="checkbox-wrapper">

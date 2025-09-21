@@ -114,26 +114,33 @@ const supplierController = {
 
     async createSupplier(req, res) {
         try {
+            console.log('🔍 POST /api/suppliers - Body recibido:', req.body);
+            
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
+                console.log('❌ Errores de validación:', errors.array());
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { business_name, nit, contact_phone, address, bank_details } = req.body;
+            const { business_name, nit, address } = req.body;
+
+            console.log('📋 Datos extraídos:', { business_name, nit, address });
 
             // Verificar que el NIT no exista
             const existingSupplier = await Supplier.findOne({ where: { nit } });
             if (existingSupplier) {
+                console.log('❌ NIT ya existe:', nit);
                 return res.status(400).json({ error: 'El NIT ya está registrado' });
             }
 
+            console.log('✅ Creando proveedor...');
             const supplier = await Supplier.create({
                 business_name,
                 nit,
-                contact_phone,
-                address,
-                bank_details: bank_details || {}
+                address
             });
+
+            console.log('✅ Proveedor creado:', supplier.id);
 
             // Crear carpeta del proveedor
             try {
@@ -144,6 +151,7 @@ const supplierController = {
 
             res.status(201).json(supplier);
         } catch (error) {
+            console.error('❌ Error en createSupplier:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },

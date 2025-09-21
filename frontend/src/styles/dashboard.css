@@ -1,5 +1,5 @@
 .dashboard-layout {
-  background: #f9fafb;
+  background: #f8fafc;
   min-height: 100vh;
 }
 
@@ -10,25 +10,25 @@
 }
 
 .breadcrumb-container {
-  background: #f9fafb;
-  border-bottom: 1px solid #e5e7eb;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
   padding: 12px 0;
 }
 
 .breadcrumb-item {
-  color: #6b7280;
+  color: #64748b;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .breadcrumb-item.active {
-  color: #374151;
+  color: #0f172a;
 }
 
 .page-header {
   background: white;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
   padding: 32px 0;
   margin-bottom: 32px;
 }
@@ -36,13 +36,13 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #374151;
+  color: #0f172a;
   margin-bottom: 4px;
 }
 
 .page-subtitle {
   font-size: 16px;
-  color: #6b7280;
+  color: #64748b;
   margin: 0;
 }
 
@@ -53,7 +53,7 @@
 
 .stats-card {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   padding: 24px;
   transition: all 0.2s ease;
@@ -98,14 +98,14 @@
 .stats-value {
   font-size: 28px;
   font-weight: 700;
-  color: #374151;
+  color: #0f172a;
   line-height: 1;
   margin-bottom: 4px;
 }
 
 .stats-label {
   font-size: 14px;
-  color: #6b7280;
+  color: #64748b;
   font-weight: 500;
 }
 
@@ -125,7 +125,7 @@
 
 .content-card {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
@@ -138,14 +138,14 @@
 .card-title {
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: #0f172a;
   display: flex;
   align-items: center;
 }
 
 .card-title .v-icon {
   margin-right: 8px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 /* Estilos específicos para secciones por rol */
@@ -162,7 +162,7 @@
 .no-documents, .no-work {
   text-align: center;
   padding: 40px 20px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .document-item {
@@ -204,7 +204,7 @@
 
 .task-time {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .pending-invoices {
@@ -248,7 +248,7 @@
   align-items: center;
   justify-content: center;
   height: 320px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .chart-placeholder {
@@ -258,7 +258,7 @@
   justify-content: center;
   background: #f8fafc;
   border-radius: 8px;
-  border: 2px dashed #e5e7eb;
+  border: 2px dashed #e2e8f0;
 }
 
 .chart-text {
@@ -268,7 +268,7 @@
 .chart-title {
   font-size: 16px;
   font-weight: 600;
-  color: #6b7280;
+  color: #64748b;
   margin-top: 12px;
 }
 
@@ -335,13 +335,13 @@
 .status-count {
   font-size: 24px;
   font-weight: 700;
-  color: #374151;
+  color: #0f172a;
 }
 
 .status-percentage {
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .data-table {
@@ -382,11 +382,11 @@
 
 .amount-text {
   font-weight: 600;
-  color: #374151;
+  color: #0f172a;
 }
 
 .date-text {
-  color: #6b7280;
+  color: #64748b;
 }
 
 .view-all-button {
@@ -395,7 +395,7 @@
 
 /* Estilos para documentos agrupados por factura */
 .invoice-group {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e2e8f0;
   border-radius: 12px;
   overflow: hidden;
   background: #ffffff;
@@ -412,20 +412,20 @@
   align-items: center;
   padding: 16px 20px;
   background: #f8fafc;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .invoice-info h4 {
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: #4d7c0f;
+  color: #1e293b;
 }
 
 .invoice-info p {
   margin: 0;
   font-size: 13px;
-  color: #6b7280;
+  color: #64748b;
 }
 
 .document-list {
@@ -473,4 +473,290 @@
 
 .documents-section::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* ========================================
+   MEJORAS DE CONTRASTE Y VISIBILIDAD
+   ======================================== */
+
+/* Botones principales - mejorar visibilidad */
+.v-btn {
+  border: 2px solid #000 !important;
+  font-weight: 600 !important;
+  color: #000 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.v-btn:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+  border-color: #333 !important;
+}
+
+/* Botón primario */
+.v-btn--variant-flat.bg-primary {
+  background-color: #1976d2 !important;
+  color: white !important;
+  border-color: #1976d2 !important;
+}
+
+.v-btn--variant-flat.bg-primary:hover {
+  background-color: #1565c0 !important;
+  border-color: #1565c0 !important;
+}
+
+/* Botones de acción */
+.action-button {
+  background-color: #1976d2 !important;
+  color: white !important;
+  border: 2px solid #1976d2 !important;
+  font-weight: 700 !important;
+}
+
+.action-button:hover {
+  background-color: #1565c0 !important;
+  border-color: #1565c0 !important;
+}
+
+.view-all-button {
+  background-color: #f5f5f5 !important;
+  color: #000 !important;
+  border: 2px solid #666 !important;
+  font-weight: 600 !important;
+}
+
+.view-all-button:hover {
+  background-color: #e0e0e0 !important;
+  border-color: #333 !important;
+}
+
+/* Iconos - asegurar visibilidad */
+.v-icon {
+  color: #000 !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+}
+
+.v-btn .v-icon {
+  color: inherit !important;
+}
+
+.card-title .v-icon {
+  color: #1976d2 !important;
+  font-size: 20px !important;
+}
+
+/* Texto en general - mejorar contraste */
+.v-data-table td {
+  color: #000 !important;
+  font-weight: 500 !important;
+}
+
+.v-data-table th {
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+/* Títulos */
+.page-title {
+  color: #000 !important;
+  font-weight: 800 !important;
+}
+
+.card-title {
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+.stats-value {
+  color: #000 !important;
+  font-weight: 800 !important;
+}
+
+.stats-label {
+  color: #424242 !important;
+  font-weight: 600 !important;
+}
+
+.status-label {
+  color: #000 !important;
+  font-weight: 600 !important;
+}
+
+.status-count {
+  color: #000 !important;
+  font-weight: 800 !important;
+}
+
+/* Status chips - mejorar contraste */
+.table-chip {
+  font-weight: 700 !important;
+  border: 2px solid !important;
+  color: #000 !important;
+}
+
+.processing-chip {
+  background: #e3f2fd !important;
+  color: #000 !important;
+  border-color: #3b82f6 !important;
+}
+
+.completed-chip {
+  background: #e8f5e8 !important;
+  color: #000 !important;
+  border-color: #10b981 !important;
+}
+
+.pending-chip {
+  background: #fff3cd !important;
+  color: #000 !important;
+  border-color: #f59e0b !important;
+}
+
+.assigned-chip {
+  background: #f3e8ff !important;
+  color: #000 !important;
+  border-color: #a855f7 !important;
+}
+
+.rejected-chip {
+  background: #fdeaea !important;
+  color: #000 !important;
+  border-color: #ef4444 !important;
+}
+
+/* Status containers */
+.status-indicator {
+  border: 2px solid !important;
+}
+
+.status-indicator.pending {
+  background: #fff3cd !important;
+  border-color: #f59e0b !important;
+  border-left-color: #f59e0b !important;
+}
+
+.status-indicator.processing {
+  background: #e3f2fd !important;
+  border-color: #3b82f6 !important;
+  border-left-color: #3b82f6 !important;
+}
+
+.status-indicator.completed {
+  background: #e8f5e8 !important;
+  border-color: #10b981 !important;
+  border-left-color: #10b981 !important;
+}
+
+.status-indicator.rejected {
+  background: #fdeaea !important;
+  border-color: #ef4444 !important;
+  border-left-color: #ef4444 !important;
+}
+
+.status-indicator.assigned {
+  background: #f3e8ff !important;
+  border-color: #a855f7 !important;
+  border-left-color: #a855f7 !important;
+}
+
+/* Texto de información */
+.amount-text {
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+.date-text {
+  color: #424242 !important;
+  font-weight: 600 !important;
+}
+
+.task-time {
+  color: #424242 !important;
+  font-weight: 600 !important;
+}
+
+/* Información de facturas */
+.invoice-info h4 {
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+.invoice-info p {
+  color: #424242 !important;
+  font-weight: 600 !important;
+}
+
+/* Breadcrumbs */
+.breadcrumb-item {
+  color: #000 !important;
+  font-weight: 600 !important;
+}
+
+.breadcrumb-item.active {
+  color: #1976d2 !important;
+  font-weight: 700 !important;
+}
+
+/* Hover effects */
+.work-item:hover,
+.pending-item:hover,
+.document-item:hover {
+  background-color: #f3f4f6 !important;
+  border-left: 4px solid #1976d2 !important;
+}
+
+.stats-card:hover {
+  border: 2px solid #1976d2 !important;
+}
+
+.invoice-group:hover {
+  border: 2px solid #1976d2 !important;
+}
+
+/* Emojis y texto de stats */
+.stats-emoji {
+  font-size: 28px !important;
+  filter: brightness(0.8) contrast(1.2) !important;
+}
+
+.document-emoji {
+  font-size: 24px !important;
+  filter: brightness(0.8) contrast(1.2) !important;
+}
+
+.status-emoji {
+  font-size: 20px !important;
+  filter: brightness(0.8) contrast(1.2) !important;
+}
+
+/* Stats change indicators */
+.stats-change {
+  font-weight: 700 !important;
+  border: 1px solid !important;
+  padding: 2px 6px !important;
+  border-radius: 4px !important;
+}
+
+.stats-change.positive {
+  color: #000 !important;
+  background-color: #e8f5e8 !important;
+  border-color: #10b981 !important;
+}
+
+.stats-change.negative {
+  color: #000 !important;
+  background-color: #fdeaea !important;
+  border-color: #ef4444 !important;
+}
+
+/* Mejorar visibilidad de la paginación */
+.v-pagination .v-btn {
+  color: #000 !important;
+  border: 1px solid #000 !important;
+}
+
+.v-pagination .v-btn--active {
+  background-color: #1976d2 !important;
+  color: white !important;
+  border-color: #1976d2 !important;
 }

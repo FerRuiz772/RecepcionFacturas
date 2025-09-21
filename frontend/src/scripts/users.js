@@ -63,7 +63,13 @@ export function useUsers() {
         limit: options.itemsPerPage || itemsPerPage.value,
         search: searchQuery.value,
         role: roleFilter.value,
-        is_active: activeFilter.value !== null ? activeFilter.value : undefined
+        // Corregir el filtro de estado - debe usar el valor correcto
+        is_active: activeFilter.value
+      }
+
+      // Solo enviar is_active si no es null/undefined
+      if (activeFilter.value === null || activeFilter.value === undefined) {
+        delete params.is_active
       }
 
       const response = await axios.get('/api/users', { params })
@@ -299,6 +305,13 @@ export function useUsers() {
     }
   }
 
+  const resetFilters = () => {
+    searchQuery.value = ''
+    roleFilter.value = null
+    activeFilter.value = null
+    loadUsers()
+  }
+
   return {
     // Reactive state
     loading,
@@ -345,6 +358,7 @@ export function useUsers() {
     closePermissionsDialog,
     onPermissionsSaved,
     onPermissionsChanged,
-    showMessage
+    showMessage,
+    resetFilters
   }
 }

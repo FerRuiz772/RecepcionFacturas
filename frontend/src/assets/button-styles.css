@@ -1,77 +1,166 @@
-/* Estilos globales para botones */
+/* Estilos globales para botones con contraste mejorado */
 .v-btn {
-  /* Asegurarse que los botones tengan suficiente contraste */
-  &.v-btn--variant-outlined {
-    border-width: 1.5px !important;
-    background-color: white !important;
+  /* Todos los botones tendrán borde negro visible */
+  border: 2px solid #000 !important;
+  font-weight: 600 !important;
+  color: #000 !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+
+  &:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
+    border-color: #333 !important;
   }
 
+  /* Botones outlined */
+  &.v-btn--variant-outlined {
+    border-width: 2px !important;
+    background-color: white !important;
+    color: #000 !important;
+  }
+
+  &.v-btn--variant-outlined:hover {
+    background-color: #f5f5f5 !important;
+    color: #000 !important;
+  }
+
+  /* Botones text */
   &.v-btn--variant-text {
-    background: rgba(0, 0, 0, 0.04) !important;
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    border: 2px solid #666 !important;
+  }
+
+  &.v-btn--variant-text:hover {
+    background: #e0e0e0 !important;
+    color: #000 !important;
+    border-color: #333 !important;
   }
 
   /* Mejorar contraste para botones con fondo oscuro */
   &.v-btn--variant-elevated,
   &.v-btn--variant-flat {
-    &.bg-primary,
-    &.bg-secondary,
-    &.bg-dark {
+    &.bg-primary {
+      background-color: #1976d2 !important;
       color: white !important;
+      border-color: #1976d2 !important;
+    }
+
+    &.bg-primary:hover {
+      background-color: #1565c0 !important;
+      border-color: #1565c0 !important;
+    }
+
+    &.bg-secondary {
+      background-color: #424242 !important;
+      color: white !important;
+      border-color: #424242 !important;
+    }
+
+    &.bg-secondary:hover {
+      background-color: #303030 !important;
+      border-color: #303030 !important;
+    }
+
+    &.bg-dark {
+      background-color: #212121 !important;
+      color: white !important;
+      border-color: #212121 !important;
+    }
+
+    &.bg-dark:hover {
+      background-color: #000 !important;
+      border-color: #000 !important;
     }
   }
 
   /* Asegurar que los botones de acción tengan buen contraste */
   &.action-button {
-    background: #0f172a !important;
+    background: #1976d2 !important;
     color: white !important;
+    border-color: #1976d2 !important;
+    font-weight: 700 !important;
+    
     &:hover {
-      background: #1e293b !important;
+      background: #1565c0 !important;
+      border-color: #1565c0 !important;
     }
   }
 
   /* Botones de navegación */
   &.nav-button {
-    color: #64748b !important;
+    color: #000 !important;
+    background: #f5f5f5 !important;
+    border-color: #666 !important;
+    
     &:hover {
-      background: rgba(0, 0, 0, 0.04) !important;
+      background: #e0e0e0 !important;
+      border-color: #333 !important;
     }
   }
 
   /* Botones de exportación */
   &.export-btn {
-    border-color: #64748b !important;
-    color: #64748b !important;
+    border-color: #2e7d32 !important;
+    color: #000 !important;
+    background-color: #e8f5e8 !important;
+    font-weight: 600 !important;
+    
     &:hover {
-      background: #f1f5f9 !important;
+      background: #2e7d32 !important;
+      color: white !important;
+      border-color: #2e7d32 !important;
     }
   }
 
   /* Botones de login */
   &.login-button {
-    background: #0f172a !important;
+    background: #1976d2 !important;
     color: white !important;
-    font-weight: 600;
+    border-color: #1976d2 !important;
+    font-weight: 700 !important;
+    
     &:hover {
-      background: #1e293b !important;
+      background: #1565c0 !important;
+      border-color: #1565c0 !important;
     }
   }
 }
 
-/* Botones específicos */
+/* Botones específicos con contraste mejorado */
 .new-invoice-btn,
 .new-user-btn,
 .manage-btn {
-  background: #0f172a !important;
+  background: #1976d2 !important;
   color: white !important;
+  border: 2px solid #1976d2 !important;
+  font-weight: 700 !important;
+  
   &:hover {
-    background: #1e293b !important;
+    background: #1565c0 !important;
+    border-color: #1565c0 !important;
   }
 }
 
-/* Chips de estado */
+/* Chips de estado con contraste mejorado */
 .v-chip {
-  font-weight: 600 !important;
+  font-weight: 700 !important;
+  border: 2px solid !important;
+  color: #000 !important;
+  
   &.status-chip {
-    color: white !important;
+    color: #000 !important;
+    background-color: #f5f5f5 !important;
+    border-color: #666 !important;
   }
+}
+
+/* Iconos - asegurar visibilidad */
+.v-icon {
+  color: #000 !important;
+  font-size: 18px !important;
+  font-weight: bold !important;
+}
+
+.v-btn .v-icon {
+  color: inherit !important;
 }

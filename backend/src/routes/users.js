@@ -27,6 +27,24 @@ router.post('/', requirePermission(['users.create']), [
 // Actualizar usuario
 router.put('/:id', requirePermission(['users.edit']), userController.updateUser);
 
+// Cambiar contraseña de usuario
+router.put('/:id/change-password', [
+  // Middleware personalizado para verificar permisos
+  (req, res, next) => {
+    const targetUserId = parseInt(req.params.id);
+    const currentUserId = req.user.userId;
+    
+    // Si el usuario está cambiando su propia contraseña, permitir
+    if (targetUserId === currentUserId) {
+      return next();
+    }
+    
+    // Si es otro usuario, verificar permiso users.edit
+    requirePermission(['users.edit'])(req, res, next);
+  },
+  body('password').isLength({ min: 6 }).withMessage('La contraseña debe tener al menos 6 caracteres')
+], userController.changePassword);
+
 // Eliminar usuario
 router.delete('/:id', requirePermission(['users.delete']), userController.deleteUser);
 

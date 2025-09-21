@@ -19,74 +19,11 @@ initializeDatabase().then(connected => {
         logger.error('No se pudo conectar a la base de datos. Cerrando aplicación.');
         process.exit(1);
     } else {
-        // Inicializar usuarios después de conectar a la DB
-        initializeUsers();
+        console.log('✅ Base de datos conectada correctamente');
     }
 });
 
-// Función para inicializar usuarios con contraseñas hasheadas
-const initializeUsers = async () => {
-    try {
-        const { User } = require('./src/models');
-        
-        const usersToCreate = [
-            { 
-                email: 'admin@recepcionfacturas.com', 
-                password: 'admin123', 
-                name: 'Super Administrador', 
-                role: 'super_admin' 
-            },
-            { 
-                email: 'contaduria@recepcionfacturas.com', 
-                password: 'contaduria123', 
-                name: 'Admin Contaduría', 
-                role: 'admin_contaduria' 
-            },
-            { 
-                email: 'trabajador@recepcionfacturas.com', 
-                password: 'trabajador123', 
-                name: 'Trabajador Contaduría', 
-                role: 'trabajador_contaduria' 
-            },
-            { 
-                email: 'proveedor@recepcionfacturas.com', 
-                password: 'proveedor123', 
-                name: 'Usuario Proveedor', 
-                role: 'proveedor', 
-                supplier_id: 1 
-            }
-        ];
 
-        for (const userData of usersToCreate) {
-            const existingUser = await User.findOne({ where: { email: userData.email } });
-            
-            if (!existingUser) {
-                const hashedPassword = await bcrypt.hash(userData.password, 12);
-                await User.create({
-                    email: userData.email,
-                    password_hash: hashedPassword,
-                    name: userData.name,
-                    role: userData.role,
-                    supplier_id: userData.supplier_id || null,
-                    is_active: true
-                });
-                console.log(`👤 Usuario creado: ${userData.email} / ${userData.password}`);
-            }
-        }
-        
-        console.log('✅ Inicialización de usuarios completada');
-        console.log('');
-        console.log('🔑 Credenciales disponibles:');
-        console.log('👤 Super Admin: admin@recepcionfacturas.com / admin123');
-        console.log('👤 Admin Contaduría: contaduria@recepcionfacturas.com / contaduria123');
-        console.log('👤 Trabajador: trabajador@recepcionfacturas.com / trabajador123');
-        console.log('👤 Proveedor: proveedor@recepcionfacturas.com / proveedor123');
-        console.log('');
-        
-    } catch (error) {
-        console.log('⚠️ Error inicializando usuarios:', error.message);
-    }
-};
 
 // Security middleware
 app.use(helmet({

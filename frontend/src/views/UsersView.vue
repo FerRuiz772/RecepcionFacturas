@@ -76,6 +76,18 @@
                 @update:model-value="loadUsers"
               ></v-select>
             </v-col>
+            <v-col cols="12" md="3" class="d-flex align-center">
+              <v-btn
+                @click="resetFilters"
+                variant="outlined"
+                color="secondary"
+                class="reset-btn"
+                size="large"
+              >
+                <v-icon class="mr-2">mdi-filter-off</v-icon>
+                Limpiar Filtros
+              </v-btn>
+            </v-col>
           </v-row>
         </v-card-text>
       </v-card>
@@ -276,9 +288,16 @@
                         v => v.length >= 6 || 'Contraseña debe tener al menos 6 caracteres'
                       ]"
                       required
-                      :append-inner-icon="showPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showPassword = !showPassword"
-                    ></v-text-field>
+                    >
+                      <template v-slot:append-inner>
+                        <span 
+                          @click="showPassword = !showPassword" 
+                          style="cursor: pointer; font-size: 20px; user-select: none;"
+                        >
+                          {{ showPassword ? '🙈' : '👁️' }}
+                        </span>
+                      </template>
+                    </v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-select
@@ -332,21 +351,10 @@
                   class="mb-6"
                   icon="mdi-information-outline"
                 >
-                  Cambia la contraseña del usuario. Todos los campos son obligatorios.
+                  Como administrador, puedes cambiar la contraseña de cualquier usuario.
                 </v-alert>
 
                 <v-row>
-                  <v-col cols="12">
-                    <v-text-field
-                      v-model="currentPassword"
-                      label="Contraseña Actual"
-                      :type="showCurrentPassword ? 'text' : 'password'"
-                      variant="outlined"
-                      :rules="passwordRules"
-                      :append-inner-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showCurrentPassword = !showCurrentPassword"
-                    ></v-text-field>
-                  </v-col>
                   <v-col cols="12">
                     <v-text-field
                       v-model="newPassword"
@@ -354,9 +362,16 @@
                       :type="showNewPassword ? 'text' : 'password'"
                       variant="outlined"
                       :rules="newPasswordRules"
-                      :append-inner-icon="showNewPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showNewPassword = !showNewPassword"
-                    ></v-text-field>
+                    >
+                      <template v-slot:append-inner>
+                        <span 
+                          @click="showNewPassword = !showNewPassword" 
+                          style="cursor: pointer; font-size: 20px; user-select: none;"
+                        >
+                          {{ showNewPassword ? '🙈' : '👁️' }}
+                        </span>
+                      </template>
+                    </v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-text-field
@@ -365,16 +380,23 @@
                       :type="showConfirmPassword ? 'text' : 'password'"
                       variant="outlined"
                       :rules="confirmPasswordRules"
-                      :append-inner-icon="showConfirmPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showConfirmPassword = !showConfirmPassword"
-                    ></v-text-field>
+                    >
+                      <template v-slot:append-inner>
+                        <span 
+                          @click="showConfirmPassword = !showConfirmPassword" 
+                          style="cursor: pointer; font-size: 20px; user-select: none;"
+                        >
+                          {{ showConfirmPassword ? '🙈' : '👁️' }}
+                        </span>
+                      </template>
+                    </v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-btn
                       color="primary"
                       @click="changePassword"
                       :loading="changingPassword"
-                      :disabled="!currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword"
+                      :disabled="!newPassword || !confirmPassword || newPassword !== confirmPassword"
                       prepend-icon="mdi-lock-reset"
                     >
                       Cambiar Contraseña
@@ -715,23 +737,17 @@ const userPermissions = ref({
 const savingPermissions = ref(false)
 
 // Variables para cambio de contraseña
-const currentPassword = ref('')
 const newPassword = ref('')
 const confirmPassword = ref('')
 const changingPassword = ref(false)
-const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 const passwordFormRef = ref(null)
 
 // Reglas de validación para contraseñas
-const passwordRules = computed(() => [
-  v => !!v || 'Contraseña actual requerida'
-])
-
 const newPasswordRules = computed(() => [
   v => !!v || 'Nueva contraseña requerida',
-  v => (v && v.length >= 8) || 'La contraseña debe tener al menos 8 caracteres'
+  v => (v && v.length >= 6) || 'La contraseña debe tener al menos 6 caracteres'
 ])
 
 const confirmPasswordRules = computed(() => [
@@ -786,7 +802,10 @@ const {
   showMessage,
   
   // Password visibility
-  showPassword
+  showPassword,
+  
+  // Filter functions
+  resetFilters
 } = useUsers()
 
 // Computed para verificar si puede gestionar permisos
@@ -915,14 +934,12 @@ const changePassword = async () => {
   changingPassword.value = true
   try {
     await axios.put(`/api/users/${userForm.value.id}/change-password`, {
-      currentPassword: currentPassword.value,
-      newPassword: newPassword.value
+      password: newPassword.value
     })
     
     showMessage('Contraseña cambiada correctamente', 'success')
     
     // Limpiar campos
-    currentPassword.value = ''
     newPassword.value = ''
     confirmPassword.value = ''
     
@@ -941,10 +958,8 @@ const changePassword = async () => {
 // Función personalizada para cerrar el diálogo y limpiar campos de contraseña
 const closeUserDialogAndClearPassword = () => {
   // Limpiar campos de contraseña
-  currentPassword.value = ''
   newPassword.value = ''
   confirmPassword.value = ''
-  showCurrentPassword.value = false
   showNewPassword.value = false
   showConfirmPassword.value = false
   

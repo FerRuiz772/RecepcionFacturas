@@ -83,23 +83,8 @@
                       class="mb-6"
                       icon="mdi-information-outline"
                     >
-                      Por seguridad, ingresa tu contraseña actual para confirmar el cambio.
+                      Ingresa tu nueva contraseña. El cambio será efectivo inmediatamente.
                     </v-alert>
-                  </v-col>
-                  <v-col cols="12">
-                    <v-text-field
-                      v-model="passwordForm.currentPassword"
-                      label="Contraseña Actual"
-                      :type="showCurrentPassword ? 'text' : 'password'"
-                      variant="outlined"
-                      :rules="[v => !!v || 'Contraseña actual requerida']"
-                      :append-inner-icon="showCurrentPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showCurrentPassword = !showCurrentPassword"
-                    >
-                      <template v-slot:prepend-inner>
-                        <v-icon>mdi-lock-outline</v-icon>
-                      </template>
-                    </v-text-field>
                   </v-col>
                   <v-col cols="12">
                     <v-text-field
@@ -109,13 +94,20 @@
                       variant="outlined"
                       :rules="[
                         v => !!v || 'Nueva contraseña requerida',
-                        v => (v && v.length >= 8) || 'La contraseña debe tener al menos 8 caracteres'
+                        v => (v && v.length >= 6) || 'La contraseña debe tener al menos 6 caracteres'
                       ]"
-                      :append-inner-icon="showNewPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showNewPassword = !showNewPassword"
+                    >
                     >
                       <template v-slot:prepend-inner>
                         <v-icon>mdi-lock-plus-outline</v-icon>
+                      </template>
+                      <template v-slot:append-inner>
+                        <span 
+                          @click="showNewPassword = !showNewPassword" 
+                          style="cursor: pointer; font-size: 20px; user-select: none;"
+                        >
+                          {{ showNewPassword ? '🙈' : '👁️' }}
+                        </span>
                       </template>
                     </v-text-field>
                   </v-col>
@@ -129,11 +121,17 @@
                         v => !!v || 'Confirmación de contraseña requerida',
                         v => v === passwordForm.newPassword || 'Las contraseñas no coinciden'
                       ]"
-                      :append-inner-icon="showConfirmPassword ? 'mdi-eye' : 'mdi-eye-off'"
-                      @click:append-inner="showConfirmPassword = !showConfirmPassword"
                     >
                       <template v-slot:prepend-inner>
                         <v-icon>mdi-lock-check-outline</v-icon>
+                      </template>
+                      <template v-slot:append-inner>
+                        <span 
+                          @click="showConfirmPassword = !showConfirmPassword" 
+                          style="cursor: pointer; font-size: 20px; user-select: none;"
+                        >
+                          {{ showConfirmPassword ? '🙈' : '👁️' }}
+                        </span>
                       </template>
                     </v-text-field>
                   </v-col>
@@ -142,7 +140,7 @@
                       color="primary"
                       @click="changePassword"
                       :loading="changingPassword"
-                      :disabled="!passwordForm.currentPassword || !passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword !== passwordForm.confirmPassword"
+                      :disabled="!passwordForm.newPassword || !passwordForm.confirmPassword || passwordForm.newPassword !== passwordForm.confirmPassword"
                       size="large"
                       prepend-icon="mdi-lock-reset"
                       block
@@ -188,13 +186,11 @@ const profileForm = ref({
 
 // Formulario de contraseña
 const passwordForm = ref({
-  currentPassword: '',
   newPassword: '',
   confirmPassword: ''
 })
 
 // Control de visibilidad de contraseñas
-const showCurrentPassword = ref(false)
 const showNewPassword = ref(false)
 const showConfirmPassword = ref(false)
 
@@ -224,22 +220,29 @@ const changePassword = async () => {
   
   changingPassword.value = true
   try {
-    await axios.put('/api/auth/change-password', {
-      currentPassword: passwordForm.value.currentPassword,
-      newPassword: passwordForm.value.newPassword
+    // Usar el mismo endpoint que la pantalla de editar usuarios
+    // Obtener el ID del usuario desde el store de auth
+    const authStore = useAuthStore()
+    const userId = authStore.user?.id
+    
+    if (!userId) {
+      toast.error('Error: No se puede identificar al usuario')
+      return
+    }
+    
+    await axios.put(`/api/users/${userId}/change-password`, {
+      password: passwordForm.value.newPassword
     })
     
     toast.success('Contraseña cambiada correctamente')
     
     // Limpiar campos
     passwordForm.value = {
-      currentPassword: '',
       newPassword: '',
       confirmPassword: ''
     }
     
     // Resetear visibilidad de contraseñas
-    showCurrentPassword.value = false
     showNewPassword.value = false
     showConfirmPassword.value = false
     

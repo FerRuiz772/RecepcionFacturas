@@ -15,7 +15,6 @@ router.get('/:id', requirePermission(['suppliers.view'], { requireAll: false }),
 router.post('/', requirePermission(['suppliers.create']), [
     body('business_name').isLength({ min: 2, max: 255 }).withMessage('El nombre debe tener entre 2 y 255 caracteres'),
     body('nit').isLength({ min: 8, max: 20 }).withMessage('El NIT debe tener entre 8 y 20 caracteres'),
-    body('contact_phone').optional().isMobilePhone().withMessage('El teléfono no es válido'),
 ], supplierController.createSupplier);
 
 router.put('/:id', requirePermission(['suppliers.edit']), supplierController.updateSupplier);

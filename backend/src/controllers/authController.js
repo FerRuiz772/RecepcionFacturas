@@ -424,10 +424,18 @@ const authController = {
 
   async changePassword(req, res) {
     try {
+      console.log('🔑 ChangePassword - Request body:', { 
+        currentPassword: req.body.currentPassword ? '***' : 'undefined',
+        newPassword: req.body.newPassword ? '***' : 'undefined'
+      });
+      
       const { currentPassword, newPassword } = req.body;
       const userId = req.user.userId;
 
+      console.log('👤 UserId:', userId);
+
       if (!currentPassword || !newPassword) {
+        console.log('❌ Missing fields');
         return res.status(400).json({ 
           error: 'Contraseña actual y nueva requeridas',
           code: 'MISSING_FIELDS' 
@@ -435,8 +443,22 @@ const authController = {
       }
 
       const user = await User.findByPk(userId);
+      console.log('👤 User found:', user ? user.email : 'No user');
       
-      if (!user || !(await user.validatePassword(currentPassword))) {
+      if (!user) {
+        console.log('❌ User not found');
+        return res.status(400).json({ 
+          error: 'Usuario no encontrado',
+          code: 'USER_NOT_FOUND' 
+        });
+      }
+
+      console.log('🔐 Validating current password...');
+      const isValidPassword = await user.validatePassword(currentPassword);
+      console.log('🔐 Current password valid:', isValidPassword);
+      
+      if (!isValidPassword) {
+        console.log('❌ Invalid current password');
         return res.status(400).json({ 
           error: 'Contraseña actual incorrecta',
           code: 'INVALID_CURRENT_PASSWORD' 
@@ -444,6 +466,7 @@ const authController = {
       }
 
       if (newPassword.length < 6) {
+        console.log('❌ Password too short');
         return res.status(400).json({ 
           error: 'La nueva contraseña debe tener al menos 6 caracteres',
           code: 'PASSWORD_TOO_SHORT' 
@@ -451,9 +474,11 @@ const authController = {
       }
 
       // Actualizar contraseña
+      console.log('🔐 Hashing new password...');
       const bcrypt = require('bcrypt');
       const hashedPassword = await bcrypt.hash(newPassword, parseInt(process.env.BCRYPT_ROUNDS || '12'));
-
+      
+      console.log('💾 Updating user password...');
       await user.update({
         password_hash: hashedPassword,
         profile_data: {
@@ -461,6 +486,8 @@ const authController = {
           password_changed_at: new Date()
         }
       });
+
+      console.log('✅ Password updated successfully');
 
       // Log cambio de contraseña
       await SystemLog.create({

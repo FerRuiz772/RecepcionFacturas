@@ -75,7 +75,7 @@ export function useDashboard() {
       } finally {
         refreshing.value = false
       }
-    }, 15000) // 15 segundos para mejor experiencia en tiempo real
+    }, 60000) // 1 minuto para reducir carga en el servidor
   }
   
   // Función para detener auto-refresh

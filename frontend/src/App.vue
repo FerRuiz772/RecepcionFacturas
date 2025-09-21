@@ -1,5 +1,5 @@
 <template>
-  <v-app>
+  <v-app v-no-accents>
     <template v-if="showLayout">
       <AppSidebar v-model="drawer" />
       <AppTopBar @toggle-sidebar="toggleDrawer" :drawer-open="drawer" />

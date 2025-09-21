@@ -85,15 +85,22 @@
                 label="Nueva Contraseña"
                 placeholder="Mínimo 8 caracteres"
                 :prepend-inner-icon="'mdi-lock'"
-                :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showPassword = !showPassword"
                 :rules="[v => !!v || 'Este campo es obligatorio', v => passwordValid || 'La contraseña no cumple con los requisitos']"
                 :disabled="loading"
                 autocomplete="new-password"
                 class="custom-input mb-4"
                 variant="outlined"
                 :error-messages="errors.password"
-              ></v-text-field>
+              >
+                <template v-slot:append-inner>
+                  <span 
+                    @click="showPassword = !showPassword" 
+                    style="cursor: pointer; font-size: 20px; user-select: none;"
+                  >
+                    {{ showPassword ? '🙈' : '👁️' }}
+                  </span>
+                </template>
+              </v-text-field>
 
               <!-- Requisitos de contraseña -->
               <div class="password-requirements mb-4">
@@ -129,15 +136,22 @@
                 label="Confirmar Contraseña"
                 placeholder="Repite la contraseña"
                 :prepend-inner-icon="'mdi-lock-check'"
-                :append-inner-icon="showConfirmPassword ? 'mdi-eye-off' : 'mdi-eye'"
-                @click:append-inner="showConfirmPassword = !showConfirmPassword"
                 :rules="[v => !!v || 'Este campo es obligatorio', v => passwordsMatch || 'Las contraseñas no coinciden']"
                 :disabled="loading"
                 autocomplete="new-password"
                 class="custom-input mb-4"
                 variant="outlined"
                 :error-messages="errors.confirmPassword"
-              ></v-text-field>
+              >
+                <template v-slot:append-inner>
+                  <span 
+                    @click="showConfirmPassword = !showConfirmPassword" 
+                    style="cursor: pointer; font-size: 20px; user-select: none;"
+                  >
+                    {{ showConfirmPassword ? '🙈' : '👁️' }}
+                  </span>
+                </template>
+              </v-text-field>
 
               <!-- Botón de envío -->
               <v-btn 

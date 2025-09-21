@@ -24,12 +24,15 @@ class InvoiceNotificationService {
 
       console.log(`🔍 Usuario proveedor encontrado:`, proveedorUser ? proveedorUser.email : 'No encontrado');
 
-      // Buscar al admin de contaduría para notificación
-      const adminContaduria = await User.findOne({
+      // Buscar TODOS los admin de contaduría para notificación
+      const adminsContaduria = await User.findAll({
         where: { role: 'admin_contaduria', is_active: true }
       });
 
-      console.log(`🔍 Admin contaduría encontrado:`, adminContaduria ? adminContaduria.email : 'No encontrado');
+      console.log(`🔍 Admins contaduría encontrados: ${adminsContaduria.length} usuarios`);
+      adminsContaduria.forEach(admin => {
+        console.log(`   - ${admin.email} (${admin.name})`);
+      });
 
       // Notificar al proveedor que su factura fue recibida
       if (proveedorUser?.email) {
@@ -49,15 +52,22 @@ class InvoiceNotificationService {
         console.log(`⚠️ Usuario asignado no tiene email configurado:`, assignedUser);
       }
 
-      // Notificar al admin de contaduría para que esté al tanto de todas las facturas
-      if (adminContaduria?.email && adminContaduria.id !== assignedUser?.id) {
-        console.log(`📧 Enviando notificación al admin contaduría: ${adminContaduria.email}`);
-        await this.sendAdminNotificationInvoiceUploaded(adminContaduria, invoice, supplier, assignedUser);
-        console.log(`✅ Notificación al admin contaduría enviada exitosamente`);
-      } else if (adminContaduria?.id === assignedUser?.id) {
-        console.log(`ℹ️ Admin contaduría es el mismo que el usuario asignado, evitando duplicación`);
+      // Notificar a TODOS los admin de contaduría para que estén al tanto de todas las facturas
+      if (adminsContaduria.length > 0) {
+        console.log(`📧 Enviando notificaciones a ${adminsContaduria.length} admins de contaduría...`);
+        
+        for (const adminContaduria of adminsContaduria) {
+          try {
+            console.log(`📧 Enviando notificación al admin contaduría: ${adminContaduria.email}`);
+            await this.sendAdminNotificationInvoiceUploaded(adminContaduria, invoice, supplier, assignedUser);
+            console.log(`✅ Notificación al admin contaduría ${adminContaduria.email} enviada exitosamente`);
+          } catch (emailError) {
+            console.error(`❌ Error enviando notificación a ${adminContaduria.email}:`, emailError);
+            // Continuar con los otros admins aunque uno falle
+          }
+        }
       } else {
-        console.log(`⚠️ No se encontró admin de contaduría activo`);
+        console.log(`⚠️ No se encontraron admins de contaduría activos`);
       }
 
       console.log(`📧 Notificaciones enviadas para factura ${invoice.number}`);

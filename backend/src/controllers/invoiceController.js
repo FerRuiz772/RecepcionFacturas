@@ -185,15 +185,29 @@ const invoiceController = {
 
     async getAllInvoices(req, res) {
         try {
-            const { status, supplier_id, assigned_to, page = 1, limit = 10, search } = req.query;
+            const { status, supplier_id, assigned_to, page = 1, limit = 10, search, date_from, date_to } = req.query;
             const offset = (page - 1) * limit;
 
-            console.log('🔍 Filtros recibidos:', { status, supplier_id, assigned_to, search });
+            console.log('🔍 Filtros recibidos:', { status, supplier_id, assigned_to, search, date_from, date_to });
 
             const where = {};
             if (status) where.status = status;
             if (supplier_id) where.supplier_id = parseInt(supplier_id);
             if (assigned_to) where.assigned_to = parseInt(assigned_to);
+
+            // Filtros por fecha
+            if (date_from || date_to) {
+                where.created_at = {};
+                if (date_from) {
+                    where.created_at[Op.gte] = new Date(date_from);
+                }
+                if (date_to) {
+                    // Agregar 23:59:59 para incluir todo el día
+                    const endDate = new Date(date_to);
+                    endDate.setHours(23, 59, 59, 999);
+                    where.created_at[Op.lte] = endDate;
+                }
+            }
 
             console.log('📊 Where clause antes de rol:', where);
 
@@ -558,6 +572,12 @@ const invoiceController = {
                 const supplier = createdInvoice.supplier;
                 const assignedUser = createdInvoice.assignedUser;
                 
+                console.log('🔍 CREACIÓN MANUAL DE FACTURA - Iniciando notificaciones...');
+                console.log('🔍 Rol del usuario:', role);
+                console.log('🔍 Factura creada:', { id: createdInvoice.id, number: createdInvoice.number });
+                console.log('🔍 Supplier:', supplier ? { id: supplier.id, business_name: supplier.business_name } : 'No encontrado');
+                console.log('🔍 Usuario asignado:', assignedUser ? { id: assignedUser.id, name: assignedUser.name, email: assignedUser.email } : 'No asignado');
+                
                 // Usar el nuevo servicio de notificaciones
                 await statusNotificationService.processNotification('invoice_created', {
                     invoice: createdInvoice,
@@ -568,6 +588,7 @@ const invoiceController = {
                 console.log('✅ Notificaciones enviadas exitosamente');
             } catch (notificationError) {
                 console.error('❌ Error enviando notificaciones:', notificationError);
+                console.error('❌ Stack trace:', notificationError.stack);
                 // No fallar la creación de factura si falla el email
             }
 
@@ -1230,12 +1251,49 @@ const invoiceController = {
 
             await payment.update(updateData);
 
+            // Recargar el payment con los datos actualizados para verificar completitud
+            const updatedPayment = await Payment.findOne({
+                where: { invoice_id: parseInt(id) }
+            });
+            
+            // Verificar si después del reemplazo todos los documentos están completos
+            console.log('🔍 Verificando estado después del reemplazo...');
+            const allDocumentsComplete = updatedPayment.password_file && 
+                                       updatedPayment.isr_retention_file && 
+                                       updatedPayment.iva_retention_file && 
+                                       updatedPayment.payment_proof_file;
+            
+            console.log('📋 Estado de documentos después del reemplazo:', {
+                password_file: !!updatedPayment.password_file,
+                isr_retention_file: !!updatedPayment.isr_retention_file,
+                iva_retention_file: !!updatedPayment.iva_retention_file,
+                payment_proof_file: !!updatedPayment.payment_proof_file,
+                allComplete: allDocumentsComplete
+            });
+
             // Obtener el estado actual de la factura
             const currentStatus = invoiceWithSupplier.status;
-            const targetStatus = 'en_proceso'; // El documento reemplazado debe ser revisado nuevamente
+            let targetStatus;
+            let statusChangeReason;
             
-            // Solo cambiar el estado si no está ya en proceso o en estados anteriores
-            if (currentStatus !== targetStatus && currentStatus !== 'factura_subida' && currentStatus !== 'asignada_contaduria') {
+            if (allDocumentsComplete) {
+                targetStatus = 'proceso_completado';
+                statusChangeReason = `Documento ${type} reemplazado - proceso completado automáticamente`;
+                
+                // Actualizar fecha de completado
+                await updatedPayment.update({
+                    completion_date: new Date()
+                });
+                
+                console.log('✅ Todos los documentos están completos - marcando como completado');
+            } else {
+                targetStatus = 'en_proceso';
+                statusChangeReason = `Documento ${type} reemplazado - requiere nueva revisión`;
+                console.log('⚠️ Faltan documentos - marcando como en proceso');
+            }
+            
+            // Solo cambiar el estado si es diferente
+            if (currentStatus !== targetStatus) {
                 // Actualizar el estado de la factura
                 await invoiceWithSupplier.update({ status: targetStatus });
                 
@@ -1246,26 +1304,27 @@ const invoiceController = {
                     to_state: targetStatus,
                     user_id: req.user.userId,
                     timestamp: new Date(),
-                    notes: `Documento ${type} reemplazado - requiere nueva revisión`
+                    notes: statusChangeReason
                 });
+
+                console.log(`🔄 Estado cambiado: ${currentStatus} → ${targetStatus}`);
 
                 // Enviar notificación de cambio de estado
                 try {
-                    const StatusNotificationService = require('../utils/statusNotificationService');
-                    const statusService = new StatusNotificationService();
-                    
-                    const changedByUser = await User.findByPk(req.user.userId);
-                    await statusService.handleStatusChange(
-                        invoiceWithSupplier, 
-                        currentStatus, 
-                        targetStatus, 
-                        changedByUser, 
-                        invoiceWithSupplier.supplier
-                    );
+                    await statusNotificationService.processNotification('status_change', {
+                        invoice: invoiceWithSupplier,
+                        fromStatus: currentStatus,
+                        toStatus: targetStatus,
+                        changedBy: await User.findByPk(req.user.userId),
+                        supplier: invoiceWithSupplier.supplier
+                    });
+                    console.log('✅ Notificación de cambio de estado enviada');
                 } catch (notificationError) {
-                    console.error('Error enviando notificación de cambio de estado:', notificationError);
+                    console.error('❌ Error enviando notificación de cambio de estado:', notificationError);
                     // No fallar la operación principal
                 }
+            } else {
+                console.log(`ℹ️ Estado no cambió (sigue siendo ${currentStatus})`);
             }
 
             // Registrar la acción en el log del sistema
@@ -1408,27 +1467,21 @@ const invoiceController = {
 
             if (invoice.uploaded_files.length === 1) {
                 const file = invoice.uploaded_files[0];
-                // Check multiple possible locations for the file
-                const possiblePaths = [
-                    path.join(__dirname, '../uploads', 'temp', file.filename),
-                    path.join(__dirname, '../uploads', id.toString(), file.filename),
-                    path.join(__dirname, '../uploads', file.filename)
-                ];
                 
-                let filePath = null;
-                for (const tryPath of possiblePaths) {
-                    try {
-                        await fs.access(tryPath);
-                        filePath = tryPath;
-                        break;
-                    } catch (error) {
-                        // Continue to next path
-                    }
+                // Usar la ruta completa almacenada en la base de datos
+                let filePath = file.path;
+                
+                // Si la ruta no es absoluta, construirla relativa al directorio de uploads
+                if (!path.isAbsolute(filePath)) {
+                    filePath = path.join(__dirname, '../uploads', filePath);
                 }
                 
-                if (filePath) {
+                try {
+                    await fs.access(filePath);
+                    console.log('📁 Archivo encontrado:', filePath);
                     res.download(filePath, file.originalName);
-                } else {
+                } catch (error) {
+                    console.error('❌ Archivo no encontrado:', filePath);
                     res.status(404).json({ error: 'Archivo no encontrado' });
                 }
             } else {
@@ -2242,39 +2295,6 @@ const invoiceController = {
                 });
             }
 
-            // Estadística 4: Tiempo Promedio de Proceso
-            const completedInvoices = await Invoice.findAll({
-                where: {
-                    ...whereClause,
-                    status: 'proceso_completado'
-                },
-                include: [{
-                    model: InvoiceState,
-                    as: 'states',
-                    where: {
-                        to_state: 'proceso_completado'
-                    },
-                    order: [['timestamp', 'DESC']],
-                    limit: 1
-                }],
-                limit: 50,
-                order: [['updated_at', 'DESC']]
-            });
-
-            let averageTime = 0;
-            if (completedInvoices.length > 0) {
-                const times = completedInvoices
-                    .filter(invoice => invoice.states && invoice.states.length > 0)
-                    .map(invoice => {
-                        const completedDate = new Date(invoice.states[0].timestamp);
-                        const createdDate = new Date(invoice.created_at);
-                        return (completedDate - createdDate) / (1000 * 60 * 60 * 24); // días
-                    });
-                if (times.length > 0) {
-                    averageTime = times.reduce((sum, time) => sum + time, 0) / times.length;
-                }
-            }
-
             // Calcular tendencias (comparar con mes anterior)
             const twoMonthsAgo = new Date();
             twoMonthsAgo.setMonth(twoMonthsAgo.getMonth() - 2);
@@ -2348,15 +2368,6 @@ const invoiceController = {
                         colorClass: 'info',
                         change: `${suppliersCount} activos`,
                         trend: 'up'
-                    },
-                    {
-                        title: 'Tiempo Promedio',
-                        value: `${averageTime.toFixed(1)} días`,
-                        emoji: '⚡',
-                        icon: 'mdi-timer-outline',
-                        colorClass: 'primary',
-                        change: averageTime < 5 ? 'Excelente' : averageTime < 10 ? 'Bueno' : 'Mejorable',
-                        trend: averageTime < 5 ? 'down' : 'up'
                     }
                 );
             }
@@ -2809,6 +2820,23 @@ const invoiceController = {
             let newStatus = null;
             let statusNotes = null;
 
+            // Recargar payment con datos actualizados
+            await payment.reload();
+
+            // Verificar si todos los documentos están completos
+            const allDocumentsComplete = payment.password_file && 
+                                       payment.isr_retention_file && 
+                                       payment.iva_retention_file && 
+                                       payment.payment_proof_file;
+
+            console.log('📋 Estado de documentos:', {
+                password_file: !!payment.password_file,
+                isr_retention_file: !!payment.isr_retention_file,
+                iva_retention_file: !!payment.iva_retention_file,
+                payment_proof_file: !!payment.payment_proof_file,
+                allComplete: allDocumentsComplete
+            });
+
             // Determinar el nuevo estado según el tipo de documento
             switch (documentType) {
                 case 'retention_isr':
@@ -2819,33 +2847,34 @@ const invoiceController = {
                     newStatus = 'retencion_iva_generada';
                     statusNotes = 'Retención IVA subida automáticamente';
                     break;
-                case 'payment_proof':
-                    // Verificar si ya se completó todo el proceso
-                    if (payment.isr_retention_file && payment.iva_retention_file) {
-                        // Validar que la factura tenga un monto válido antes de completar
-                        if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
-                            console.warn('⚠️ No se puede completar proceso automáticamente: monto inválido', {
-                                invoiceId: invoice.id,
-                                amount: invoice.amount
-                            });
-                            // Mantener estado actual si no hay monto válido
-                            newStatus = invoice.status === 'factura_subida' ? 'asignada_contaduria' : invoice.status;
-                            statusNotes = 'Comprobante de pago subido - Pendiente: definir monto de factura';
-                        } else {
-                            newStatus = 'proceso_completado';
-                            statusNotes = 'Proceso completado - todos los documentos subidos';
-                            
-                            // Actualizar la fecha de completado
-                            await payment.update({
-                                completion_date: new Date()
-                            });
-                        }
-                    } else {
-                        // Solo cambiar a estados específicos de documentos, no a "pago_realizado"
-                        newStatus = invoice.status === 'factura_subida' ? 'asignada_contaduria' : invoice.status;
-                        statusNotes = 'Comprobante de pago subido';
-                    }
+                case 'password_file':
+                    newStatus = 'contrasena_generada';
+                    statusNotes = 'Archivo de contraseña subido automáticamente';
                     break;
+                case 'payment_proof':
+                    newStatus = 'comprobante_subido';
+                    statusNotes = 'Comprobante de pago subido';
+                    break;
+            }
+
+            // Si todos los documentos están completos, marcar como completado
+            if (allDocumentsComplete) {
+                // Validar que la factura tenga un monto válido antes de completar
+                if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
+                    console.warn('⚠️ No se puede completar proceso automáticamente: monto inválido', {
+                        invoiceId: invoice.id,
+                        amount: invoice.amount
+                    });
+                    statusNotes += ' - Pendiente: definir monto de factura';
+                } else {
+                    newStatus = 'proceso_completado';
+                    statusNotes = 'Proceso completado - todos los documentos subidos';
+                    
+                    // Actualizar la fecha de completado
+                    await payment.update({
+                        completion_date: new Date()
+                    });
+                }
             }
 
             if (newStatus && newStatus !== invoice.status) {
@@ -2959,6 +2988,45 @@ const invoiceController = {
         } catch (error) {
             console.error('❌ Error verificando si factura debe completarse:', error);
             return false;
+        }
+    },
+
+    async createZipFromFiles(files, invoiceId) {
+        try {
+            const AdmZip = require('adm-zip');
+            const zip = new AdmZip();
+            
+            for (const file of files) {
+                let filePath = file.path;
+                
+                // Si la ruta no es absoluta, construirla relativa al directorio de uploads
+                if (!path.isAbsolute(filePath)) {
+                    filePath = path.join(__dirname, '../uploads', filePath);
+                }
+                
+                try {
+                    await fs.access(filePath);
+                    const fileData = await fs.readFile(filePath);
+                    zip.addFile(file.originalName, fileData);
+                    console.log('📁 Archivo agregado al ZIP:', file.originalName);
+                } catch (error) {
+                    console.error('❌ Error agregando archivo al ZIP:', filePath, error.message);
+                }
+            }
+            
+            // Crear directorio temporal para el ZIP
+            const tempDir = path.join(__dirname, '../uploads', 'temp');
+            await fs.mkdir(tempDir, { recursive: true });
+            
+            // Guardar el ZIP
+            const zipPath = path.join(tempDir, `invoice-${invoiceId}-files.zip`);
+            zip.writeZip(zipPath);
+            
+            console.log('📦 ZIP creado:', zipPath);
+            return zipPath;
+        } catch (error) {
+            console.error('❌ Error creando ZIP:', error);
+            throw error;
         }
     }
 };

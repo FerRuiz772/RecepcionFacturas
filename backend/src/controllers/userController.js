@@ -6,43 +6,41 @@ const userController = {
     // Función para asignar permisos por defecto según el rol
     async assignDefaultPermissions(userId, role) {
         const defaultPermissions = {
-            super_admin: [
-                'facturas.ver', 'facturas.crear', 'facturas.editar', 'facturas.eliminar',
-                'documentos.ver', 'documentos.subir', 'documentos.descargar',
-                'usuarios.ver', 'usuarios.crear', 'usuarios.editar', 'usuarios.eliminar',
-                'proveedores.ver', 'proveedores.crear', 'proveedores.editar', 'proveedores.eliminar'
-            ],
-            admin_contaduria: [
-                'facturas.ver', 'facturas.crear', 'facturas.editar', 'facturas.eliminar',
-                'documentos.ver', 'documentos.subir', 'documentos.descargar',
-                'usuarios.ver', 'usuarios.crear',
-                'proveedores.ver', 'proveedores.crear'
-            ],
-            trabajador_contaduria: [
-                'facturas.ver', 'facturas.crear',
-                'documentos.ver', 'documentos.subir',
-                'proveedores.ver'
-            ],
-            proveedor: [
-                'facturas.ver', 'facturas.crear',
-                'documentos.ver', 'documentos.subir', 'documentos.descargar',
-                'proveedores.ver', 'proveedores.editar'
-            ]
+            super_admin: {
+                'dashboard': { 'view': true, 'view_stats': true, 'view_charts': true, 'export_data': true },
+                'invoices': { 'view': true, 'create': true, 'edit': true, 'delete': true, 'approve': true, 'reject': true, 'export': true, 'view_payments': true, 'manage_payments': true },
+                'suppliers': { 'view': true, 'create': true, 'edit': true, 'delete': true, 'export': true },
+                'users': { 'view': true, 'create': true, 'edit': true, 'delete': true, 'manage_permissions': true, 'reset_passwords': true }
+            },
+            admin_contaduria: {
+                'dashboard': { 'view': true, 'view_stats': true, 'view_charts': true, 'export_data': true },
+                'invoices': { 'view': true, 'create': true, 'edit': true, 'delete': true, 'approve': true, 'reject': true, 'export': true, 'view_payments': true, 'manage_payments': true },
+                'suppliers': { 'view': true, 'create': true, 'edit': true, 'delete': true, 'export': true },
+                'users': { 'view': true, 'create': false, 'edit': false, 'delete': false, 'manage_permissions': false, 'reset_passwords': false }
+            },
+            trabajador_contaduria: {
+                'dashboard': { 'view': true, 'view_stats': true, 'view_charts': true, 'export_data': false },
+                'invoices': { 'view': true, 'create': false, 'edit': true, 'delete': false, 'approve': false, 'reject': false, 'export': true, 'view_payments': true, 'manage_payments': true },
+                'suppliers': { 'view': true, 'create': false, 'edit': false, 'delete': false, 'export': false },
+                'users': { 'view': false, 'create': false, 'edit': false, 'delete': false, 'manage_permissions': false, 'reset_passwords': false }
+            },
+            proveedor: {
+                'dashboard': { 'view': true, 'view_stats': false, 'view_charts': false, 'export_data': false },
+                'invoices': { 'view': true, 'create': true, 'edit': false, 'delete': false, 'approve': false, 'reject': false, 'export': false, 'view_payments': false, 'manage_payments': false },
+                'suppliers': { 'view': false, 'create': false, 'edit': false, 'delete': false, 'export': false },
+                'users': { 'view': false, 'create': false, 'edit': false, 'delete': false, 'manage_permissions': false, 'reset_passwords': false }
+            }
         };
 
-        const permissions = defaultPermissions[role] || [];
+        const permissions = defaultPermissions[role] || {};
         
-        // Eliminar permisos existentes
-        await UserPermission.destroy({ where: { user_id: userId } });
-        
-        // Asignar nuevos permisos
-        const permissionData = permissions.map(permission => ({
-            user_id: userId,
-            permission_key: permission,
-            granted: true
-        }));
-        
-        await UserPermission.bulkCreate(permissionData);
+        // Actualizar el campo JSON permissions en la tabla users
+        await User.update(
+            { permissions: permissions },
+            { where: { id: userId } }
+        );
+
+        console.log(`✅ Permisos por defecto asignados para rol '${role}' al usuario ID ${userId}`);
     },
     async getAllUsers(req, res) {
         try {
@@ -58,6 +56,10 @@ const userController = {
             if (search) {
                 where.name = { [Op.like]: `%${search}%` };
             }
+                // Filtro por activo/inactivo
+                if (typeof req.query.is_active !== 'undefined') {
+                    where.is_active = req.query.is_active === 'true';
+                }
 
             const users = await User.findAndCountAll({
                 where,
@@ -276,6 +278,61 @@ const userController = {
             }));
         } catch (error) {
             console.error('Error al actualizar permisos:', error);
+            res.status(500).json(createResponse(false, 'Error interno del servidor', null));
+        }
+    },
+
+    async changePassword(req, res) {
+        try {
+            console.log('🔑 Cambio de contraseña - Body recibido:', req.body);
+            console.log('🔑 Headers recibidos:', req.headers['content-type']);
+            console.log('🔑 Params recibidos:', req.params);
+            
+            const errors = validationResult(req);
+            if (!errors.isEmpty()) {
+                console.log('❌ Errores de validación:', errors.array());
+                return res.status(400).json(createResponse(false, 'Errores de validación', errors.array()));
+            }
+
+            const { id } = req.params;
+            const { password } = req.body;
+
+            console.log('📋 Datos extraídos:', { id, password: password ? '***' : 'undefined' });
+
+            const user = await User.findByPk(id);
+            if (!user) {
+                console.log('❌ Usuario no encontrado:', id);
+                return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
+            }
+
+            console.log('🔍 Usuario encontrado:', { id: user.id, email: user.email });
+
+            // Hash de la nueva contraseña
+            const bcrypt = require('bcrypt');
+            const hashedPassword = await bcrypt.hash(password, 12);
+            
+            console.log('🔐 Hash generado:', hashedPassword.substring(0, 20) + '...');
+            console.log('✅ Actualizando contraseña...');
+            
+            const [updatedRows] = await User.update({
+                password_hash: hashedPassword
+            }, {
+                where: { id: id }
+            });
+
+            console.log('✅ Filas actualizadas:', updatedRows);
+            
+            // Verificar que se actualizó correctamente
+            const updatedUser = await User.findByPk(id);
+            console.log('🔍 Hash verificado en DB:', updatedUser.password_hash.substring(0, 20) + '...');
+
+            console.log('✅ Contraseña actualizada exitosamente');
+            res.json(createResponse(true, 'Contraseña actualizada exitosamente', {
+                user_id: id,
+                email: user.email
+            }));
+        } catch (error) {
+            console.error('❌ Error al cambiar contraseña:', error);
             res.status(500).json(createResponse(false, 'Error interno del servidor', null));
         }
     }

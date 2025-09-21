@@ -66,6 +66,82 @@ app.use(Toast, {
   rtl: false
 })
 
+// Directiva global para bloquear tildes y acentos
+app.directive('no-accents', {
+  mounted(el) {
+    const blockAccents = (event) => {
+      // Caracteres con acentos que queremos bloquear
+      const accentedChars = /[áéíóúàèìòùâêîôûäëïöüãñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÃÑÇ]/
+      
+      if (accentedChars.test(event.key)) {
+        event.preventDefault()
+        event.stopPropagation()
+        return false
+      }
+    }
+    
+    const normalizeText = (event) => {
+      const target = event.target
+      if (target.value) {
+        // Convertir caracteres acentuados a sus equivalentes sin acento
+        const normalizedValue = target.value
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '') // Remover diacríticos
+          .replace(/ñ/g, 'n')
+          .replace(/Ñ/g, 'N')
+          .replace(/ç/g, 'c')
+          .replace(/Ç/g, 'C')
+        
+        if (target.value !== normalizedValue) {
+          target.value = normalizedValue
+          // Disparar evento input para actualizar v-model
+          target.dispatchEvent(new Event('input', { bubbles: true }))
+        }
+      }
+    }
+    
+    // Función para aplicar los listeners a un elemento
+    const applyListeners = (element) => {
+      if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
+        element.addEventListener('keydown', blockAccents)
+        element.addEventListener('input', normalizeText)
+        element.addEventListener('paste', (e) => {
+          setTimeout(() => normalizeText(e), 0)
+        })
+      }
+    }
+    
+    // Aplicar a todos los inputs existentes
+    applyListeners(el)
+    const inputs = el.querySelectorAll('input, textarea')
+    inputs.forEach(applyListeners)
+    
+    // Observar nuevos inputs que se agreguen dinámicamente
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        mutation.addedNodes.forEach((node) => {
+          if (node.nodeType === 1) { // Element node
+            applyListeners(node)
+            const newInputs = node.querySelectorAll('input, textarea')
+            newInputs.forEach(applyListeners)
+          }
+        })
+      })
+    })
+    
+    observer.observe(el, { childList: true, subtree: true })
+    
+    // Guardar observer para cleanup
+    el._accentObserver = observer
+  },
+  
+  unmounted(el) {
+    if (el._accentObserver) {
+      el._accentObserver.disconnect()
+    }
+  }
+})
+
 // Función para inicializar la aplicación
 async function initApp() {
   console.log('Iniciando aplicación...')

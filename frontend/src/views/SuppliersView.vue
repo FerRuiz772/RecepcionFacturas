@@ -65,6 +65,18 @@
                 @update:model-value="loadSuppliers"
               ></v-select>
             </v-col>
+            <v-col cols="12" md="4" class="d-flex align-center">
+              <v-btn
+                @click="resetFilters"
+                variant="outlined"
+                color="secondary"
+                class="reset-btn"
+                size="large"
+              >
+                <v-icon class="mr-2">mdi-filter-off</v-icon>
+                Limpiar Filtros
+              </v-btn>
+            </v-col>
           </v-row>
         </v-card-text>
       </v-card>
@@ -267,3 +279,5 @@ onMounted(initializeSuppliers)
 </script>
 
 <style src="../styles/suppliers.css" scoped></style>
+
+    resetFilters

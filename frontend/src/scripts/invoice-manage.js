@@ -235,6 +235,12 @@ export function useInvoiceManage() {
   }
 
   const uploadPasswordFile = async (file) => {
+    if (!invoice.value || !invoice.value.id) {
+      toast.error('Error: ID de factura no disponible')
+      console.error('Invoice ID is undefined:', invoice.value)
+      return
+    }
+
     uploadingPassword.value = true
     const formData = new FormData()
     formData.append('file', file)
@@ -433,7 +439,8 @@ export function useInvoiceManage() {
     saving.value = true
     try {
       const response = await axios.put(`/api/invoices/${invoice.value.id}`, editForm.value)
-      invoice.value = response.data
+      // El servidor devuelve {message: string, invoice: object}
+      invoice.value = response.data.invoice
       editMode.value = false
       toast.success('Factura actualizada exitosamente')
     } catch (error) {

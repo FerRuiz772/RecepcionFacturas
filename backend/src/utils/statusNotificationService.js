@@ -148,6 +148,7 @@ class StatusNotificationService {
   async processNotification(type, data) {
     try {
       console.log(`🔔 StatusNotificationService.processNotification iniciado - Tipo: ${type}`);
+      console.log(`🔔 Timestamp: ${new Date().toISOString()}`);
       console.log(`🔔 Datos recibidos:`, JSON.stringify(data, null, 2));
       
       switch (type) {
