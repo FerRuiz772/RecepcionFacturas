@@ -253,19 +253,22 @@ const userController = {
                 return res.status(400).json(createResponse(false, 'Los permisos deben ser un array', null));
             }
 
-            // Eliminar permisos existentes
-            await UserPermission.destroy({ where: { user_id: id } });
+            // Convertir array de permisos a estructura JSON anidada
+            const permissionsJSON = {};
+            permissions.forEach(permission => {
+                const [module, action] = permission.split('.');
+                if (module && action) {
+                    if (!permissionsJSON[module]) {
+                        permissionsJSON[module] = {};
+                    }
+                    permissionsJSON[module][action] = true;
+                }
+            });
 
-            // Crear nuevos permisos
-            if (permissions.length > 0) {
-                const permissionData = permissions.map(permission => ({
-                    user_id: id,
-                    permission_key: permission,
-                    granted: true
-                }));
-                
-                await UserPermission.bulkCreate(permissionData);
-            }
+            // Actualizar el campo JSON permissions en la tabla users
+            await user.update({ permissions: permissionsJSON });
+
+            console.log(`✅ Permisos actualizados para usuario ${user.email}:`, permissionsJSON);
 
             res.json(createResponse(true, 'Permisos actualizados exitosamente', {
                 user_id: id,

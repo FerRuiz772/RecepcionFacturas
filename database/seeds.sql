@@ -32,8 +32,7 @@ UPDATE users SET permissions = JSON_OBJECT(
     'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', true),
     'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'approve', true, 'reject', true, 'export', true, 'view_payments', true, 'manage_payments', true),
     'suppliers', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'export', true),
-    'users', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'manage_permissions', true, 'reset_passwords', true),
-    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', true, 'manage', true)
+    'users', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'manage_permissions', true, 'reset_passwords', true)
 ) WHERE role = 'super_admin';
 
 -- Permisos para Admin Contaduría: permisos amplios excepto gestión completa de usuarios
@@ -41,8 +40,7 @@ UPDATE users SET permissions = JSON_OBJECT(
     'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', true),
     'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'approve', true, 'reject', true, 'export', true, 'view_payments', true, 'manage_payments', true),
     'suppliers', JSON_OBJECT('view', true, 'create', true, 'edit', true, 'delete', true, 'export', true),
-    'users', JSON_OBJECT('view', true, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
-    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', true, 'manage', true)
+    'users', JSON_OBJECT('view', true, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false)
 ) WHERE role = 'admin_contaduria';
 
 -- Permisos para Trabajador Contaduría: permisos limitados para operaciones diarias
@@ -50,8 +48,7 @@ UPDATE users SET permissions = JSON_OBJECT(
     'dashboard', JSON_OBJECT('view', true, 'view_stats', true, 'view_charts', true, 'export_data', false),
     'invoices', JSON_OBJECT('view', true, 'create', false, 'edit', true, 'delete', false, 'approve', false, 'reject', false, 'export', true, 'view_payments', true, 'manage_payments', true),
     'suppliers', JSON_OBJECT('view', true, 'create', false, 'edit', false, 'delete', false, 'export', false),
-    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
-    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', false, 'manage', true)
+    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false)
 ) WHERE role = 'trabajador_contaduria';
 
 -- Permisos para Proveedor: acceso limitado solo a sus propias facturas
@@ -59,8 +56,7 @@ UPDATE users SET permissions = JSON_OBJECT(
     'dashboard', JSON_OBJECT('view', true, 'view_stats', false, 'view_charts', false, 'export_data', false),
     'invoices', JSON_OBJECT('view', true, 'create', true, 'edit', false, 'delete', false, 'approve', false, 'reject', false, 'export', false, 'view_payments', false, 'manage_payments', false),
     'suppliers', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'export', false),
-    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false),
-    'accounting_documents', JSON_OBJECT('view', true, 'upload', true, 'download', true, 'delete', false, 'manage', false)
+    'users', JSON_OBJECT('view', false, 'create', false, 'edit', false, 'delete', false, 'manage_permissions', false, 'reset_passwords', false)
 ) WHERE role = 'proveedor';
 
 -- ==================== FACTURAS DE EJEMPLO ====================

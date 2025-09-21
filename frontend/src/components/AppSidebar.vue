@@ -1,8 +1,8 @@
-﻿<template>
-  <v-navigation-drawer 
-    v-model="drawerModel" 
-    app 
-    class="sidebar" 
+<template>
+  <v-navigation-drawer
+    v-model="drawerModel"
+    app
+    class="sidebar"
     width="280"
     :temporary="true"
   >
@@ -17,7 +17,7 @@
       </div>
       <p class="sidebar-subtitle">Sistema de Gestión de Pagos</p>
     </div>
-    
+
     <v-list nav class="sidebar-nav pt-4">
       <v-list-item
         v-for="item in filteredMenuItems"
@@ -29,7 +29,7 @@
         <template v-slot:prepend>
           <v-icon :icon="item.icon" class="nav-icon" />
         </template>
-        
+
         <v-list-item-title class="nav-title">
           {{ item.title }}
         </v-list-item-title>
@@ -84,12 +84,6 @@ const menuItems = [
     icon: 'mdi-account-multiple-outline', 
     to: '/users', 
     permission: () => authStore.canViewUsers
-  },
-  { 
-    title: 'Documentos Contables', 
-    icon: 'mdi-file-document-outline', 
-    to: '/accounting-documents', 
-    permission: () => authStore.canViewAccountingDocuments
   }
 ]
 
@@ -102,11 +96,9 @@ const filteredMenuItems = computed(() => {
 
 const isActiveRoute = (itemPath) => {
   const currentPath = route.path
-  
   if (itemPath === '/dashboard') {
     return currentPath === '/dashboard'
   }
-  
   return currentPath.startsWith(itemPath)
 }
 </script>
@@ -201,11 +193,11 @@ const isActiveRoute = (itemPath) => {
   .sidebar-header {
     padding: 20px 16px;
   }
-  
+
   .sidebar-title {
     font-size: 16px;
   }
-  
+
   .sidebar-subtitle {
     font-size: 12px;
   }

@@ -114,16 +114,7 @@
           <template v-slot:item.actions="{ item }">
             <div class="actions-cell">
               <v-btn
-                variant="outlined"
-                size="small"
-                color="primary"
-                @click="viewSupplier(item)"
-              >
-                <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
-                Ver
-              </v-btn>
-              
-              <v-btn
+                v-if="authStore.canEditSuppliers"
                 variant="outlined"
                 size="small"
                 color="warning"
@@ -135,6 +126,7 @@
               </v-btn>
 
               <v-btn
+                v-if="authStore.canDeleteSuppliers"
                 variant="outlined"
                 size="small"
                 :color="item.is_active ? 'error' : 'success'"
@@ -263,7 +255,6 @@ const {
   loadSuppliers,
   debounceSearch,
   openCreateDialog,
-  viewSupplier,
   editSupplier,
   closeSupplierDialog,
   saveSupplier,

@@ -87,10 +87,6 @@ export function useSuppliers() {
     supplierDialog.value = true
   }
 
-  const viewSupplier = (supplier) => {
-    console.log('Ver proveedor:', supplier)
-  }
-
   const editSupplier = (supplier) => {
     editMode.value = true
     supplierForm.value = { ...supplier }
@@ -179,7 +175,6 @@ export function useSuppliers() {
     loadSuppliers,
     debounceSearch,
     openCreateDialog,
-    viewSupplier,
     editSupplier,
     closeSupplierDialog,
     saveSupplier,

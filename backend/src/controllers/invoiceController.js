@@ -1244,7 +1244,7 @@ const invoiceController = {
                     invoice_id: invoiceWithSupplier.id,
                     from_state: currentStatus,
                     to_state: targetStatus,
-                    changed_by: req.user.userId,
+                    user_id: req.user.userId,
                     timestamp: new Date(),
                     notes: `Documento ${type} reemplazado - requiere nueva revisión`
                 });
@@ -1320,6 +1320,48 @@ const invoiceController = {
                 }
             } catch (notificationError) {
                 console.error('❌ Error enviando notificación de documento reemplazado:', notificationError);
+                // No fallar la operación principal
+            }
+
+            // Verificar si después del reemplazo la factura debería completarse automáticamente
+            try {
+                console.log('🔍 Verificando si la factura debería completarse automáticamente...');
+                
+                // Recargar el payment con los datos actualizados
+                const updatedPayment = await Payment.findOne({
+                    where: { invoice_id: parseInt(id) }
+                });
+                
+                // Recargar la factura con los datos actualizados
+                const updatedInvoice = await Invoice.findByPk(parseInt(id));
+                
+                const shouldComplete = await invoiceController.checkIfShouldComplete(updatedInvoice);
+                
+                if (shouldComplete && updatedInvoice.status !== 'proceso_completado') {
+                    console.log('✅ La factura puede completarse automáticamente después del reemplazo');
+                    
+                    const oldStatus = updatedInvoice.status;
+                    await updatedInvoice.update({ status: 'proceso_completado' });
+                    
+                    // Actualizar fecha de completado en payment
+                    await updatedPayment.update({
+                        completion_date: new Date()
+                    });
+                    
+                    // Crear registro de cambio de estado
+                    await InvoiceState.create({
+                        invoice_id: updatedInvoice.id,
+                        from_state: oldStatus,
+                        to_state: 'proceso_completado',
+                        user_id: req.user.userId,
+                        timestamp: new Date(),
+                        notes: 'Proceso completado automáticamente después de reemplazar documento - todos los documentos están disponibles'
+                    });
+                    
+                    console.log('🎉 Factura completada automáticamente después del reemplazo');
+                }
+            } catch (autoCompleteError) {
+                console.error('❌ Error en verificación automática de completado:', autoCompleteError);
                 // No fallar la operación principal
             }
 
@@ -1408,7 +1450,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['name'] }]
+                    include: [{ model: Supplier, attributes: ['business_name'] }]
                 }]
             });
 
@@ -1452,7 +1494,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['name'] }]
+                    include: [{ model: Supplier, attributes: ['business_name'] }]
                 }]
             });
 
@@ -1495,7 +1537,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['name'] }]
+                    include: [{ model: Supplier, attributes: ['business_name'] }]
                 }]
             });
 
@@ -1538,7 +1580,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['name'] }]
+                    include: [{ model: Supplier, attributes: ['business_name'] }]
                 }]
             });
 

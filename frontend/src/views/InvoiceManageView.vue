@@ -1,4 +1,4 @@
-﻿<template>
+<template>
   <div class="accounting-layout">
     <!-- Breadcrumb -->
     <div class="breadcrumb-container">
@@ -686,18 +686,25 @@
 
 <script setup>
 import { onMounted } from 'vue'
-import { useAccountingDocuments } from '../scripts/accounting-documents.js'
+import { useInvoiceManage } from '../scripts/invoice-manage.js'
 
 const {
-  // Reactive state
+  // Estado reactivo
   loading,
   invoice,
+  isrFile,
+  ivaFile,
+  proofFile,
+  passwordFile,
+  uploadingPassword,
+  replaceFile,
+  replaceDialog,
+  selectedFileIndex,
+  generatingPassword,
   uploadingISR,
   uploadingIVA,
   uploadingProof,
-  uploadingPassword,
-  completingProcess,
-  selectedFileIndex,
+  replacingFile,
   
   // Edit state
   editMode,
@@ -705,23 +712,25 @@ const {
   saving,
   
   // Computed properties
+  canGeneratePassword,
+  canUploadISR,
+  canUploadIVA,
+  canUploadProof,
   fileOptions,
   currentFile,
   currentFileUrl,
-  hasISRRetention,
-  hasIVARetention,
-  hasPaymentProof,
   hasPasswordFile,
   documentsProgress,
   
-  // Functions
+  // Funciones
   loadInvoice,
   hasDocument,
-  getProgressPercentage,
-  getProgressColor,
-  getCompletionText,
-  getCompletionColor,
-  canCompleteProcess,
+  generatePassword,
+  copyPassword,
+  uploadISRFile,
+  uploadIVAFile,
+  uploadProofFile,
+  uploadPasswordFile,
   handleISRUpload,
   handleIVAUpload,
   handleProofUpload,
@@ -734,26 +743,32 @@ const {
   replaceIVA,
   replaceProof,
   replacePassword,
-  completeProcess,
+  downloadOriginalFile,
+  downloadCurrentFile,
   downloadISR,
   downloadIVA,
   downloadProof,
   downloadPassword,
-  downloadCurrentFile,
   openInNewTab,
   handleFrameError,
+  getProgressColor,
+  getCompletionText,
+  getCompletionColor,
   getStatusColor,
   getStatusText,
+  getPriorityColor,
+  getPriorityText,
+  getFileIcon,
+  getFileName,
   formatNumber,
-  initializeAccountingDocuments,
-  
-  // Edit functions
+  formatFileSize,
   startEdit,
   cancelEdit,
-  saveEdit
-} = useAccountingDocuments()
+  saveEdit,
+  initializeInvoiceManage
+} = useInvoiceManage()
 
-onMounted(initializeAccountingDocuments)
+onMounted(initializeInvoiceManage)
 </script>
 
-<style src="../styles/accounting-documents.css" scoped></style>
+<style src="../styles/invoice-detail.css" scoped></style>

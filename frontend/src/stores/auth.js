@@ -40,7 +40,7 @@ export const useAuthStore = defineStore('auth', {
     userRole: (state) => state.user?.role,
     userName: (state) => state.user?.name,
     userEmail: (state) => state.user?.email,
-    userPermissions: (state) => state.user?.permissions || [],
+    userPermissions: (state) => Array.from(state.user?.permissions || []),
     isProveedor: (state) => state.user?.role === 'proveedor',
     isAdmin: (state) => ['super_admin', 'admin_contaduria'].includes(state.user?.role),
     isContaduria: (state) => ['admin_contaduria', 'trabajador_contaduria'].includes(state.user?.role),
@@ -51,7 +51,7 @@ export const useAuthStore = defineStore('auth', {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
       
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes(permission)
     },
 
@@ -60,7 +60,7 @@ export const useAuthStore = defineStore('auth', {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
       
-      const userPermissions = state.user.permissions || []
+      const userPermissions = Array.from(state.user.permissions || [])
       return permissionArray.every(permission => userPermissions.includes(permission))
     },
 
@@ -69,7 +69,7 @@ export const useAuthStore = defineStore('auth', {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
       
-      const userPermissions = state.user.permissions || []
+      const userPermissions = Array.from(state.user.permissions || [])
       return permissionArray.some(permission => userPermissions.includes(permission))
     },
 
@@ -84,25 +84,25 @@ export const useAuthStore = defineStore('auth', {
     canViewUsers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('users.view')
     },
     canCreateUsers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('users.create')
     },
     canEditUsers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('users.edit')
     },
     canDeleteUsers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('users.delete')
     },
 
@@ -110,25 +110,25 @@ export const useAuthStore = defineStore('auth', {
     canViewInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('invoices.view')
     },
     canCreateInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('invoices.create')
     },
     canEditInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('invoices.edit')
     },
     canDeleteInvoices: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('invoices.delete')
     },
 
@@ -136,19 +136,19 @@ export const useAuthStore = defineStore('auth', {
     canViewDocuments: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('documents.view')
     },
     canUploadDocuments: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('documents.upload')
     },
     canDownloadDocuments: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('documents.download')
     },
 
@@ -156,34 +156,26 @@ export const useAuthStore = defineStore('auth', {
     canViewSuppliers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('suppliers.view')
     },
     canCreateSuppliers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('suppliers.create')
     },
     canEditSuppliers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('suppliers.edit')
     },
     canDeleteSuppliers: (state) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
+      const permissions = Array.from(state.user.permissions || [])
       return permissions.includes('suppliers.delete')
-    },
-
-    // Permisos para documentos contables
-    canViewAccountingDocuments: (state) => {
-      if (!state.user) return false
-      if (state.user.role === 'super_admin') return true
-      const permissions = state.user.permissions || []
-      return permissions.includes('accounting_documents.view')
     }
   },
 
@@ -205,7 +197,7 @@ export const useAuthStore = defineStore('auth', {
 
         this.token = token
         this.refreshToken = refreshToken
-        this.user = user
+        this.user = { ...user, permissions: [] } // Inicializar con array vacío
 
         safeSetItem('token', token)
         safeSetItem('refreshToken', refreshToken)
@@ -278,7 +270,7 @@ export const useAuthStore = defineStore('auth', {
         
         // Cargar información básica del usuario
         const response = await axios.get('/api/auth/me')
-        this.user = response.data.user
+        this.user = { ...response.data.user, permissions: [] } // Inicializar con array vacío
         
         // Cargar permisos del usuario
         await this.loadUserPermissions()
@@ -319,7 +311,9 @@ export const useAuthStore = defineStore('auth', {
         const response = await axios.get(`/api/users/${this.user.id}/permissions`)
         
         // El endpoint devuelve { user_id, name, role, permissions: ['permiso1', 'permiso2'] }
-        this.user.permissions = response.data.data.permissions || []
+        // Asegurar que siempre sea un array y no un Proxy
+        const permissions = Array.from(response.data.data.permissions || [])
+        this.user = { ...this.user, permissions }
         
         console.log('Permisos cargados exitosamente:', {
           userId: this.user.id,
@@ -329,7 +323,7 @@ export const useAuthStore = defineStore('auth', {
       } catch (error) {
         console.error('Error cargando permisos del usuario:', error)
         // Si no se pueden cargar permisos, asignar array vacío
-        this.user.permissions = []
+        this.user = { ...this.user, permissions: [] }
       }
     },
 

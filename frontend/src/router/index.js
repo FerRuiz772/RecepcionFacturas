@@ -42,16 +42,6 @@ const routes = [
     component: () => import('../views/NewInvoiceView.vue'),
     meta: { requiresAuth: true, permission: 'invoices.create' }
   },
-  // NUEVA RUTA: Gestión de documentos para contaduría
-  {
-    path: '/invoices/:id/manage',
-    name: 'AccountingDocuments',
-    component: () => import('../views/AccountingDocumentsView.vue'),
-    meta: { 
-      requiresAuth: true, 
-      permission: 'invoices.edit'
-    }
-  },
   {
     path: '/suppliers',
     name: 'Suppliers',
@@ -76,6 +66,13 @@ const routes = [
     name: 'InvoiceDetail',
     component: () => import('../views/InvoiceDetailView.vue'),
     meta: { requiresAuth: true }
+  },
+  // NUEVA RUTA: Vista de gestión de factura (para contaduría y admin)
+  {
+    path: '/invoices/:id/manage',
+    name: 'InvoiceManage',
+    component: () => import('../views/InvoiceManageView.vue'),
+    meta: { requiresAuth: true, permission: 'invoices.edit' }
   },
   // Ruta de error 404
   {
@@ -118,7 +115,7 @@ router.beforeEach(async (to, from, next) => {
       console.log(`❌ Acceso denegado: no tiene permiso ${to.meta.permission} para ${to.path}`)
       next('/dashboard')
     } 
-    else if (to.name === 'AccountingDocuments' || to.name === 'InvoiceDetail') {
+    else if (to.name === 'InvoiceDetail') {
       // Validar que el ID sea válido (debe ser un número positivo)
       const invoiceId = to.params.id
       if (!invoiceId || isNaN(parseInt(invoiceId)) || parseInt(invoiceId) <= 0) {

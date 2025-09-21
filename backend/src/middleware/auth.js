@@ -106,18 +106,15 @@ const authenticate = async (req, res, next) => {
 
     // Función helper para verificar permisos
     const hasPermission = (permissionKey) => {
-      // Super admin tiene todos los permisos
-      if (user.role === 'super_admin') return true;
+      // Verificar solo permisos específicos, sin bypass por rol
       return userPermissions.includes(permissionKey);
     };
 
     const hasAllPermissions = (permissionKeys) => {
-      if (user.role === 'super_admin') return true;
       return permissionKeys.every(key => userPermissions.includes(key));
     };
 
     const hasAnyPermission = (permissionKeys) => {
-      if (user.role === 'super_admin') return true;
       return permissionKeys.some(key => userPermissions.includes(key));
     };
 

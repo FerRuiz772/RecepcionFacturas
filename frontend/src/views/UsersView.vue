@@ -653,63 +653,6 @@
                     </v-card>
                   </v-col>
                 </v-row>
-
-                <!-- Segunda fila para módulos adicionales -->
-                <v-row>
-                  <!-- Sección Documentos Contables -->
-                  <v-col cols="12" md="6">
-                    <v-card class="permission-section" elevation="2">
-                      <v-card-title class="d-flex justify-space-between align-center">
-                        <div class="d-flex align-center">
-                          <v-icon class="mr-2" color="purple">mdi-folder-account-outline</v-icon>
-                          Documentos Contables
-                        </div>
-                        <v-chip 
-                          :color="getPermissionCount('accounting_documents') === 4 ? 'success' : 'grey'"
-                          size="small"
-                        >
-                          {{ getPermissionCount('accounting_documents') }}/4
-                        </v-chip>
-                      </v-card-title>
-                      <v-card-text class="pt-2">
-                        <div class="permission-grid">
-                          <div 
-                            class="permission-box"
-                            :class="{ 'active': userPermissions.accounting_documents?.view }"
-                            @click="togglePermission('accounting_documents', 'view')"
-                          >
-                            <v-icon size="20">mdi-eye-outline</v-icon>
-                            <span>Ver documentos</span>
-                          </div>
-                          <div 
-                            class="permission-box"
-                            :class="{ 'active': userPermissions.accounting_documents?.upload }"
-                            @click="togglePermission('accounting_documents', 'upload')"
-                          >
-                            <v-icon size="20">mdi-upload-outline</v-icon>
-                            <span>Subir documentos</span>
-                          </div>
-                          <div 
-                            class="permission-box"
-                            :class="{ 'active': userPermissions.accounting_documents?.download }"
-                            @click="togglePermission('accounting_documents', 'download')"
-                          >
-                            <v-icon size="20">mdi-download-outline</v-icon>
-                            <span>Descargar documentos</span>
-                          </div>
-                          <div 
-                            class="permission-box"
-                            :class="{ 'active': userPermissions.accounting_documents?.manage }"
-                            @click="togglePermission('accounting_documents', 'manage')"
-                          >
-                            <v-icon size="20">mdi-cog-outline</v-icon>
-                            <span>Gestionar documentos</span>
-                          </div>
-                        </div>
-                      </v-card-text>
-                    </v-card>
-                  </v-col>
-                </v-row>
               </div>
             </v-tabs-window-item>
           </v-tabs-window>
@@ -767,8 +710,7 @@ const userPermissions = ref({
   documents: { view: false, upload: false, download: false },
   users: { view: false, create: false, edit: false, delete: false },
   suppliers: { view: false, create: false, edit: false, delete: false },
-  dashboard: { view: false, view_stats: false, view_charts: false },
-  accounting_documents: { view: false, upload: false, download: false, manage: false }
+  dashboard: { view: false, view_stats: false, view_charts: false }
 })
 const savingPermissions = ref(false)
 
@@ -887,8 +829,7 @@ const loadUserPermissions = async (userId) => {
         documents: { view: false, upload: false, download: false },
         users: { view: false, create: false, edit: false, delete: false },
         suppliers: { view: false, create: false, edit: false, delete: false },
-        dashboard: { view: false, view_stats: false, view_charts: false },
-        accounting_documents: { view: false, upload: false, download: false, manage: false }
+        dashboard: { view: false, view_stats: false, view_charts: false }
       }
       
       // Mapear cada permiso del array a la estructura del frontend
@@ -1033,8 +974,7 @@ watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
       documents: { view: false, upload: false, download: false },
       users: { view: false, create: false, edit: false, delete: false },
       suppliers: { view: false, create: false, edit: false, delete: false },
-      dashboard: { view: false, view_stats: false, view_charts: false },
-      accounting_documents: { view: false, upload: false, download: false, manage: false }
+      dashboard: { view: false, view_stats: false, view_charts: false }
     }
   }
 })
