@@ -62,8 +62,30 @@ const cleanupCompressedFiles = async () => {
                     
                     if (item.isDirectory()) {
                         await findAndCleanGzFiles(fullPath);
-                    } else if (item.isFile() && item.name.endsWith('.gz') && item.name.includes('.pdf')) {
-                        console.log(`🔧 Limpiando archivo comprimido: ${fullPath}`);
+                    } else if (item.isFile() && item.name.endsWith('.pdf')) {
+                        // Verificar si el archivo PDF está comprimido internamente
+                        try {
+                            const fileBuffer = await fs.readFile(fullPath);
+                            const isGzipped = fileBuffer[0] === 0x1f && fileBuffer[1] === 0x8b;
+                            
+                            if (isGzipped) {
+                                console.log(`🔧 Limpiando archivo PDF comprimido: ${fullPath}`);
+                                try {
+                                    const decompressedData = zlib.gunzipSync(fileBuffer);
+                                    await fs.writeFile(fullPath, decompressedData);
+                                    console.log(`✅ Archivo PDF descomprimido: ${fullPath}`);
+                                } catch (error) {
+                                    console.log(`❌ Error descomprimiendo PDF ${fullPath}: ${error.message}`);
+                                }
+                            }
+                        } catch (error) {
+                            // Ignorar errores de lectura de archivos individuales
+                            if (error.code !== 'ENOENT') {
+                                console.log(`❌ Error leyendo archivo ${fullPath}: ${error.message}`);
+                            }
+                        }
+                    } else if (item.isFile() && item.name.endsWith('.gz')) {
+                        console.log(`🔧 Limpiando archivo .gz: ${fullPath}`);
                         try {
                             const compressedData = await fs.readFile(fullPath);
                             const decompressedData = zlib.gunzipSync(compressedData);
@@ -71,7 +93,7 @@ const cleanupCompressedFiles = async () => {
                             
                             await fs.writeFile(originalPath, decompressedData);
                             await fs.unlink(fullPath);
-                            console.log(`✅ Archivo limpiado: ${originalPath}`);
+                            console.log(`✅ Archivo .gz limpiado: ${originalPath}`);
                         } catch (error) {
                             console.log(`❌ Error limpiando ${fullPath}: ${error.message}`);
                         }

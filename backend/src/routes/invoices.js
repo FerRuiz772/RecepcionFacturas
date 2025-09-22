@@ -39,9 +39,11 @@ const upload = multer({
 // Todas las rutas protegidas
 router.use(authenticate);
 
-// ===== DASHBOARD PRIMERO (rutas específicas) =====
-router.get('/dashboard/available-documents', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getAvailableDocuments);
-router.get('/dashboard/work-queue', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getWorkQueue);
+// ===== Dashboard y reportes =====
+router.get('/work-queue', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getWorkQueue);
+router.get('/available-documents', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getAvailableDocuments);
+
+module.exports = router;
 router.get('/dashboard/pending-invoices', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getPendingInvoices);
 
 // ===== ADMINISTRACIÓN =====
