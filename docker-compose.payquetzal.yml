@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  payquetzal_db:
+    image: mysql:8.0
+    container_name: payquetzal_db
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:3306:3306"
+    volumes:
+      - payquetzal_db_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    networks:
+      - payquetzal-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+
+  payquetzal_api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.prod
+    container_name: payquetzal_api
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: payquetzal_db
+      DB_PORT: 3306
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "127.0.0.1:5001:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./backend/logs:/app/logs
+    depends_on:
+      - payquetzal_db
+    networks:
+      - payquetzal-network
+
+volumes:
+  payquetzal_db_data:
+    driver: local
+
+networks:
+  payquetzal-network:
+    driver: bridge
