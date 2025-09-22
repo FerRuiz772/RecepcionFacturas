@@ -1,4 +1,18 @@
-﻿<template>
+﻿<!--
+/**
+ * @fileoverview Barra superior de navegación del sistema PayQuetzal
+ * Incluye toggle del sidebar, información del usuario y menú de opciones
+ * Responsive y adapta su comportamiento según el tamaño de pantalla
+ * 
+ * @component AppTopBar
+ * @description Barra de navegación superior con información del usuario y controles
+ * Se adapta al estado del sidebar y proporciona acceso rápido a funciones del usuario
+ * 
+ * @props {Boolean} drawerOpen - Estado del drawer/sidebar (abierto/cerrado)
+ * @emits toggle-sidebar - Evento para alternar el estado del sidebar
+ */
+-->
+<template>
   <v-app-bar 
     app 
     fixed
@@ -79,11 +93,20 @@
 </template>
 
 <script setup>
+/**
+ * @vue/component AppTopBar
+ * @description Barra superior de navegación con información del usuario
+ */
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from 'vue-toastification'
 
+/**
+ * Props del componente
+ * @typedef {Object} Props
+ * @property {Boolean} drawerOpen - Estado del drawer/sidebar (abierto/cerrado)
+ */
 const props = defineProps({
   drawerOpen: {
     type: Boolean,
@@ -91,6 +114,11 @@ const props = defineProps({
   }
 })
 
+/**
+ * Eventos emitidos por el componente
+ * @typedef {Object} Emits
+ * @property {Function} toggle-sidebar - Evento para alternar el estado del sidebar
+ */
 const emit = defineEmits(['toggle-sidebar'])
 
 const route = useRoute()
@@ -98,12 +126,19 @@ const router = useRouter()
 const authStore = useAuthStore()
 const toast = useToast()
 
-// Función para toggle del sidebar
+/**
+ * Emite evento para alternar el estado del sidebar
+ * @function toggleSidebar
+ */
 const toggleSidebar = () => {
   emit('toggle-sidebar')
 }
 
-// Información del usuario
+/**
+ * Computed que genera las iniciales del usuario
+ * @computed userInitials
+ * @returns {string} Iniciales del nombre del usuario en mayúsculas
+ */
 const userInitials = computed(() => {
   return authStore.userName
     ?.split(' ')
@@ -112,6 +147,11 @@ const userInitials = computed(() => {
     .toUpperCase() || 'U'
 })
 
+/**
+ * Computed que convierte el rol del usuario a formato legible
+ * @computed roleDisplayName
+ * @returns {string} Nombre del rol en formato para mostrar
+ */
 const roleDisplayName = computed(() => {
   const roles = {
     'super_admin': 'Super Admin',
@@ -122,11 +162,19 @@ const roleDisplayName = computed(() => {
   return roles[authStore.userRole] || authStore.userRole
 })
 
-// Funciones del menú de usuario
+/**
+ * Navega a la página de perfil del usuario
+ * @function goToProfile
+ */
 const goToProfile = () => {
   router.push('/profile')
 }
 
+/**
+ * Cierra la sesión del usuario y redirige al login
+ * @async
+ * @function logout
+ */
 const logout = async () => {
   try {
     await authStore.logout()

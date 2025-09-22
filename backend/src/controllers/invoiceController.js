@@ -1,3 +1,27 @@
+/**
+ * Controlador de gestión de facturas del sistema PayQuetzal
+ * Maneja el ciclo completo de vida de las facturas desde creación hasta pago
+ * 
+ * Funcionalidades principales:
+ * - CRUD de facturas con validaciones de negocio
+ * - Upload y gestión de documentos relacionados (PDF, imágenes)
+ * - Workflow de estados de factura (pendiente, revisión, aprobada, pagada, rechazada)
+ * - Notificaciones automáticas por email según cambios de estado
+ * - Generación de reportes y métricas del dashboard
+ * - Gestión de pagos y documentos de respaldo
+ * - Sistema de carpetas organizadas por proveedor y número de factura
+ * 
+ * Estados de factura:
+ * - pendiente: Recién creada, esperando revisión
+ * - en_revision: Bajo revisión de contabilidad  
+ * - aprobada: Aprobada para pago
+ * - pagada: Pago completado con documentos
+ * - rechazada: Rechazada con motivo
+ * 
+ * Estructura de archivos:
+ * uploads/empresas/[proveedor]/proveedores/[proveedor]/[numero_factura]/
+ */
+
 const { validationResult } = require('express-validator');
 const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
 const invoiceNotificationService = require('../utils/invoiceNotificationService');
@@ -10,10 +34,16 @@ const sharp = require('sharp');
 const zlib = require('zlib');
 const { Op } = require('sequelize');
 
-// Helper function para crear estructura de carpetas por empresa
+/**
+ * Crea la estructura de carpetas para organizar documentos de facturas
+ * Estructura: uploads/empresas/[empresa]/proveedores/[proveedor]/[numero_factura]
+ * @param {string} supplierBusinessName - Nombre comercial del proveedor
+ * @param {string} invoiceNumber - Número de la factura
+ * @returns {string} Ruta completa de la carpeta creada
+ */
 const createInvoiceFolder = async (supplierBusinessName, invoiceNumber) => {
     try {
-        // Normalizar nombres para carpetas
+        // Normalizar nombres para uso seguro en sistema de archivos
         const supplierFolder = supplierBusinessName
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '') // Remover acentos
@@ -23,11 +53,11 @@ const createInvoiceFolder = async (supplierBusinessName, invoiceNumber) => {
         const invoiceFolder = invoiceNumber
             .replace(/[^a-zA-Z0-9\-]/g, '_'); // Reemplazar caracteres especiales excepto guiones
 
-        // Estructura: uploads/empresas/[empresa]/proveedores/[proveedor]/[numero_factura]
+        // Definir estructura de carpetas jerárquica
         const uploadsDir = path.join(__dirname, '..', 'uploads');
         const empresasDir = path.join(uploadsDir, 'empresas');
         
-        // Para ahora, usar el nombre del proveedor como empresa
+        // TODO: En el futuro mapear múltiples proveedores a la misma empresa
         // En el futuro se puede mapear múltiples proveedores a la misma empresa
         const empresaDir = path.join(empresasDir, supplierFolder);
         const proveedoresDir = path.join(empresaDir, 'proveedores');
@@ -50,7 +80,22 @@ const createInvoiceFolder = async (supplierBusinessName, invoiceNumber) => {
     }
 };
 
-// Helper function para encontrar archivos en múltiples estructuras
+/**
+ * Busca documentos en múltiples estructuras de carpetas del sistema
+ * Soporta migración entre diferentes organizaciones de archivos
+ * 
+ * Estructuras soportadas:
+ * 1. Nueva: uploads/empresas/[proveedor]/proveedores/[proveedor]/[factura]/
+ * 2. Actual: uploads/[proveedor]/[factura_fecha]/
+ * 3. Antigua: uploads/[archivo]
+ * 4. Proveedores: uploads/proveedores/[proveedor]/[factura]/
+ * 
+ * @param {string} supplierBusinessName - Nombre comercial del proveedor
+ * @param {string} invoiceNumber - Número de la factura  
+ * @param {string} fileName - Nombre del archivo a buscar
+ * @returns {string} Ruta completa del archivo encontrado
+ * @throws {Error} Si el archivo no se encuentra en ninguna estructura
+ */
 const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) => {
     try {
         console.log(`🔍 FindDocumentPath: Buscando archivo...`);
@@ -134,8 +179,16 @@ const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) =
 
 
 
-// Configuración de multer para upload de archivos
+/**
+ * Configuración de almacenamiento con multer para upload de archivos de facturas
+ * Crea directorios dinámicos basados en parámetros de request
+ * Maneja errores de creación de directorios graciosamente
+ */
 const storage = multer.diskStorage({
+    /**
+     * Define el directorio de destino para archivos subidos
+     * Utiliza el ID de la factura o carpeta 'temp' como fallback
+     */
     destination: async (req, file, cb) => {
         const uploadDir = path.join(__dirname, '../uploads', req.params.id || 'temp');
         try {
@@ -145,6 +198,10 @@ const storage = multer.diskStorage({
             cb(error);
         }
     },
+    /**
+     * Genera nombre único para archivos subidos usando timestamp y número aleatorio
+     * Preserva la extensión original del archivo
+     */
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
         const ext = path.extname(file.originalname);
@@ -152,10 +209,15 @@ const storage = multer.diskStorage({
     }
 });
 
+/**
+ * Configuración de multer para upload de archivos PDF
+ * Límite de 10MB por archivo, máximo 5 archivos por request
+ * Solo acepta archivos con mimetype application/pdf
+ */
 const upload = multer({
     storage: storage,
     limits: {
-        fileSize: 10 * 1024 * 1024 // 10MB
+        fileSize: 10 * 1024 * 1024 // 10MB por archivo
     },
     fileFilter: (req, file, cb) => {
         if (file.mimetype === 'application/pdf') {
@@ -166,7 +228,21 @@ const upload = multer({
     }
 });
 
-// Validación de transiciones de estado
+/**
+ * Matriz de transiciones válidas entre estados de factura
+ * Define el workflow de estados permitidos para mantener integridad del proceso
+ * 
+ * Estados del workflow:
+ * - factura_subida: Estado inicial, factura cargada por proveedor
+ * - asignada_contaduria: Asignada a contador para revisión
+ * - en_proceso: Contador trabajando en la factura
+ * - contrasena_generada: Contraseña para descarga generada
+ * - retencion_isr_generada: Retención ISR calculada y guardada
+ * - retencion_iva_generada: Retención IVA calculada y guardada  
+ * - pago_realizado: Pago ejecutado
+ * - proceso_completado: Workflow finalizado exitosamente
+ * - rechazada: Factura rechazada, puede volver a factura_subida
+ */
 const VALID_STATE_TRANSITIONS = {
     'factura_subida': ['asignada_contaduria', 'rechazada'],
     'asignada_contaduria': ['en_proceso', 'rechazada'],
@@ -179,10 +255,29 @@ const VALID_STATE_TRANSITIONS = {
     'rechazada': ['factura_subida']
 };
 
+/**
+ * Controlador principal para gestión de facturas
+ * Contiene todos los endpoints CRUD y funciones especializadas
+ */
 const invoiceController = {
-    // Middleware para upload
+    // Middleware para upload de múltiples archivos (máximo 5)
     uploadMiddleware: upload.array('files', 5),
 
+    /**
+     * Obtiene lista paginada de facturas con filtros y permisos por rol
+     * 
+     * @route GET /api/invoices
+     * @param {Object} req.query - Parámetros de consulta
+     * @param {string} req.query.status - Filtrar por estado de factura
+     * @param {number} req.query.supplier_id - Filtrar por ID de proveedor
+     * @param {number} req.query.assigned_to - Filtrar por contador asignado
+     * @param {number} req.query.page - Número de página (default: 1)
+     * @param {number} req.query.limit - Elementos por página (default: 10)
+     * @param {string} req.query.search - Búsqueda en número y descripción
+     * @param {string} req.query.date_from - Fecha inicio filtro (YYYY-MM-DD)
+     * @param {string} req.query.date_to - Fecha fin filtro (YYYY-MM-DD)
+     * @returns {Object} Lista paginada con filtros aplicados según rol del usuario
+     */
     async getAllInvoices(req, res) {
         try {
             const { status, supplier_id, assigned_to, page = 1, limit = 10, search, date_from, date_to } = req.query;
@@ -332,6 +427,47 @@ const invoiceController = {
 
             if (!invoice) {
                 return res.status(404).json({ error: 'Factura no encontrada' });
+            }
+
+            // Verificación automática de estado inconsistente
+            try {
+                if (invoice.payment && 
+                    !['proceso_completado', 'rechazada'].includes(invoice.status) &&
+                    invoice.amount > 0) {
+                    
+                    const payment = invoice.payment;
+                    const allDocumentsComplete = payment.password_file && 
+                                               payment.isr_retention_file && 
+                                               payment.iva_retention_file && 
+                                               payment.payment_proof_file;
+
+                    if (allDocumentsComplete && invoice.status !== 'proceso_completado') {
+                        console.log(`🔧 Auto-corrección: Factura ${invoice.number} tiene todos los documentos pero estado incorrecto`);
+                        
+                        const oldStatus = invoice.status;
+                        await invoice.update({ status: 'proceso_completado' });
+                        
+                        if (!payment.completion_date) {
+                            await payment.update({ completion_date: new Date() });
+                        }
+                        
+                        await InvoiceState.create({
+                            invoice_id: invoice.id,
+                            from_state: oldStatus,
+                            to_state: 'proceso_completado',
+                            user_id: 1, // Sistema automático
+                            notes: 'Auto-corrección al consultar factura - todos los documentos estaban completos',
+                            timestamp: new Date()
+                        });
+                        
+                        // Actualizar el objeto invoice para reflejar el cambio
+                        invoice.status = 'proceso_completado';
+                        console.log(`✅ Factura ${invoice.number} corregida automáticamente`);
+                    }
+                }
+            } catch (autoFixError) {
+                console.error('❌ Error en auto-corrección:', autoFixError);
+                // No interrumpir la consulta principal
             }
 
             // Verificar permisos de acceso
@@ -2834,30 +2970,11 @@ const invoiceController = {
                 isr_retention_file: !!payment.isr_retention_file,
                 iva_retention_file: !!payment.iva_retention_file,
                 payment_proof_file: !!payment.payment_proof_file,
-                allComplete: allDocumentsComplete
+                allComplete: allDocumentsComplete,
+                currentStatus: invoice.status
             });
 
-            // Determinar el nuevo estado según el tipo de documento
-            switch (documentType) {
-                case 'retention_isr':
-                    newStatus = 'retencion_isr_generada';
-                    statusNotes = 'Retención ISR subida automáticamente';
-                    break;
-                case 'retention_iva':
-                    newStatus = 'retencion_iva_generada';
-                    statusNotes = 'Retención IVA subida automáticamente';
-                    break;
-                case 'password_file':
-                    newStatus = 'contrasena_generada';
-                    statusNotes = 'Archivo de contraseña subido automáticamente';
-                    break;
-                case 'payment_proof':
-                    newStatus = 'comprobante_subido';
-                    statusNotes = 'Comprobante de pago subido';
-                    break;
-            }
-
-            // Si todos los documentos están completos, marcar como completado
+            // Si todos los documentos están completos, siempre ir a proceso_completado
             if (allDocumentsComplete) {
                 // Validar que la factura tenga un monto válido antes de completar
                 if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
@@ -2865,15 +2982,55 @@ const invoiceController = {
                         invoiceId: invoice.id,
                         amount: invoice.amount
                     });
-                    statusNotes += ' - Pendiente: definir monto de factura';
+                    
+                    // Si todos los documentos están pero falta monto, ir al estado según documento subido
+                    switch (documentType) {
+                        case 'retention_isr':
+                            newStatus = 'retencion_isr_generada';
+                            statusNotes = 'Retención ISR subida - Pendiente: definir monto de factura';
+                            break;
+                        case 'retention_iva':
+                            newStatus = 'retencion_iva_generada';
+                            statusNotes = 'Retención IVA subida - Pendiente: definir monto de factura';
+                            break;
+                        case 'password_file':
+                            newStatus = 'contrasena_generada';
+                            statusNotes = 'Archivo de contraseña subido - Pendiente: definir monto de factura';
+                            break;
+                        case 'payment_proof':
+                            newStatus = 'pago_realizado';
+                            statusNotes = 'Comprobante de pago subido - Pendiente: definir monto de factura';
+                            break;
+                    }
                 } else {
+                    // Todos los documentos completos Y monto válido = proceso completado
                     newStatus = 'proceso_completado';
-                    statusNotes = 'Proceso completado - todos los documentos subidos';
+                    statusNotes = 'Proceso completado automáticamente - todos los documentos subidos';
                     
                     // Actualizar la fecha de completado
                     await payment.update({
                         completion_date: new Date()
                     });
+                }
+            } else {
+                // No todos los documentos están completos, avanzar estado por estado
+                switch (documentType) {
+                    case 'retention_isr':
+                        newStatus = 'retencion_isr_generada';
+                        statusNotes = 'Retención ISR subida automáticamente';
+                        break;
+                    case 'retention_iva':
+                        newStatus = 'retencion_iva_generada';
+                        statusNotes = 'Retención IVA subida automáticamente';
+                        break;
+                    case 'password_file':
+                        newStatus = 'contrasena_generada';
+                        statusNotes = 'Archivo de contraseña subido automáticamente';
+                        break;
+                    case 'payment_proof':
+                        newStatus = 'pago_realizado';
+                        statusNotes = 'Comprobante de pago subido';
+                        break;
                 }
             }
 
@@ -2881,7 +3038,8 @@ const invoiceController = {
                 console.log('🔄 Actualizando estado de factura:', {
                     invoiceId: invoice.id,
                     oldStatus: invoice.status,
-                    newStatus: newStatus
+                    newStatus: newStatus,
+                    reason: statusNotes
                 });
 
                 const oldStatus = invoice.status;
@@ -3027,6 +3185,115 @@ const invoiceController = {
         } catch (error) {
             console.error('❌ Error creando ZIP:', error);
             throw error;
+        }
+    },
+
+    /**
+     * Verifica y corrige facturas con estados inconsistentes
+     * Busca facturas que tienen todos los documentos pero no están en proceso_completado
+     * @async
+     * @function fixInconsistentInvoiceStates
+     */
+    fixInconsistentInvoiceStates: async () => {
+        try {
+            console.log('🔍 Iniciando verificación de estados inconsistentes...');
+            
+            // Buscar facturas que no están completadas pero podrían estarlo
+            const invoicesWithPayments = await Invoice.findAll({
+                where: {
+                    status: {
+                        [Op.not]: ['proceso_completado', 'rechazada']
+                    },
+                    amount: {
+                        [Op.gt]: 0
+                    }
+                },
+                include: [{
+                    model: Payment,
+                    as: 'payment',
+                    required: true
+                }]
+            });
+
+            let correctedCount = 0;
+
+            for (const invoice of invoicesWithPayments) {
+                const payment = invoice.payment;
+                
+                // Verificar si todos los documentos están completos
+                const allDocumentsComplete = payment.password_file && 
+                                           payment.isr_retention_file && 
+                                           payment.iva_retention_file && 
+                                           payment.payment_proof_file;
+
+                if (allDocumentsComplete && invoice.status !== 'proceso_completado') {
+                    console.log(`🔧 Corrigiendo factura ${invoice.number} (ID: ${invoice.id})`);
+                    console.log(`   Estado actual: ${invoice.status} → proceso_completado`);
+                    
+                    const oldStatus = invoice.status;
+                    
+                    // Actualizar estado de la factura
+                    await invoice.update({ 
+                        status: 'proceso_completado'
+                    });
+                    
+                    // Actualizar fecha de completado si no existe
+                    if (!payment.completion_date) {
+                        await payment.update({
+                            completion_date: new Date()
+                        });
+                    }
+                    
+                    // Crear registro en el historial de estados
+                    await InvoiceState.create({
+                        invoice_id: invoice.id,
+                        from_state: oldStatus,
+                        to_state: 'proceso_completado',
+                        user_id: 1, // Sistema automático
+                        notes: 'Corrección automática - todos los documentos estaban completos',
+                        timestamp: new Date()
+                    });
+                    
+                    correctedCount++;
+                }
+            }
+            
+            console.log(`✅ Verificación completada. ${correctedCount} facturas corregidas.`);
+            return correctedCount;
+            
+        } catch (error) {
+            console.error('❌ Error verificando estados inconsistentes:', error);
+            throw error;
+        }
+    },
+
+    /**
+     * Endpoint para ejecutar la corrección de estados inconsistentes
+     * @async
+     * @function runStateCorrection
+     * @param {Object} req - Request object
+     * @param {Object} res - Response object
+     */
+    runStateCorrection: async (req, res) => {
+        try {
+            console.log('🚀 Ejecutando corrección de estados iniciada por usuario:', req.user?.userId);
+            
+            const correctedCount = await invoiceController.fixInconsistentInvoiceStates();
+            
+            res.json({
+                success: true,
+                message: `Corrección completada exitosamente`,
+                correctedInvoices: correctedCount,
+                timestamp: new Date().toISOString()
+            });
+            
+        } catch (error) {
+            console.error('❌ Error en endpoint de corrección:', error);
+            res.status(500).json({
+                success: false,
+                error: 'Error ejecutando corrección de estados',
+                details: error.message
+            });
         }
     }
 };

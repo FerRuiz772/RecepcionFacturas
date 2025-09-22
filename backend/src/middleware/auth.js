@@ -2,24 +2,34 @@ const jwt = require('jsonwebtoken');
 const { User, Supplier, UserPermission } = require('../models');
 const rateLimit = require('express-rate-limit');
 
-// Rate limiting para autenticación
+/**
+ * Rate limiting para endpoints de autenticación
+ * Previene ataques de fuerza bruta limitando intentos por IP
+ */
 const authRateLimit = rateLimit({
-  windowMs: 1 * 60 * 1000, // 1 minuto para desarrollo
-  max: 1000, // máximo 1000 intentos por IP para desarrollo  
+  windowMs: 1 * 60 * 1000, // Ventana de 1 minuto para desarrollo
+  max: 1000, // Máximo 1000 intentos por IP para desarrollo  
   message: { error: 'Demasiados intentos de autenticación' },
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Opcional: saltar rate limiting para IPs locales en desarrollo
+    // Saltar rate limiting para IPs locales en desarrollo
     const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.startsWith('192.168.') || req.ip.startsWith('::ffff:192.168.')
     return process.env.NODE_ENV === 'development' && isLocal
   }
 });
 
-// Middleware principal de autenticación
+/**
+ * Middleware principal de autenticación JWT
+ * Valida tokens, carga datos del usuario y verifica estado activo
+ * Soporta tokens en header Authorization y query parameter (para iframes)
+ * @param {Object} req - Request object
+ * @param {Object} res - Response object 
+ * @param {Function} next - Next middleware function
+ */
 const authenticate = async (req, res, next) => {
   try {
-    // Obtener token desde header Authorization o query parameter (para iframes)
+    // Extraer token desde header Authorization o query parameter
     let token = req.header('Authorization')?.replace('Bearer ', '');
     if (!token && req.query.token) {
       token = req.query.token;
@@ -32,6 +42,7 @@ const authenticate = async (req, res, next) => {
       });
     }
 
+    // Verificar y decodificar token JWT
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Validar estructura del token

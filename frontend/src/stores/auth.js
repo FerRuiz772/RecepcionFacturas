@@ -1,7 +1,10 @@
 import { defineStore } from 'pinia'
 import axios from 'axios'
 
-// Funciones utilitarias para localStorage seguro
+/**
+ * Funciones utilitarias para manejo seguro de localStorage
+ * Previenen errores cuando localStorage no está disponible o tiene problemas
+ */
 const safeGetItem = (key) => {
   try {
     return localStorage.getItem(key)
@@ -27,26 +30,51 @@ const safeRemoveItem = (key) => {
   }
 }
 
+/**
+ * Store de autenticación global - Maneja estado del usuario autenticado
+ * Incluye tokens JWT, datos del usuario, permisos y funciones de autenticación
+ * Persiste datos en localStorage para mantener sesión entre recargas
+ */
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: null,
-    token: safeGetItem('token'),
-    refreshToken: safeGetItem('refreshToken'),
-    loading: false
+    user: null,                                    // Datos del usuario autenticado
+    token: safeGetItem('token'),                   // Token JWT de acceso
+    refreshToken: safeGetItem('refreshToken'),     // Token de renovación
+    loading: false                                 // Estado de carga para operaciones async
   }),
 
   getters: {
+    /** @returns {boolean} true si el usuario está autenticado */
     isAuthenticated: (state) => !!state.token && !!state.user,
+    
+    /** @returns {string|null} Rol del usuario actual */
     userRole: (state) => state.user?.role,
+    
+    /** @returns {string|null} Nombre del usuario actual */
     userName: (state) => state.user?.name,
+    
+    /** @returns {string|null} Email del usuario actual */
     userEmail: (state) => state.user?.email,
+    
+    /** @returns {string[]} Array de permisos del usuario */
     userPermissions: (state) => Array.from(state.user?.permissions || []),
+    
+    /** @returns {boolean} true si el usuario es proveedor */
     isProveedor: (state) => state.user?.role === 'proveedor',
+    
+    /** @returns {boolean} true si el usuario es admin (super_admin o admin_contaduria) */
     isAdmin: (state) => ['super_admin', 'admin_contaduria'].includes(state.user?.role),
+    
+    /** @returns {boolean} true si el usuario pertenece a contaduría */
     isContaduria: (state) => ['admin_contaduria', 'trabajador_contaduria'].includes(state.user?.role),
+    
+    /** @returns {boolean} true si el usuario es super administrador */
     isSuperAdmin: (state) => state.user?.role === 'super_admin',
     
-    // Verificador de permisos granulares
+    /**
+     * Verificador de permisos granulares
+     * @returns {Function} Función que acepta un permiso y retorna boolean
+     */
     hasPermission: (state) => (permission) => {
       if (!state.user) return false
       if (state.user.role === 'super_admin') return true

@@ -1,3 +1,17 @@
+<!--
+/**
+ * @fileoverview Componente de navegación lateral (sidebar) del sistema PayQuetzal
+ * Muestra menú adaptativo basado en permisos del usuario autenticado
+ * Incluye branding y navegación principal de la aplicación
+ * 
+ * @component AppSidebar
+ * @description Barra lateral de navegación que se adapta según el rol del usuario
+ * Implementa sistema de permisos granular y navegación responsive
+ * 
+ * @props {Boolean} modelValue - Estado del drawer (abierto/cerrado)
+ * @emits update:modelValue - Actualiza el estado del drawer
+ */
+-->
 <template>
   <v-navigation-drawer
     v-model="drawerModel"
@@ -6,6 +20,7 @@
     width="280"
     :temporary="true"
   >
+    <!-- Header del sidebar con branding -->
     <div class="sidebar-header">
       <div class="sidebar-brand">
         <div class="sidebar-logo">
@@ -18,6 +33,7 @@
       <p class="sidebar-subtitle">Sistema de Gestión de Pagos</p>
     </div>
 
+    <!-- Lista de navegación filtrada por permisos -->
     <v-list nav class="sidebar-nav pt-4">
       <v-list-item
         v-for="item in filteredMenuItems"
@@ -39,10 +55,19 @@
 </template>
 
 <script setup>
+/**
+ * @vue/component AppSidebar
+ * @description Componente de navegación lateral con sistema de permisos
+ */
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 
+/**
+ * Props del componente
+ * @typedef {Object} Props
+ * @property {Boolean} modelValue - Estado del drawer (abierto/cerrado)
+ */
 const props = defineProps({
   modelValue: {
     type: Boolean,
@@ -50,16 +75,33 @@ const props = defineProps({
   }
 })
 
+/**
+ * Eventos emitidos por el componente
+ * @typedef {Object} Emits
+ * @property {Function} update:modelValue - Actualiza el estado del drawer
+ */
 const emit = defineEmits(['update:modelValue'])
 
 const route = useRoute()
 const authStore = useAuthStore()
 
+/**
+ * Computed bidireccional para manejar el estado del drawer
+ * @type {ComputedRef<boolean>}
+ */
 const drawerModel = computed({
   get: () => props.modelValue,
   set: (value) => emit('update:modelValue', value)
 })
 
+/**
+ * Configuración de elementos del menú con permisos asociados
+ * @type {Array<Object>}
+ * @property {string} title - Título del elemento del menú
+ * @property {string} icon - Icono MDI del elemento
+ * @property {string} to - Ruta de navegación
+ * @property {Function} permission - Función que verifica permisos
+ */
 const menuItems = [
   { 
     title: 'Dashboard', 
@@ -87,6 +129,12 @@ const menuItems = [
   }
 ]
 
+/**
+ * Computed que filtra elementos del menú según permisos del usuario
+ * Los super administradores ven todos los elementos
+ * @computed filteredMenuItems
+ * @returns {Array<Object>} Elementos del menú visibles para el usuario actual
+ */
 const filteredMenuItems = computed(() => {
   return menuItems.filter(item => {
     if (authStore.isSuperAdmin) return true
@@ -94,6 +142,12 @@ const filteredMenuItems = computed(() => {
   })
 })
 
+/**
+ * Determina si una ruta está activa comparando con la ruta actual
+ * @function isActiveRoute
+ * @param {string} itemPath - Ruta del elemento del menú
+ * @returns {boolean} true si la ruta está activa
+ */
 const isActiveRoute = (itemPath) => {
   const currentPath = route.path
   if (itemPath === '/dashboard') {

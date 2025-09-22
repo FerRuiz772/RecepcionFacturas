@@ -1,14 +1,46 @@
 ﻿
+/**
+ * Servicio de notificaciones por email para facturas en PayQuetzal
+ * 
+ * Gestiona el envío automatizado de notificaciones durante el ciclo de vida de las facturas
+ * Proporciona templates personalizados y manejo de múltiples destinatarios según el evento
+ * 
+ * Tipos de notificaciones:
+ * - Factura subida: Confirma recepción al proveedor + notifica a contaduría
+ * - Factura asignada: Notifica al contador asignado
+ * - Cambio de estado: Informa a todos los involucrados sobre cambios
+ * - Rechazo: Explica motivos de rechazo al proveedor
+ * - Aprobación: Confirma aprobación para pago
+ * - Pago completado: Notifica finalización del proceso
+ * 
+ * Características:
+ * - Templates HTML responsivos con branding PayQuetzal
+ * - Información contextual específica por tipo de evento
+ * - Links directos al sistema para acciones rápidas
+ * - Manejo de errores robusto con logging detallado
+ * - Soporte para múltiples destinatarios simultáneos
+ */
+
 const emailService = require('./emailService');
 const { User, Supplier } = require('../models');
 
+/**
+ * Clase principal del servicio de notificaciones de facturas
+ * Centraliza toda la lógica de comunicación por email relacionada con facturas
+ */
 class InvoiceNotificationService {
   constructor() {
     this.baseUrl = process.env.FRONTEND_URL || 'http://localhost:8080';
+    console.log('🔧 InvoiceNotificationService initialized with base URL:', this.baseUrl);
   }
 
   /**
-   * Envía notificación cuando se sube una nueva factura
+   * Notifica cuando se sube una nueva factura al sistema
+   * Envía confirmación al proveedor y alerta a la contaduría asignada
+   * 
+   * @param {Object} invoice - Datos de la factura subida
+   * @param {Object} supplier - Información del proveedor emisor
+   * @param {Object} assignedUser - Usuario de contaduría asignado para procesamiento
    */
   async notifyInvoiceUploaded(invoice, supplier, assignedUser) {
     try {
@@ -80,6 +112,16 @@ class InvoiceNotificationService {
   /**
    * Envía notificación cuando cambia el estado de una factura
    */
+  /**
+   * Notifica cambios de estado en el workflow de facturas
+   * Informa a proveedor y equipo de contaduría sobre transiciones de estado
+   * 
+   * @param {Object} invoice - Datos de la factura que cambió
+   * @param {string} fromStatus - Estado anterior de la factura  
+   * @param {string} toStatus - Nuevo estado de la factura
+   * @param {Object} changedBy - Usuario que realizó el cambio
+   * @param {Object} supplier - Datos del proveedor emisor
+   */
   async notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier) {
     try {
       console.log(`📧 notifyStatusChange iniciado para factura: ${invoice.number}`);
@@ -129,6 +171,14 @@ class InvoiceNotificationService {
 
   /**
    * Notifica al proveedor que su factura fue recibida
+   */
+  /**
+   * Envía confirmación de recepción de factura al proveedor
+   * Email con detalles de la factura recibida y próximos pasos
+   * 
+   * @param {Object} supplier - Datos del proveedor emisor
+   * @param {Object} invoice - Información de la factura recibida
+   * @param {Object} proveedorUser - Usuario del proveedor para personalización
    */
   async sendInvoiceReceivedNotification(supplier, invoice, proveedorUser) {
     const subject = `✅ Factura ${invoice.number} recibida correctamente`;
@@ -212,6 +262,14 @@ class InvoiceNotificationService {
   /**
    * Notifica al usuario asignado sobre nueva factura
    */
+  /**
+   * Notifica asignación de factura a contador específico
+   * Alerta al contador que tiene una nueva factura para procesar
+   * 
+   * @param {Object} user - Usuario de contaduría asignado
+   * @param {Object} invoice - Datos de la factura asignada
+   * @param {Object} supplier - Información del proveedor emisor
+   */
   async sendNewInvoiceAssignedNotification(user, invoice, supplier) {
     const subject = `🔔 Nueva factura asignada: ${invoice.number}`;
     
@@ -290,6 +348,17 @@ class InvoiceNotificationService {
 
   /**
    * Notifica cambio de estado al proveedor
+   */
+  /**
+   * Envía notificación detallada de cambio de estado
+   * Incluye contexto del cambio y acciones requeridas según el nuevo estado
+   * 
+   * @param {Object} supplier - Datos del proveedor emisor
+   * @param {Object} invoice - Información de la factura afectada
+   * @param {string} newStatus - Nuevo estado de la factura
+   * @param {string} message - Mensaje adicional sobre el cambio
+   * @param {Object} changedBy - Usuario que realizó el cambio
+   * @param {Object} proveedorUser - Usuario del proveedor para envío
    */
   async sendStatusChangeNotification(supplier, invoice, newStatus, message, changedBy, proveedorUser) {
     const subject = `📄 Actualización de factura ${invoice.number}`;
@@ -388,6 +457,16 @@ class InvoiceNotificationService {
   /**
    * Envía notificación cuando se sube un documento para una factura
    */
+  /**
+   * Notifica cuando se sube un documento adicional a una factura
+   * Informa sobre nuevos documentos de soporte o corrección
+   * 
+   * @param {Object} invoice - Datos de la factura que recibe el documento
+   * @param {Object} proveedorUser - Usuario del proveedor para notificación
+   * @param {Object} uploaderUser - Usuario que subió el documento
+   * @param {string} documentType - Tipo de documento subido
+   * @param {string} documentTypeName - Nombre descriptivo del tipo de documento
+   */
   async notifyDocumentUploaded(invoice, proveedorUser, uploaderUser, documentType, documentTypeName) {
     try {
       console.log(`📧 notifyDocumentUploaded iniciado para factura: ${invoice.number}`);
@@ -474,6 +553,18 @@ class InvoiceNotificationService {
 
   /**
    * Envía notificación cuando se reemplaza un documento de una factura
+   */
+  /**
+   * Notifica cuando se reemplaza un documento existente
+   * Informa sobre actualizaciones de documentos ya enviados
+   * 
+   * @param {Object} invoice - Datos de la factura afectada
+   * @param {Object} proveedorUser - Usuario del proveedor para notificación
+   * @param {Object} uploaderUser - Usuario que realizó el reemplazo
+   * @param {string} documentType - Tipo de documento reemplazado
+   * @param {string} documentTypeName - Nombre descriptivo del tipo
+   * @param {string} oldFileName - Nombre del archivo anterior
+   * @param {string} newFileName - Nombre del nuevo archivo
    */
   async notifyDocumentReplaced(invoice, proveedorUser, uploaderUser, documentType, documentTypeName, oldFileName, newFileName) {
     try {
@@ -575,6 +666,15 @@ class InvoiceNotificationService {
 
   /**
    * Envía notificación al admin de contaduría cuando se sube una nueva factura
+   */
+  /**
+   * Envía notificación a administradores sobre nueva factura subida
+   * Mantiene a la administración informada sobre el flujo de facturas
+   * 
+   * @param {Object} adminUser - Usuario administrador de contaduría
+   * @param {Object} invoice - Datos de la nueva factura
+   * @param {Object} supplier - Información del proveedor emisor
+   * @param {Object} assignedUser - Usuario asignado para procesamiento
    */
   async sendAdminNotificationInvoiceUploaded(adminUser, invoice, supplier, assignedUser) {
     try {

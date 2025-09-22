@@ -6,9 +6,21 @@ const { Op } = require('sequelize'); // AÑADIDO: Para operadores Sequelize
 const emailService = require('../utils/emailService');
 const { getDefaultPermissions } = require('../middleware/permissions');
 
+/**
+ * Controlador de autenticación
+ * Maneja todas las operaciones relacionadas con login, logout, registro de usuarios,
+ * recuperación de contraseñas y gestión de tokens JWT
+ */
 const authController = {
+  /**
+   * Autentica un usuario en el sistema
+   * @param {Object} req - Request object con email y password en body
+   * @param {Object} res - Response object
+   * @returns {Object} JWT tokens y datos del usuario autenticado
+   */
   async login(req, res) {
     try {
+      // Validar datos de entrada usando express-validator
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -18,7 +30,7 @@ const authController = {
       const clientIP = req.ip || req.connection.remoteAddress;
       const userAgent = req.get('User-Agent');
 
-      // Buscar usuario con datos del proveedor
+      // Buscar usuario activo con datos del proveedor asociado
       const user = await User.findOne({
         where: { email: email.toLowerCase(), is_active: true },
         include: [{
@@ -29,8 +41,9 @@ const authController = {
         }]
       });
 
+      // Verificar credenciales y registrar intento fallido si es necesario
       if (!user || !(await user.validatePassword(password))) {
-        // Log intento fallido
+        // Log intento fallido para auditoría de seguridad
         await SystemLog.create({
           user_id: null,
           action: 'LOGIN_FAILED',
@@ -49,26 +62,28 @@ const authController = {
         });
       }
 
-      // Generar tokens
+      // Generar tokens JWT para la sesión
       const tokenPayload = { 
         userId: user.id, 
         role: user.role,
         email: user.email
       };
 
+      // Token de acceso (corta duración)
       const token = jwt.sign(
         tokenPayload,
         process.env.JWT_SECRET,
         { expiresIn: process.env.JWT_EXPIRE || '1h' }
       );
 
+      // Token de renovación (larga duración)
       const refreshToken = jwt.sign(
         { userId: user.id, type: 'refresh' },
         process.env.JWT_REFRESH_SECRET,
         { expiresIn: process.env.JWT_REFRESH_EXPIRE || '7d' }
       );
 
-      // Actualizar último login
+      // Actualizar datos de último acceso del usuario
       await user.update({ 
         last_login: new Date(),
         profile_data: {
@@ -78,7 +93,7 @@ const authController = {
         }
       });
 
-      // Log login exitoso
+      // Registrar login exitoso para auditoría
       await SystemLog.create({
         user_id: user.id,
         action: 'LOGIN_SUCCESS',
@@ -90,7 +105,7 @@ const authController = {
 
       console.log(`✅ Login exitoso: ${email} (${user.role})`);
 
-      // Preparar respuesta del usuario
+      // Preparar datos del usuario para la respuesta (sin datos sensibles)
       const responseUser = {
         id: user.id,
         email: user.email,
@@ -100,7 +115,7 @@ const authController = {
         permissions: user.permissions || getDefaultPermissions(user.role)
       };
 
-      // Agregar datos del proveedor si aplica
+      // Incluir información del proveedor para usuarios tipo 'proveedor'
       if (user.role === 'proveedor' && user.supplier) {
         responseUser.supplier_name = user.supplier.business_name;
         responseUser.supplier_nit = user.supplier.nit;
@@ -116,7 +131,7 @@ const authController = {
     } catch (error) {
       console.error('❌ Error en login:', error);
       
-      // Log error interno
+      // Registrar error interno para debugging
       await SystemLog.create({
         user_id: null,
         action: 'LOGIN_ERROR',
@@ -135,13 +150,20 @@ const authController = {
     }
   },
 
-  // NUEVO: Endpoint para obtener usuario actual (para el problema del reload)
+  /**
+   * Obtiene información del usuario autenticado actual
+   * Utilizado para validar sesiones y recuperar datos después de recargar página
+   * @param {Object} req - Request object con userId en req.user
+   * @param {Object} res - Response object
+   * @returns {Object} Datos del usuario autenticado sin información sensible
+   */
   async me(req, res) {
     try {
       const userId = req.user.userId;
 
+      // Buscar usuario con información del proveedor asociado
       const user = await User.findByPk(userId, {
-        attributes: { exclude: ['password_hash'] },
+        attributes: { exclude: ['password_hash'] }, // Excluir datos sensibles
         include: [{
           model: Supplier,
           as: 'supplier',
@@ -150,6 +172,7 @@ const authController = {
         }]
       });
 
+      // Verificar que el usuario siga siendo válido y activo
       if (!user || !user.is_active) {
         return res.status(401).json({ 
           error: 'Usuario no válido o inactivo',
@@ -157,7 +180,7 @@ const authController = {
         });
       }
 
-      // Preparar respuesta del usuario
+      // Preparar datos del usuario para respuesta segura
       const responseUser = {
         id: user.id,
         email: user.email,
@@ -168,7 +191,7 @@ const authController = {
         permissions: user.permissions || getDefaultPermissions(user.role)
       };
 
-      // Agregar datos del proveedor si aplica
+      // Incluir información del proveedor para usuarios tipo 'proveedor'
       if (user.role === 'proveedor' && user.supplier) {
         responseUser.supplier_name = user.supplier.business_name;
         responseUser.supplier_nit = user.supplier.nit;
@@ -185,12 +208,20 @@ const authController = {
     }
   },
 
+  /**
+   * Obtiene el perfil completo del usuario autenticado
+   * Incluye más información que el endpoint /me, usado para páginas de perfil
+   * @param {Object} req - Request object con userId en req.user
+   * @param {Object} res - Response object
+   * @returns {Object} Perfil completo del usuario con datos del proveedor si aplica
+   */
   async profile(req, res) {
     try {
       const userId = req.user.userId;
 
+      // Buscar usuario con información completa del proveedor
       const user = await User.findByPk(userId, {
-        attributes: { exclude: ['password_hash'] },
+        attributes: { exclude: ['password_hash'] }, // Excluir datos sensibles
         include: [{
           model: Supplier,
           as: 'supplier',
@@ -206,7 +237,7 @@ const authController = {
         });
       }
 
-      // Preparar respuesta del perfil
+      // Preparar datos del perfil con información extendida
       const profileData = {
         id: user.id,
         email: user.email,
@@ -218,7 +249,7 @@ const authController = {
         permissions: user.permissions || getDefaultPermissions(user.role)
       };
 
-      // Agregar datos completos del proveedor si aplica
+      // Incluir información completa del proveedor para usuarios tipo 'proveedor'
       if (user.role === 'proveedor' && user.supplier) {
         profileData.supplier_name = user.supplier.business_name;
         profileData.supplier_nit = user.supplier.nit;
@@ -237,13 +268,20 @@ const authController = {
     }
   },
 
+  /**
+   * Termina la sesión del usuario autenticado
+   * Registra el evento de logout para auditoría
+   * @param {Object} req - Request object con datos del usuario en req.user
+   * @param {Object} res - Response object
+   * @returns {Object} Confirmación de logout exitoso
+   */
   async logout(req, res) {
     try {
       const userId = req.user?.userId;
       const clientIP = req.ip;
 
       if (userId) {
-        // Log logout
+        // Registrar evento de logout para auditoría
         await SystemLog.create({
           user_id: userId,
           action: 'LOGOUT',
@@ -269,6 +307,13 @@ const authController = {
     }
   },
 
+  /**
+   * Renueva un token de acceso usando un refresh token válido
+   * Permite mantener sesiones activas sin requerir login frecuente
+   * @param {Object} req - Request object con refreshToken en body
+   * @param {Object} res - Response object
+   * @returns {Object} Nuevo token de acceso y refresh token actualizado
+   */
   async refreshToken(req, res) {
     try {
       const { refreshToken } = req.body;
@@ -512,8 +557,16 @@ const authController = {
     }
   },
 
+  /**
+   * Inicia el proceso de recuperación de contraseña enviando un email con token
+   * Implementa medidas de seguridad como rate limiting y respuestas constantes
+   * @param {Object} req - Request object con email en body
+   * @param {Object} res - Response object
+   * @returns {Object} Mensaje de confirmación (mismo siempre por seguridad)
+   */
   async forgotPassword(req, res) {
     try {
+      // Validar datos de entrada
       const errors = validationResult(req);
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
@@ -522,7 +575,7 @@ const authController = {
       const { email } = req.body;
       const clientIP = req.ip || req.connection.remoteAddress;
 
-      // Buscar usuario por email
+      // Buscar usuario activo por email
       const user = await User.findOne({
         where: { 
           email: email.toLowerCase(), 
@@ -530,15 +583,14 @@ const authController = {
         }
       });
 
-      // Por seguridad, siempre devolvemos el mismo mensaje
-      // independientemente de si el usuario existe o no
+      // Respuesta estándar por seguridad (misma respuesta independientemente del resultado)
       const response = {
         message: 'Si el correo electrónico está registrado, recibirás un enlace para restablecer tu contraseña.',
         code: 'RESET_EMAIL_SENT'
       };
 
       if (!user) {
-        // Log del intento con email inexistente
+        // Registrar intento con email inexistente para auditoría
         await SystemLog.create({
           user_id: null,
           action: 'password_reset_request_invalid',
@@ -546,11 +598,11 @@ const authController = {
           details: { email, reason: 'user_not_found' }
         });
 
-        // Devolvemos la misma respuesta por seguridad
+        // Retornar misma respuesta por seguridad
         return res.json(response);
       }
 
-      // Verificar si ya existe un token activo reciente (último minuto)
+      // Implementar rate limiting: verificar si ya existe un token reciente
       const recentToken = await PasswordResetToken.findOne({
         where: {
           user_id: user.id,
@@ -568,7 +620,7 @@ const authController = {
         });
       }
 
-      // Invalidar tokens anteriores
+      // Invalidar todos los tokens anteriores no utilizados
       await PasswordResetToken.update(
         { used_at: new Date() },
         { 

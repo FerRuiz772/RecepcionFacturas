@@ -1,3 +1,20 @@
+<!--
+/**
+ * @fileoverview Componente de gestión de permisos modulares del sistema
+ * Grid interactivo para asignar permisos granulares a usuarios por módulo
+ * Permite configurar permisos específicos para facturas, documentos, proveedores y usuarios
+ * 
+ * @component ModularPermissionsGrid
+ * @description Grid de permisos modulares que permite asignar permisos específicos por módulo
+ * Incluye funcionalidad para seleccionar todos los permisos de un módulo o permisos individuales
+ * Sincroniza con el backend y actualiza la sesión del usuario si es necesario
+ * 
+ * @props {Number} userId - ID del usuario al que se le asignan permisos
+ * @props {String} userName - Nombre del usuario para mostrar en el header
+ * @props {String} userRole - Rol del usuario para mostrar en el header
+ * @emits saved - Evento emitido cuando se guardan los permisos exitosamente
+ */
+-->
 <template>
   <div class="permissions-container">
     <div class="permissions-header">
@@ -292,12 +309,23 @@
 </template>
 
 <script setup>
+/**
+ * @vue/component ModularPermissionsGrid
+ * @description Grid de gestión de permisos modulares con funcionalidad completa
+ */
 import { ref, reactive, onMounted, computed, watch } from 'vue'
 import axios from 'axios'
 import { useAuthStore } from '../stores/auth'
 
 const auth = useAuthStore()
 
+/**
+ * Props del componente
+ * @typedef {Object} Props
+ * @property {Number} userId - ID del usuario al que se le asignan permisos
+ * @property {String} userName - Nombre del usuario para mostrar
+ * @property {String} userRole - Rol del usuario para mostrar
+ */
 const props = defineProps({
   userId: {
     type: Number,
@@ -313,17 +341,37 @@ const props = defineProps({
   }
 })
 
+/**
+ * Eventos emitidos por el componente
+ * @typedef {Object} Emits
+ * @property {Function} saved - Evento emitido cuando se guardan los permisos
+ */
 const emit = defineEmits(['saved'])
 
-// Estado reactivo
+/**
+ * Estado de loading durante el guardado
+ * @type {Ref<boolean>}
+ */
 const saving = ref(false)
+
+/**
+ * Estado reactivo del snackbar para notificaciones
+ * @type {Object}
+ * @property {boolean} show - Si el snackbar está visible
+ * @property {string} message - Mensaje a mostrar
+ * @property {string} color - Color del snackbar (success, error, info, warning)
+ */
 const snackbar = reactive({
   show: false,
   message: '',
   color: 'success'
 })
 
-// Estructura de permisos
+/**
+ * Estructura reactiva de permisos por módulo
+ * Cada módulo tiene permisos específicos y un permiso 'todas' para seleccionar todo
+ * @type {Object}
+ */
 const permissions = reactive({
   facturas: {
     ver: false,
@@ -354,7 +402,11 @@ const permissions = reactive({
   }
 })
 
-// Cargar permisos del usuario
+/**
+ * Carga los permisos actuales del usuario desde el backend
+ * @async
+ * @function loadUserPermissions
+ */
 const loadUserPermissions = async () => {
   try {
     const response = await axios.get(`/api/users/${props.userId}/permissions`)
@@ -378,7 +430,11 @@ const loadUserPermissions = async () => {
   }
 }
 
-// Actualizar permiso "todas" basado en permisos individuales
+/**
+ * Actualiza el permiso "todas" basado en el estado de los permisos individuales
+ * @function updateAllPermission
+ * @param {string} module - Nombre del módulo a actualizar
+ */
 const updateAllPermission = (module) => {
   const modulePerms = permissions[module]
   const individualPerms = Object.keys(modulePerms).filter(key => key !== 'todas')
@@ -386,7 +442,12 @@ const updateAllPermission = (module) => {
   modulePerms.todas = allGranted
 }
 
-// Manejar cambio en permiso individual
+/**
+ * Maneja el cambio en un permiso individual
+ * @function onPermissionChange
+ * @param {string} module - Nombre del módulo
+ * @param {string} action - Acción del permiso que cambió
+ */
 const onPermissionChange = (module, action) => {
   // Pequeño delay para evitar problemas de reactividad
   setTimeout(() => {
@@ -394,7 +455,11 @@ const onPermissionChange = (module, action) => {
   }, 10)
 }
 
-// Manejar cambio en permiso "todas"
+/**
+ * Maneja el cambio en el permiso "todas" de un módulo
+ * @function onAllPermissionChange
+ * @param {string} module - Nombre del módulo
+ */
 const onAllPermissionChange = (module) => {
   const allChecked = permissions[module].todas
   Object.keys(permissions[module]).forEach(action => {
@@ -405,7 +470,11 @@ const onAllPermissionChange = (module) => {
   // No necesitamos llamar updateAllPermission aquí porque acabamos de establecer el valor
 }
 
-// Guardar permisos
+/**
+ * Guarda los permisos en el backend
+ * @async
+ * @function savePermissions
+ */
 const savePermissions = async () => {
   saving.value = true
   try {
@@ -439,20 +508,31 @@ const savePermissions = async () => {
   }
 }
 
-// Restablecer permisos
+/**
+ * Restablece los permisos a su estado original
+ * @function resetPermissions
+ */
 const resetPermissions = () => {
   loadUserPermissions()
   showSnackbar('Permisos restablecidos', 'info')
 }
 
-// Mostrar snackbar
+/**
+ * Muestra un mensaje en el snackbar
+ * @function showSnackbar
+ * @param {string} message - Mensaje a mostrar
+ * @param {string} color - Color del snackbar (success, error, info, warning)
+ */
 const showSnackbar = (message, color = 'success') => {
   snackbar.message = message
   snackbar.color = color
   snackbar.show = true
 }
 
-// Cargar permisos al montar el componente
+/**
+ * Inicialización del componente
+ * Carga los permisos del usuario al montar
+ */
 onMounted(() => {
   loadUserPermissions()
 })

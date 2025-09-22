@@ -2,20 +2,63 @@ const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const bcrypt = require('bcrypt');
 
+/**
+ * Modelo de Usuario - Maneja autenticación, autorización y perfil de usuarios
+ * Soporta múltiples roles: super_admin, admin_contaduria, trabajador_contaduria, proveedor
+ * Incluye sistema de permisos granular y asociación con proveedores
+ */
 const User = sequelize.define('User', {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    email: { type: DataTypes.STRING, allowNull: false, unique: true, validate: { isEmail: true } },
-    password_hash: { type: DataTypes.STRING, allowNull: false },
-    name: { type: DataTypes.STRING, allowNull: false },
+    id: { 
+        type: DataTypes.INTEGER, 
+        autoIncrement: true, 
+        primaryKey: true 
+    },
+    email: { 
+        type: DataTypes.STRING, 
+        allowNull: false, 
+        unique: true, 
+        validate: { isEmail: true },
+        comment: 'Email único del usuario, usado para login'
+    },
+    password_hash: { 
+        type: DataTypes.STRING, 
+        allowNull: false,
+        comment: 'Hash bcrypt de la contraseña del usuario'
+    },
+    name: { 
+        type: DataTypes.STRING, 
+        allowNull: false,
+        comment: 'Nombre completo del usuario'
+    },
     role: {
         type: DataTypes.ENUM('super_admin', 'admin_contaduria', 'trabajador_contaduria', 'proveedor'),
-        allowNull: false
+        allowNull: false,
+        comment: 'Rol del usuario que determina permisos base'
     },
-    supplier_id: { type: DataTypes.INTEGER, allowNull: true },
-    is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
-    profile_data: { type: DataTypes.JSON, defaultValue: {} },
-    permissions: { type: DataTypes.JSON, defaultValue: null },
-    last_login: { type: DataTypes.DATE }
+    supplier_id: { 
+        type: DataTypes.INTEGER, 
+        allowNull: true,
+        comment: 'ID del proveedor asociado (solo para usuarios tipo proveedor)'
+    },
+    is_active: { 
+        type: DataTypes.BOOLEAN, 
+        defaultValue: true,
+        comment: 'Indica si el usuario puede acceder al sistema'
+    },
+    profile_data: { 
+        type: DataTypes.JSON, 
+        defaultValue: {},
+        comment: 'Datos adicionales del perfil (teléfono, departamento, etc.)'
+    },
+    permissions: { 
+        type: DataTypes.JSON, 
+        defaultValue: null,
+        comment: 'Permisos personalizados que sobrescriben los del rol'
+    },
+    last_login: { 
+        type: DataTypes.DATE,
+        comment: 'Timestamp del último acceso exitoso'
+    }
 }, {
     tableName: 'users',
     timestamps: true,
@@ -25,24 +68,36 @@ const User = sequelize.define('User', {
     collate: 'utf8mb4_unicode_ci'
 });
 
-// Método para validar contraseña
+/**
+ * Valida la contraseña proporcionada contra el hash almacenado
+ * @param {string} password - Contraseña en texto plano a validar
+ * @returns {boolean} true si la contraseña es correcta
+ */
 User.prototype.validatePassword = async function(password) {
     return bcrypt.compare(password, this.password_hash);
 };
 
-// Método para verificar si el usuario tiene un permiso específico
+/**
+ * Verifica si el usuario tiene un permiso específico
+ * @param {string} permissionKey - Clave del permiso a verificar
+ * @returns {boolean} true si el usuario tiene el permiso
+ */
 User.prototype.hasPermission = async function(permissionKey) {
     // Si no hay permisos cargados, cargarlos primero
     if (!this.userPermissions) {
         await this.loadPermissions();
     }
     
-    // Buscar el permiso específico
+    // Buscar el permiso específico en la lista
     const permission = this.userPermissions?.find(p => p.permission_key === permissionKey);
     return permission ? permission.granted : false;
 };
 
-// Método para verificar múltiples permisos (AND lógico)
+/**
+ * Verifica múltiples permisos usando lógica AND (todos deben estar presentes)
+ * @param {string[]} permissionKeys - Array de claves de permisos a verificar
+ * @returns {boolean} true si el usuario tiene TODOS los permisos
+ */
 User.prototype.hasAllPermissions = async function(permissionKeys) {
     for (const permissionKey of permissionKeys) {
         if (!(await this.hasPermission(permissionKey))) {

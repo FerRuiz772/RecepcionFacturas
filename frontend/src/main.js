@@ -1,3 +1,9 @@
+/**
+ * @fileoverview Punto de entrada principal de la aplicación Vue.js
+ * Configura Vuetify, Pinia, Vue Router, notificaciones toast y directivas globales
+ * Inicializa el sistema de autenticación y monta la aplicación
+ */
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
@@ -22,6 +28,10 @@ import './utils/axios.js'
 // Store
 import { useAuthStore } from './stores/auth'
 
+/**
+ * Configuración de Vuetify con tema personalizado PayQuetzal
+ * Define la paleta de colores principal de la aplicación
+ */
 const vuetify = createVuetify({
   components,
   directives,
@@ -30,27 +40,41 @@ const vuetify = createVuetify({
     themes: {
       light: {
         colors: {
-          primary: '#0f172a',
-          'primary-darken-1': '#1e293b',
-          secondary: '#64748b',
-          'secondary-darken-1': '#475569',
-          success: '#10b981',
-          warning: '#f59e0b',
-          error: '#ef4444',
-          info: '#3b82f6',
+          primary: '#0f172a',        // Azul oscuro principal
+          'primary-darken-1': '#1e293b', // Variante más oscura
+          secondary: '#64748b',       // Gris secundario
+          'secondary-darken-1': '#475569', // Gris más oscuro
+          success: '#10b981',        // Verde para éxito
+          warning: '#f59e0b',        // Amarillo para advertencias
+          error: '#ef4444',          // Rojo para errores
+          info: '#3b82f6',           // Azul para información
         },
       },
     },
   },
 })
 
+/**
+ * Instancia de Pinia para gestión de estado global
+ */
 const pinia = createPinia()
 
+/**
+ * Instancia principal de la aplicación Vue
+ */
 const app = createApp(App)
 
+/**
+ * Configuración y registro de plugins Vue
+ */
 app.use(pinia)
 app.use(router)
 app.use(vuetify)
+
+/**
+ * Configuración de notificaciones toast con opciones personalizadas
+ * Posición superior derecha, timeout de 5 segundos, características interactivas
+ */
 app.use(Toast, {
   position: 'top-right',
   timeout: 5000,
@@ -66,9 +90,24 @@ app.use(Toast, {
   rtl: false
 })
 
-// Directiva global para bloquear tildes y acentos
+/**
+ * Directiva global para bloquear y normalizar acentos en inputs
+ * Previene la entrada de caracteres acentuados y los normaliza automáticamente
+ * Útil para campos como códigos de productos, usernames, etc.
+ * 
+ * @directive v-no-accents
+ * @usage <input v-no-accents v-model="productCode" />
+ */
 app.directive('no-accents', {
+  /**
+   * Configuración inicial cuando el elemento es montado
+   * @param {HTMLElement} el - Elemento DOM al que se aplica la directiva
+   */
   mounted(el) {
+    /**
+     * Bloquea la entrada de caracteres acentuados en tiempo real
+     * @param {KeyboardEvent} event - Evento de teclado
+     */
     const blockAccents = (event) => {
       // Caracteres con acentos que queremos bloquear
       const accentedChars = /[áéíóúàèìòùâêîôûäëïöüãñçÁÉÍÓÚÀÈÌÒÙÂÊÎÔÛÄËÏÖÜÃÑÇ]/
@@ -80,6 +119,10 @@ app.directive('no-accents', {
       }
     }
     
+    /**
+     * Normaliza texto pegado o escrito, removiendo acentos automáticamente
+     * @param {Event} event - Evento de input
+     */
     const normalizeText = (event) => {
       const target = event.target
       if (target.value) {
@@ -100,7 +143,10 @@ app.directive('no-accents', {
       }
     }
     
-    // Función para aplicar los listeners a un elemento
+    /**
+     * Aplica los event listeners a un elemento input/textarea
+     * @param {HTMLElement} element - Elemento al que aplicar los listeners
+     */
     const applyListeners = (element) => {
       if (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA') {
         element.addEventListener('keydown', blockAccents)
@@ -135,6 +181,10 @@ app.directive('no-accents', {
     el._accentObserver = observer
   },
   
+  /**
+   * Limpieza cuando el elemento es desmontado
+   * @param {HTMLElement} el - Elemento que se está desmontando
+   */
   unmounted(el) {
     if (el._accentObserver) {
       el._accentObserver.disconnect()
@@ -142,7 +192,14 @@ app.directive('no-accents', {
   }
 })
 
-// Función para inicializar la aplicación
+/**
+ * Función principal para inicializar la aplicación
+ * Configura el sistema de autenticación y monta la aplicación Vue
+ * 
+ * @async
+ * @function initApp
+ * @throws {Error} Error durante la inicialización de la aplicación
+ */
 async function initApp() {
   console.log('Iniciando aplicación...')
   
@@ -174,7 +231,10 @@ async function initApp() {
   console.log('Aplicación montada exitosamente')
 }
 
-// Ejecutar inicialización
+/**
+ * Ejecutar inicialización de la aplicación
+ * Si falla la inicialización, la aplicación se monta de todos modos para evitar pantalla en blanco
+ */
 initApp().catch(error => {
   console.error('Error inicializando aplicación:', error)
   app.mount('#app') // Montar de todos modos

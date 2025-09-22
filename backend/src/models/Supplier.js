@@ -1,14 +1,46 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 
+/**
+ * Modelo de Proveedor - Representa a las empresas que suben facturas al sistema
+ * Almacena información comercial, fiscal y de contacto de los proveedores
+ * Relacionado con usuarios tipo 'proveedor' y con las facturas que suben
+ */
 const Supplier = sequelize.define('Supplier', {
-    id: { type: DataTypes.INTEGER, autoIncrement: true, primaryKey: true },
-    business_name: { type: DataTypes.STRING, allowNull: false },
-    nit: { type: DataTypes.STRING(20), allowNull: false, unique: true },
-    contact_phone: { type: DataTypes.STRING(20) },
-    address: { type: DataTypes.TEXT },
-    bank_details: { type: DataTypes.JSON, defaultValue: {} },
-    is_active: { type: DataTypes.BOOLEAN, defaultValue: true }
+    id: { 
+        type: DataTypes.INTEGER, 
+        autoIncrement: true, 
+        primaryKey: true 
+    },
+    business_name: { 
+        type: DataTypes.STRING, 
+        allowNull: false,
+        comment: 'Razón social o nombre comercial del proveedor'
+    },
+    nit: { 
+        type: DataTypes.STRING(20), 
+        allowNull: false, 
+        unique: true,
+        comment: 'Número de Identificación Tributaria (NIT) único del proveedor'
+    },
+    contact_phone: { 
+        type: DataTypes.STRING(20),
+        comment: 'Teléfono principal de contacto del proveedor'
+    },
+    address: { 
+        type: DataTypes.TEXT,
+        comment: 'Dirección física completa del proveedor'
+    },
+    bank_details: { 
+        type: DataTypes.JSON, 
+        defaultValue: {},
+        comment: 'Información bancaria del proveedor (cuenta, banco, etc.) en formato JSON'
+    },
+    is_active: { 
+        type: DataTypes.BOOLEAN, 
+        defaultValue: true,
+        comment: 'Indica si el proveedor está activo y puede operar en el sistema'
+    }
 }, {
     tableName: 'suppliers',
     timestamps: true,

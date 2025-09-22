@@ -44,6 +44,18 @@ router.get('/dashboard/available-documents', requirePermission(['invoices.view']
 router.get('/dashboard/work-queue', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getWorkQueue);
 router.get('/dashboard/pending-invoices', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getPendingInvoices);
 
+// ===== ADMINISTRACIÓN =====
+// Corregir estados inconsistentes (solo super admin)
+router.post('/fix-states', (req, res, next) => {
+    if (!req.user?.isSuperAdmin) {
+        return res.status(403).json({ 
+            error: 'Acceso denegado',
+            message: 'Solo usuarios super administradores pueden ejecutar esta función' 
+        });
+    }
+    next();
+}, invoiceController.runStateCorrection);
+
 // ===== Rutas básicas =====
 router.get('/', requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getAllInvoices);
 

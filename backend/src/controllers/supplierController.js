@@ -1,9 +1,32 @@
+/**
+ * Controlador para gestión de proveedores del sistema PayQuetzal
+ * Maneja CRUD de proveedores, creación de estructura de carpetas y validaciones
+ * 
+ * Funcionalidades principales:
+ * - CRUD completo de proveedores con paginación
+ * - Creación automática de estructura de carpetas por proveedor
+ * - Filtros por estado activo/inactivo
+ * - Permisos diferenciados por rol de usuario
+ * - Validación de datos fiscales (NIT, dirección, etc.)
+ * - Gestión de usuarios asociados a proveedores
+ * 
+ * Estructura de carpetas:
+ * uploads/proveedores/[nombre_normalizado]/
+ */
+
 const { validationResult } = require('express-validator');
 const { Supplier, User } = require('../models');
 const path = require('path');
 const fs = require('fs').promises;
 
-// Helper function para crear estructura de carpetas
+/**
+ * Crea estructura de carpetas para un proveedor específico
+ * Normaliza el nombre del proveedor para uso seguro en sistema de archivos
+ * 
+ * @param {string} supplierName - Nombre comercial del proveedor
+ * @returns {string} Ruta completa de la carpeta creada
+ * @throws {Error} Si hay problemas en la creación de directorios
+ */
 const createSupplierFolder = async (supplierName) => {
     try {
         // Normalizar nombre del proveedor para carpeta
@@ -13,7 +36,7 @@ const createSupplierFolder = async (supplierName) => {
             .replace(/[^a-zA-Z0-9]/g, '_') // Reemplazar caracteres especiales con _
             .toLowerCase();
 
-        // Crear estructura de carpetas
+        // Crear estructura de carpetas jerárquica
         const uploadsDir = path.join(__dirname, '..', 'uploads');
         const proveedoresDir = path.join(uploadsDir, 'proveedores');
         const supplierDir = path.join(proveedoresDir, folderName);
@@ -30,7 +53,21 @@ const createSupplierFolder = async (supplierName) => {
     }
 };
 
+/**
+ * Controlador principal para gestión de proveedores
+ * Contiene todas las operaciones CRUD y funciones especializadas
+ */
 const supplierController = {
+    /**
+     * Obtiene lista paginada de proveedores con filtros por rol
+     * 
+     * @route GET /api/suppliers
+     * @param {Object} req.query - Parámetros de consulta
+     * @param {number} req.query.page - Número de página (default: 1)
+     * @param {number} req.query.limit - Elementos por página (default: 10)
+     * @param {string} req.query.is_active - Filtrar por estado activo ('true'/'false')
+     * @returns {Object} Lista paginada con permisos aplicados según rol del usuario
+     */
     async getAllSuppliers(req, res) {
         try {
             const { page = 1, limit = 10, is_active } = req.query;
@@ -81,11 +118,19 @@ const supplierController = {
         }
     },
 
+    /**
+     * Obtiene un proveedor específico por ID con validación de permisos
+     * Los proveedores solo pueden ver su propio registro
+     * 
+     * @route GET /api/suppliers/:id
+     * @param {number} req.params.id - ID del proveedor a consultar
+     * @returns {Object} Datos del proveedor incluyendo usuarios asociados
+     */
     async getSupplierById(req, res) {
         try {
             const { id } = req.params;
             
-            // Filtrar por rol del usuario
+            // Filtrar por rol del usuario - proveedores solo ven su propio registro
             if (req.user.role === 'proveedor') {
                 const user = await User.findByPk(req.user.userId);
                 if (!user.supplier_id || user.supplier_id !== parseInt(id)) {
@@ -112,6 +157,17 @@ const supplierController = {
         }
     },
 
+    /**
+     * Crea un nuevo proveedor con validaciones de datos únicos
+     * Incluye creación automática de estructura de carpetas
+     * 
+     * @route POST /api/suppliers
+     * @param {Object} req.body - Datos del proveedor
+     * @param {string} req.body.business_name - Nombre comercial (requerido)
+     * @param {string} req.body.nit - Número de identificación tributaria (requerido, único)
+     * @param {string} req.body.address - Dirección física (requerido)
+     * @returns {Object} Proveedor creado con ID asignado
+     */
     async createSupplier(req, res) {
         try {
             console.log('🔍 POST /api/suppliers - Body recibido:', req.body);
@@ -156,6 +212,20 @@ const supplierController = {
         }
     },
 
+    /**
+     * Actualiza datos de un proveedor existente
+     * Permite modificar información comercial y bancaria
+     * 
+     * @route PUT /api/suppliers/:id
+     * @param {number} req.params.id - ID del proveedor a actualizar
+     * @param {Object} req.body - Datos a actualizar
+     * @param {string} req.body.business_name - Nombre comercial
+     * @param {string} req.body.contact_phone - Teléfono de contacto
+     * @param {string} req.body.address - Dirección física
+     * @param {Object} req.body.bank_details - Información bancaria en JSON
+     * @param {boolean} req.body.is_active - Estado activo/inactivo
+     * @returns {Object} Proveedor actualizado
+     */
     async updateSupplier(req, res) {
         try {
             const { id } = req.params;
@@ -180,6 +250,15 @@ const supplierController = {
         }
     },
 
+    /**
+     * Elimina (desactiva) un proveedor del sistema
+     * Valida que no tenga facturas asociadas antes de permitir la eliminación
+     * En lugar de eliminación física, realiza desactivación lógica
+     * 
+     * @route DELETE /api/suppliers/:id
+     * @param {number} req.params.id - ID del proveedor a eliminar
+     * @returns {Object} Mensaje de confirmación de desactivación
+     */
     async deleteSupplier(req, res) {
         try {
             const { id } = req.params;

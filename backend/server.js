@@ -1,3 +1,18 @@
+/**
+ * Servidor principal de la aplicación PayQuetzal
+ * Configura Express con middleware de seguridad, CORS, rate limiting y rutas
+ * Inicializa conexión a base de datos y manejo de errores centralizado
+ * 
+ * Características principales:
+ * - Autenticación JWT
+ * - Upload de archivos con multer
+ * - Rate limiting configurable
+ * - Logs de peticiones y errores
+ * - CORS configurado para frontend
+ * - Compresión gzip
+ * - Helmet para seguridad
+ */
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -13,7 +28,7 @@ const bcrypt = require('bcrypt');
 
 const app = express();
 
-// Inicializar base de datos
+// Inicializar conexión a base de datos MySQL
 initializeDatabase().then(connected => {
     if (!connected) {
         logger.error('No se pudo conectar a la base de datos. Cerrando aplicación.');
@@ -23,29 +38,29 @@ initializeDatabase().then(connected => {
     }
 });
 
-
-
-// Security middleware
+// Middleware de seguridad con Helmet (configurado para permitir iframes del frontend)
 app.use(helmet({
-    frameguard: false, // Permitir iframes
+    frameguard: false, // Permitir iframes para integración con frontend
     contentSecurityPolicy: {
         directives: {
             frameAncestors: ["'self'", "http://localhost:8080", "https://localhost:8080"]
         }
     }
 }));
+
+// Configuración de CORS para permitir peticiones del frontend
 app.use(cors({
-    origin: process.env.FRONTEND_URL,
-    credentials: true
+    origin: process.env.FRONTEND_URL, // URL del frontend desde variable de entorno
+    credentials: true // Permitir cookies y headers de autenticación
 }));
 
-// Rate limiting
+// Rate limiting global - protección contra ataques DDoS y abuso
 const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW) || 15; // 15 minutos por defecto
-const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'development' ? 1000 : 100); // 1000 en dev, 100 en prod
+const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'development' ? 1000 : 100); // Más permisivo en desarrollo
 
 const limiter = rateLimit({
     windowMs: windowMs * 60 * 1000, // Convertir minutos a milisegundos
-    max: maxRequests,
+    max: maxRequests, // Límite de peticiones por ventana de tiempo
     message: 'Demasiadas peticiones, intente nuevamente más tarde',
     skip: (req) => {
         // Saltar rate limiting para IPs locales en desarrollo
@@ -53,29 +68,35 @@ const limiter = rateLimit({
         return process.env.NODE_ENV === 'development' && isLocal
     }
 });
-app.use('/api/', limiter);
+app.use('/api/', limiter); // Aplicar rate limiting solo a rutas de API
 
-// General middleware
-app.use(compression());
-app.use(morgan('combined'));
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(requestLogger);
+// Middleware general para procesamiento de peticiones
+app.use(compression()); // Compresión gzip para mejorar performance
+app.use(morgan('combined')); // Logging detallado de peticiones HTTP
+app.use(express.json({ limit: '10mb' })); // Parser JSON con límite de 10MB para archivos
+app.use(express.urlencoded({ extended: true })); // Parser URL-encoded para formularios
+app.use(requestLogger); // Logger personalizado para tracking de requests
 
-// Debug middleware para ver las peticiones
+// Middleware de debug para monitoreo de peticiones en desarrollo
 app.use((req, res, next) => {
     console.log(`${req.method} ${req.path}`);
     next();
 });
 
-// Routes
-app.use('/api/auth', require('./src/routes/auth'));
-app.use('/api/users', require('./src/routes/users'));
-app.use('/api/invoices', require('./src/routes/invoices'));
-app.use('/api/suppliers', require('./src/routes/suppliers'));
-app.use('/api/dashboard', require('./src/routes/dashboard'));
+/**
+ * Configuración de rutas de la API
+ * Cada ruta maneja un módulo específico del sistema
+ */
+app.use('/api/auth', require('./src/routes/auth')); // Autenticación y manejo de sesiones
+app.use('/api/users', require('./src/routes/users')); // Gestión de usuarios y permisos
+app.use('/api/invoices', require('./src/routes/invoices')); // Gestión de facturas y documentos
+app.use('/api/suppliers', require('./src/routes/suppliers')); // Gestión de proveedores
+app.use('/api/dashboard', require('./src/routes/dashboard')); // Métricas y dashboard principal
 
-// Health check
+/**
+ * Health check endpoint para monitoreo de estado del servidor
+ * Utilizado por sistemas de monitoreo y load balancers
+ */
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -84,7 +105,10 @@ app.get('/health', (req, res) => {
     });
 });
 
-// Ruta de prueba para verificar que el servidor funciona
+/**
+ * Ruta de prueba para verificar conectividad básica del API
+ * Útil para troubleshooting y verificación de deploy
+ */
 app.get('/api/test', (req, res) => {
     res.json({
         message: 'Backend funcionando correctamente',
@@ -92,14 +116,21 @@ app.get('/api/test', (req, res) => {
     });
 });
 
-// Error handler (debe ir al final)
+// Middleware de manejo de errores centralizado (debe ir al final de todo)
 app.use(errorHandler);
 
-// Handle unhandled promise rejections
+/**
+ * Manejo global de promesas rechazadas no capturadas
+ * Previene crashes del servidor por errores asincrónicos no manejados
+ */
 process.on('unhandledRejection', (err, promise) => {
     logger.error('Unhandled Promise Rejection:', err);
 });
 
+/**
+ * Inicialización del servidor HTTP
+ * Configuración del puerto y logging de inicio
+ */
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     logger.info(`🚀 Servidor corriendo en puerto ${PORT}`);

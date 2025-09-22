@@ -2,9 +2,20 @@ const { validationResult } = require('express-validator');
 const { User, Supplier, UserPermission, Op } = require('../models');
 const { createResponse } = require('../utils/response');
 
+/**
+ * Controlador de Usuarios - Gestión completa de usuarios del sistema
+ * Maneja CRUD, permisos, autenticación y gestión de roles
+ * Incluye sistema de permisos granular por módulo y acción
+ */
 const userController = {
-    // Función para asignar permisos por defecto según el rol
+    /**
+     * Asigna permisos por defecto a un usuario según su rol
+     * Define la matriz de permisos base para cada tipo de usuario
+     * @param {number} userId - ID del usuario a quien asignar permisos
+     * @param {string} role - Rol del usuario (super_admin, admin_contaduria, trabajador_contaduria, proveedor)
+     */
     async assignDefaultPermissions(userId, role) {
+        // Matriz de permisos por rol - define qué puede hacer cada tipo de usuario
         const defaultPermissions = {
             super_admin: {
                 'dashboard': { 'view': true, 'view_stats': true, 'view_charts': true, 'export_data': true },
@@ -34,7 +45,7 @@ const userController = {
 
         const permissions = defaultPermissions[role] || {};
         
-        // Actualizar el campo JSON permissions en la tabla users
+        // Actualizar permisos en el campo JSON de la tabla users
         await User.update(
             { permissions: permissions },
             { where: { id: userId } }
@@ -42,35 +53,47 @@ const userController = {
 
         console.log(`✅ Permisos por defecto asignados para rol '${role}' al usuario ID ${userId}`);
     },
+
+    /**
+     * Obtiene lista paginada de usuarios con filtros opcionales
+     * Soporta búsqueda por nombre, filtro por rol y estado activo/inactivo
+     * @param {Object} req - Request con query parameters: page, limit, search, role, is_active
+     * @param {Object} res - Response con lista paginada de usuarios
+     * @returns {Object} Lista de usuarios con información de paginación
+     */
     async getAllUsers(req, res) {
         try {
+            // Extraer parámetros de query con valores por defecto
             const { page = 1, limit = 10, search = '', role } = req.query;
             const offset = (page - 1) * limit;
             
+            // Construir filtros dinámicos para la consulta
             const where = {};
             if (role) {
-                // Manejar múltiples roles separados por comas
+                // Soportar múltiples roles separados por comas
                 const roles = role.split(',').map(r => r.trim());
                 where.role = { [Op.in]: roles };
             }
             if (search) {
+                // Búsqueda por nombre usando LIKE
                 where.name = { [Op.like]: `%${search}%` };
             }
-                // Filtro por activo/inactivo
-                if (typeof req.query.is_active !== 'undefined') {
-                    where.is_active = req.query.is_active === 'true';
-                }
+            // Filtro opcional por estado activo/inactivo
+            if (typeof req.query.is_active !== 'undefined') {
+                where.is_active = req.query.is_active === 'true';
+            }
 
+            // Consulta con paginación e inclusión de datos del proveedor
             const users = await User.findAndCountAll({
                 where,
-                attributes: { exclude: ['password_hash'] },
+                attributes: { exclude: ['password_hash'] }, // Excluir datos sensibles
                 include: [{
                     model: Supplier,
                     as: 'supplier',
                     attributes: ['id', 'business_name', 'nit'],
-                    required: false
+                    required: false // LEFT JOIN para incluir usuarios sin proveedor
                 }],
-                order: [['created_at', 'DESC']],
+                order: [['created_at', 'DESC']], // Más recientes primero
                 limit: parseInt(limit),
                 offset: parseInt(offset)
             });
@@ -87,15 +110,24 @@ const userController = {
         }
     },
 
+    /**
+     * Obtiene un usuario específico por su ID
+     * Incluye información del proveedor asociado si aplica
+     * @param {Object} req - Request con parámetro id del usuario
+     * @param {Object} res - Response con datos del usuario
+     * @returns {Object} Datos completos del usuario (sin contraseña)
+     */
     async getUserById(req, res) {
         try {
             const { id } = req.params;
+            
+            // Buscar usuario con datos del proveedor asociado
             const user = await User.findByPk(id, {
-                attributes: { exclude: ['password_hash'] },
+                attributes: { exclude: ['password_hash'] }, // Excluir contraseña
                 include: [{
                     model: Supplier,
                     as: 'supplier',
-                    required: false
+                    required: false // LEFT JOIN opcional
                 }]
             });
 
@@ -110,8 +142,16 @@ const userController = {
         }
     },
 
+    /**
+     * Crea un nuevo usuario en el sistema
+     * Valida email único, hashea contraseña y asigna permisos por defecto
+     * @param {Object} req - Request con datos del usuario: email, password, name, role, supplier_id
+     * @param {Object} res - Response con usuario creado
+     * @returns {Object} Usuario creado con permisos asignados
+     */
     async createUser(req, res) {
         try {
+            // Validar datos de entrada usando express-validator
             const errors = validationResult(req);
             if (!errors.isEmpty()) {
                 return res.status(400).json(createResponse(false, 'Datos de entrada inválidos', errors.array()));
@@ -119,14 +159,16 @@ const userController = {
 
             const { email, password, name, role, supplier_id } = req.body;
 
+            // Verificar que el email no esté ya registrado
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) {
                 return res.status(400).json(createResponse(false, 'El email ya está registrado', null));
             }
 
+            // Crear usuario (el modelo se encarga del hash de contraseña)
             const user = await User.create({
                 email,
-                password_hash: password,
+                password_hash: password, // Se hashea automáticamente en el modelo
                 name,
                 role,
                 supplier_id
@@ -135,6 +177,7 @@ const userController = {
             // Asignar permisos por defecto según el rol
             await userController.assignDefaultPermissions(user.id, role);
 
+            // Preparar respuesta sin datos sensibles
             const responseUser = user.toJSON();
             delete responseUser.password_hash;
 
