@@ -11,7 +11,7 @@
           <!-- Marca -->
           <div class="brand-section">
             <div class="brand-logo brand-logo-image">
-              <img src="/logo-payquetzal.png" alt="PayQuetzal Logo" style="height: 360px; width: auto;" />
+              <img src="/logo-payquetzal.png" alt="PayQuetzal Logo" />
             </div>
           </div>
           

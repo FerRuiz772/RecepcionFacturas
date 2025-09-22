@@ -260,6 +260,26 @@
                     </template>
                   </v-list-item>
 
+                  <!-- Archivo de contraseña -->
+                  <v-list-item v-if="hasDocument('password')" class="document-item">
+                    <template v-slot:prepend>
+                      <v-icon color="purple">mdi-key</v-icon>
+                    </template>
+                    <v-list-item-title>Archivo de Contraseña</v-list-item-title>
+                    <v-list-item-subtitle>Documento con información de acceso</v-list-item-subtitle>
+                    <template v-slot:append>
+                      <v-btn
+                        variant="outlined"
+                        size="small"
+                        color="purple"
+                        @click="downloadPassword"
+                      >
+                        <v-icon class="mr-1">mdi-download</v-icon>
+                        Descargar
+                      </v-btn>
+                    </template>
+                  </v-list-item>
+
                   <!-- Mensaje si no hay documentos -->
                   <v-list-item v-if="!hasAnyDocuments()" class="no-documents">
                     <template v-slot:prepend>
@@ -346,6 +366,7 @@ const {
   downloadISR,
   downloadIVA,
   downloadProof,
+  downloadPassword,
   getStatusColor,
   getStatusText,
   getPriorityColor,

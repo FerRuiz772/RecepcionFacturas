@@ -34,6 +34,67 @@ const sharp = require('sharp');
 const zlib = require('zlib');
 const { Op } = require('sequelize');
 
+// ========== FUNCIONES DE LIMPIEZA Y MANTENIMIENTO ==========
+
+/**
+ * Limpia archivos comprimidos huérfanos al iniciar el servidor
+ * Esto previene problemas con PDFs corrompidos por compresión
+ */
+const cleanupCompressedFiles = async () => {
+    try {
+        console.log('🧹 Iniciando limpieza de archivos comprimidos...');
+        const uploadsDir = path.join(__dirname, '..', 'uploads');
+        
+        // Verificar que el directorio existe
+        try {
+            await fs.access(uploadsDir);
+        } catch (error) {
+            console.log('📁 Directorio uploads no existe aún, saltando limpieza');
+            return;
+        }
+        
+        const findAndCleanGzFiles = async (directory) => {
+            try {
+                const items = await fs.readdir(directory, { withFileTypes: true });
+                
+                for (const item of items) {
+                    const fullPath = path.join(directory, item.name);
+                    
+                    if (item.isDirectory()) {
+                        await findAndCleanGzFiles(fullPath);
+                    } else if (item.isFile() && item.name.endsWith('.gz') && item.name.includes('.pdf')) {
+                        console.log(`🔧 Limpiando archivo comprimido: ${fullPath}`);
+                        try {
+                            const compressedData = await fs.readFile(fullPath);
+                            const decompressedData = zlib.gunzipSync(compressedData);
+                            const originalPath = fullPath.replace('.gz', '');
+                            
+                            await fs.writeFile(originalPath, decompressedData);
+                            await fs.unlink(fullPath);
+                            console.log(`✅ Archivo limpiado: ${originalPath}`);
+                        } catch (error) {
+                            console.log(`❌ Error limpiando ${fullPath}: ${error.message}`);
+                        }
+                    }
+                }
+            } catch (error) {
+                // Silenciosamente ignorar errores de directorios no accesibles
+                if (error.code !== 'ENOENT' && error.code !== 'EACCES') {
+                    console.log(`❌ Error procesando directorio ${directory}: ${error.message}`);
+                }
+            }
+        };
+        
+        await findAndCleanGzFiles(uploadsDir);
+        console.log('✅ Limpieza de archivos comprimidos completada');
+    } catch (error) {
+        console.error('❌ Error durante la limpieza:', error);
+    }
+};
+
+// Ejecutar limpieza después de un pequeño delay para asegurar que el sistema esté listo
+setTimeout(cleanupCompressedFiles, 2000);
+
 /**
  * Crea la estructura de carpetas para organizar documentos de facturas
  * Estructura: uploads/empresas/[empresa]/proveedores/[proveedor]/[numero_factura]
@@ -110,14 +171,41 @@ const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) =
         console.log(`   📂 Directorio uploads: ${uploadsDir}`);
         console.log(`   📂 Carpeta proveedor: ${supplierFolder}`);
 
+        // Función auxiliar para verificar y descomprimir si es necesario
+        const checkAndDecompressFile = async (filePath) => {
+            try {
+                await fs.access(filePath);
+                
+                // Verificar si el archivo está comprimido
+                const fileBuffer = await fs.readFile(filePath);
+                const isGzipped = fileBuffer[0] === 0x1f && fileBuffer[1] === 0x8b;
+                
+                if (isGzipped && filePath.endsWith('.pdf')) {
+                    console.log(`   🔧 Archivo comprimido detectado, descomprimiendo: ${filePath}`);
+                    try {
+                        const decompressedData = zlib.gunzipSync(fileBuffer);
+                        await fs.writeFile(filePath, decompressedData);
+                        console.log(`   ✅ Archivo descomprimido exitosamente: ${filePath}`);
+                    } catch (error) {
+                        console.log(`   ❌ Error descomprimiendo archivo: ${error.message}`);
+                        throw error;
+                    }
+                }
+                
+                return filePath;
+            } catch (error) {
+                throw error;
+            }
+        };
+
         // 1. Buscar en la nueva estructura por empresa
         const empresasDir = path.join(uploadsDir, 'empresas', supplierFolder.toLowerCase(), 'proveedores', supplierFolder.toLowerCase(), invoiceNumber.replace(/[^a-zA-Z0-9\-]/g, '_'));
         console.log(`   🔍 Buscando en estructura nueva: ${empresasDir}`);
         try {
             const newStructurePath = path.join(empresasDir, fileName);
-            await fs.access(newStructurePath);
-            console.log(`   ✅ Encontrado en estructura nueva: ${newStructurePath}`);
-            return newStructurePath;
+            const result = await checkAndDecompressFile(newStructurePath);
+            console.log(`   ✅ Encontrado en estructura nueva: ${result}`);
+            return result;
         } catch (error) {
             console.log(`   ❌ No encontrado en estructura nueva: ${error.message}`);
         }
@@ -133,9 +221,9 @@ const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) =
                     const potentialPath = path.join(supplierDir, subdir, fileName);
                     console.log(`   🔍 Probando: ${potentialPath}`);
                     try {
-                        await fs.access(potentialPath);
-                        console.log(`   ✅ Encontrado en estructura actual: ${potentialPath}`);
-                        return potentialPath;
+                        const result = await checkAndDecompressFile(potentialPath);
+                        console.log(`   ✅ Encontrado en estructura actual: ${result}`);
+                        return result;
                     } catch (error) {
                         console.log(`   ❌ No accesible: ${error.message}`);
                         continue;
@@ -150,9 +238,9 @@ const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) =
         const directPath = path.join(uploadsDir, fileName);
         console.log(`   🔍 Buscando en uploads directo: ${directPath}`);
         try {
-            await fs.access(directPath);
-            console.log(`   ✅ Encontrado en uploads directo: ${directPath}`);
-            return directPath;
+            const result = await checkAndDecompressFile(directPath);
+            console.log(`   ✅ Encontrado en uploads directo: ${result}`);
+            return result;
         } catch (error) {
             console.log(`   ❌ No encontrado en uploads directo: ${error.message}`);
         }
@@ -162,9 +250,9 @@ const findDocumentPath = async (supplierBusinessName, invoiceNumber, fileName) =
         console.log(`   🔍 Buscando en estructura proveedores: ${proveedoresDir}`);
         try {
             const proveedoresPath = path.join(proveedoresDir, fileName);
-            await fs.access(proveedoresPath);
-            console.log(`   ✅ Encontrado en estructura proveedores: ${proveedoresPath}`);
-            return proveedoresPath;
+            const result = await checkAndDecompressFile(proveedoresPath);
+            console.log(`   ✅ Encontrado en estructura proveedores: ${result}`);
+            return result;
         } catch (error) {
             console.log(`   ❌ No encontrado en estructura proveedores: ${error.message}`);
         }
@@ -1639,7 +1727,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['business_name'] }]
+                    include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }]
                 }]
             });
 
@@ -1658,7 +1746,7 @@ const invoiceController = {
             try {
                 // Buscar archivo en nueva estructura o estructura antigua
                 const filePath = await findDocumentPath(
-                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.supplier.business_name,
                     payment.Invoice.number,
                     payment.isr_retention_file
                 );
@@ -1683,7 +1771,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['business_name'] }]
+                    include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }]
                 }]
             });
 
@@ -1701,7 +1789,7 @@ const invoiceController = {
             try {
                 // Buscar archivo en nueva estructura o estructura antigua
                 const filePath = await findDocumentPath(
-                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.supplier.business_name,
                     payment.Invoice.number,
                     payment.iva_retention_file
                 );
@@ -1726,7 +1814,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['business_name'] }]
+                    include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }]
                 }]
             });
 
@@ -1744,7 +1832,7 @@ const invoiceController = {
             try {
                 // Buscar archivo en nueva estructura o estructura antigua
                 const filePath = await findDocumentPath(
-                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.supplier.business_name,
                     payment.Invoice.number,
                     payment.payment_proof_file
                 );
@@ -1769,7 +1857,7 @@ const invoiceController = {
                     model: Invoice, 
                     as: 'Invoice', 
                     attributes: ['number', 'supplier_id'],
-                    include: [{ model: Supplier, attributes: ['business_name'] }]
+                    include: [{ model: Supplier, as: 'supplier', attributes: ['business_name'] }]
                 }]
             });
 
@@ -1787,7 +1875,7 @@ const invoiceController = {
             try {
                 // Buscar archivo en nueva estructura o estructura antigua
                 const filePath = await findDocumentPath(
-                    payment.Invoice.Supplier.business_name,
+                    payment.Invoice.supplier.business_name,
                     payment.Invoice.number,
                     payment.password_file
                 );
@@ -2096,6 +2184,18 @@ const invoiceController = {
                         });
                         totalDocuments++;
                     }
+
+                    if (invoice.payment.password_file && ['pago_realizado', 'proceso_completado'].includes(invoice.status)) {
+                        documents.push({
+                            id: `password-${invoice.id}`,
+                            type: 'password_file',
+                            title: 'Archivo de Contraseña',
+                            filename: invoice.payment.password_file,
+                            date: invoice.payment.updated_at,
+                            downloadUrl: `/api/invoices/${invoice.id}/download-password-file`
+                        });
+                        totalDocuments++;
+                    }
                 }
                 
                 // Solo incluir facturas que tengan al menos un documento
@@ -2300,22 +2400,8 @@ const invoiceController = {
             const baseName = path.basename(inputPath, ext);
             const dirName = path.dirname(inputPath);
             
-            // Solo procesamos PDFs ahora
-            if (mimetype === 'application/pdf') {
-                const input = await fs.readFile(inputPath);
-                const compressed = zlib.gzipSync(input);
-                const gzPath = inputPath + '.gz';
-                await fs.writeFile(gzPath, compressed);
-                await fs.unlink(inputPath); // Eliminar archivo original
-                
-                return {
-                    filename: path.basename(gzPath),
-                    path: gzPath,
-                    size: compressed.length
-                };
-            }
-    
-            // Si no es PDF (no debería llegar aquí), retornar sin cambios
+            // DESHABILITAR COMPRESIÓN DE PDFs - Mantenemos archivos originales
+            // La compresión estaba corrompiendo los PDFs
             const stats = await fs.stat(inputPath);
             return {
                 filename: path.basename(inputPath),
@@ -2323,7 +2409,7 @@ const invoiceController = {
                 size: stats.size
             };
         } catch (error) {
-            console.error('Error al comprimir archivo PDF:', error);
+            console.error('Error al procesar archivo:', error);
             // Si hay error, retornar archivo original
             const stats = await fs.stat(filePath);
             return {

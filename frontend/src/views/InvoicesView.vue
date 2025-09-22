@@ -289,6 +289,19 @@
                     <v-icon class="mr-1" size="16">mdi-receipt</v-icon>
                     Comprobante
                   </v-btn>
+                  
+                  <!-- Descargar archivo de contraseña (si disponible) -->
+                  <v-btn
+                    v-if="hasPasswordFile(item)"
+                    variant="outlined"
+                    size="small"
+                    color="purple"
+                    @click="downloadPasswordFile(item)"
+                    :title="`Descargar archivo de contraseña`"
+                  >
+                    <v-icon class="mr-1" size="16">mdi-key</v-icon>
+                    Contraseña
+                  </v-btn>
                 </template>
 
                 <!-- ACCIONES PARA CONTADURÍA -->
@@ -401,6 +414,7 @@ const {
   hasRetentionISR,
   hasRetentionIVA,
   hasPaymentProof,
+  hasPasswordFile,
   canChangeStatus,
   canGeneratePassword,
   loadInvoices,
@@ -408,6 +422,7 @@ const {
   downloadRetentionISR,
   downloadRetentionIVA,
   downloadPaymentProof,
+  downloadPasswordFile,
   generatePassword,
   viewInvoice,
   manageInvoice,

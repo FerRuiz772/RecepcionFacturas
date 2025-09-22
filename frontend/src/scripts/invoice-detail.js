@@ -44,13 +44,15 @@ export function useInvoiceDetail() {
         return ['retencion_iva_generada', 'pago_realizado', 'proceso_completado'].includes(invoice.value.status)
       case 'proof':
         return invoice.value.status === 'proceso_completado'
+      case 'password':
+        return ['pago_realizado', 'proceso_completado'].includes(invoice.value.status)
       default:
         return false
     }
   }
 
   const hasAnyDocuments = () => {
-    return hasDocument('isr') || hasDocument('iva') || hasDocument('proof')
+    return hasDocument('isr') || hasDocument('iva') || hasDocument('proof') || hasDocument('password')
   }
 
   // Funciones de descarga
@@ -119,6 +121,23 @@ export function useInvoiceDetail() {
       toast.success('Comprobante descargado')
     } catch (error) {
       toast.error('Error al descargar comprobante')
+    }
+  }
+
+  const downloadPassword = async () => {
+    try {
+      const response = await axios.get(`/api/invoices/${route.params.id}/download-password-file`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `contrasena-${invoice.value.number}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Archivo de contraseña descargado')
+    } catch (error) {
+      toast.error('Error al descargar archivo de contraseña')
     }
   }
 
@@ -232,6 +251,7 @@ export function useInvoiceDetail() {
     downloadISR,
     downloadIVA,
     downloadProof,
+    downloadPassword,
     getStatusColor,
     getStatusText,
     getPriorityColor,

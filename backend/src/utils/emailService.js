@@ -33,7 +33,7 @@ const createTransporter = () => {
   // Detectar si usamos SendGrid (API key empieza con 'SG.')
   if (process.env.EMAIL_PASSWORD && process.env.EMAIL_PASSWORD.startsWith('SG.')) {
     console.log('🔧 Using SendGrid SMTP configuration');
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       host: 'smtp.sendgrid.net',
       port: 587,
       secure: false, // TLS en puerto 587
@@ -44,7 +44,7 @@ const createTransporter = () => {
     });
   } else {
     console.log('🔧 Using Gmail service configuration');
-    return nodemailer.createTransporter({
+    return nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,

@@ -94,6 +94,10 @@ export function useInvoices() {
     return ['proceso_completado'].includes(invoice.status)
   }
 
+  const hasPasswordFile = (invoice) => {
+    return ['pago_realizado', 'proceso_completado'].includes(invoice.status)
+  }
+
   const canGeneratePassword = (invoice) => {
     return ['en_proceso'].includes(invoice.status)
   }
@@ -234,6 +238,23 @@ export function useInvoices() {
     }
   }
 
+  const downloadPasswordFile = async (invoice) => {
+    try {
+      const response = await axios.get(`/api/invoices/${invoice.id}/download-password-file`, {
+        responseType: 'blob'
+      })
+      const url = window.URL.createObjectURL(new Blob([response.data]))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `contrasena-${invoice.number}.pdf`
+      link.click()
+      window.URL.revokeObjectURL(url)
+      toast.success('Archivo de contraseña descargado')
+    } catch (error) {
+      toast.error('Error al descargar archivo de contraseña')
+    }
+  }
+
   // Funciones adicionales
   const generatePassword = async (invoice) => {
     try {
@@ -349,6 +370,7 @@ export function useInvoices() {
     hasRetentionISR,
     hasRetentionIVA,
     hasPaymentProof,
+    hasPasswordFile,
     canGeneratePassword,
     loadInvoices,
     loadSuppliers,
@@ -357,6 +379,7 @@ export function useInvoices() {
     downloadRetentionISR,
     downloadRetentionIVA,
     downloadPaymentProof,
+    downloadPasswordFile,
     generatePassword,
     viewInvoice,
     manageInvoice,
