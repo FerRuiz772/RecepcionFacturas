@@ -12,7 +12,7 @@
           <v-icon size="18" color="#0f172a">mdi-file-document-multiple</v-icon>
         </div>
         <div class="sidebar-brand-text">
-          <div class="sidebar-title">Recepción Facturas</div>
+          <div class="sidebar-title">PayQuetzal</div>
         </div>
       </div>
       <p class="sidebar-subtitle">Sistema de Gestión de Pagos</p>

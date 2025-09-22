@@ -1,15 +1,18 @@
 ﻿<template>
   <div class="login-container">
+      <!-- Logo empresa arriba a la izquierda -->
+      <div class="empresa-logo">
+        <img src="/empresa_logo.png" alt="Empresa Logo" style="height: 90px; width: auto;" />
+      </div>
+      
       <!-- Panel Izquierdo - Formulario -->
       <div class="left-panel">
         <div class="login-card">
           <!-- Marca -->
           <div class="brand-section">
-            <div class="brand-logo">
-              📄
+            <div class="brand-logo brand-logo-image">
+              <img src="/logo-payquetzal.png" alt="PayQuetzal Logo" style="height: 360px; width: auto;" />
             </div>
-            <h1 class="brand-title">Recepción Facturas</h1>
-            <p class="brand-subtitle">Sistema de Gestión de Pagos</p>
           </div>
           
           <!-- Formulario -->

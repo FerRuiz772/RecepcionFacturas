@@ -11,6 +11,14 @@
   right: 0;
   bottom: 0;
   overflow: hidden;
+  position: relative;
+}
+
+.empresa-logo {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
 }
 
 .left-panel {
@@ -60,15 +68,16 @@
 
 .brand-section {
   text-align: center;
-  margin-bottom: 48px;
+  margin-bottom: 28px;
+  margin-top: -40px;
 }
 
 .brand-logo {
-  width: 64px;
-  height: 64px;
+  width: auto;
+  height: auto;
   background: #0f172a;
   border-radius: 12px;
-  margin: 0 auto 20px;
+  margin: 0 auto 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -76,6 +85,18 @@
   font-size: 28px;
   box-shadow: 0 4px 16px rgba(15, 23, 42, 0.2);
   transition: transform 0.2s ease;
+}
+
+.brand-logo-image {
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.brand-logo img {
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .brand-logo:hover {

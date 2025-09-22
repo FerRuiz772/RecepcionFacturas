@@ -9,7 +9,7 @@
             <div class="brand-logo">
               📄
             </div>
-            <h1 class="brand-title">Recepción Facturas</h1>
+            <h1 class="brand-title">PayQuetzal</h1>
             <p class="brand-subtitle">Sistema de Gestión de Pagos</p>
           </div>
           
