@@ -37,6 +37,7 @@
   },
   "description": "Backend para sistema de recepción de facturas",
   "devDependencies": {
-    "googleapis": "^160.0.0"
+    "googleapis": "^160.0.0",
+    "nodemon": "^3.0.1"
   }
 }

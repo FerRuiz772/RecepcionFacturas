@@ -1,39 +1,28 @@
-# Dockerfile optimizado
-FROM node:18-alpine AS base
+FROM node:20-alpine
 
-# Instalar dependencias del sistema necesarias para algunas librerías de Node
-RUN apk add --no-cache \
-    build-base \
-    python3 \
-    make \
-    g++ \
-    libc6-compat
+RUN apk add --no-cache build-base python3 make g++ libc6-compat
 
-# Crear directorio de trabajo
 WORKDIR /app
+RUN addgroup -g 1001 -S nodejs && adduser -S nodeuser -u 1001
 
-# Copiar package files
 COPY package*.json ./
 
-# Instalar dependencias
-RUN npm ci --only=production && npm cache clean --force
+# Instalar dependencias según NODE_ENV
+RUN if [ "$NODE_ENV" = "production" ] ; then \
+        npm ci --omit=dev ; \
+    else \
+        npm ci ; \
+    fi && npm cache clean --force
 
-# Crear usuario node
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodeuser -u 1001
-
-# Copiar código fuente (excluyendo archivos en .dockerignore)
 COPY --chown=nodeuser:nodejs . .
+RUN mkdir -p uploads logs && chown -R nodeuser:nodejs uploads logs
 
-# Crear directorios necesarios
-RUN mkdir -p uploads logs && \
-    chown -R nodeuser:nodejs uploads logs
-
-# Cambiar a usuario no root
 USER nodeuser
-
-# Exponer puerto
 EXPOSE 3000
 
-# Comando de inicio
-CMD ["npm", "start"]
+# Comando según NODE_ENV
+CMD if [ "$NODE_ENV" = "production" ] ; then \
+        npm start ; \
+    else \
+        npm run dev ; \
+    fi
