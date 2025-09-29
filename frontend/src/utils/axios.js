@@ -5,7 +5,7 @@ import { useToast } from 'vue-toastification'
 const toast = useToast()
 
 // Configuración base de axios
-axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'https://hubsistema.com'
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080'
 axios.defaults.timeout = 10000
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 

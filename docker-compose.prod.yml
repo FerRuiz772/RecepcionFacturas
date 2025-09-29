@@ -5,8 +5,6 @@ services:
     image: mysql:8.0
     container_name: payquetzal_db
     restart: unless-stopped
-    env_file:
-      - ./.env
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME}
@@ -21,7 +19,8 @@ services:
       - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
       - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
       - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
-      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql    networks:
+      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+    networks:
       - payquetzal-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
@@ -36,7 +35,7 @@ services:
     container_name: payquetzal_api
     restart: unless-stopped
     env_file:
-      - ./.env
+      - ./.env.production
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -45,13 +44,40 @@ services:
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_PORT: ${EMAIL_PORT}
+      EMAIL_USER: ${EMAIL_USER}
+      EMAIL_PASS: ${EMAIL_PASS}
+      EMAIL_FROM: ${EMAIL_FROM}
+      FRONTEND_URL: ${FRONTEND_URL}
     ports:
       - "127.0.0.1:5001:3000"
     volumes:
       - ./uploads:/app/uploads
       - ./backend/logs:/app/logs
     depends_on:
-      - payquetzal_db
+      payquetzal_db:
+        condition: service_healthy
+    networks:
+      - payquetzal-network
+
+  payquetzal_frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: payquetzal_frontend
+    restart: unless-stopped
+    env_file:
+      - ./.env.production
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      - NODE_ENV=production
+    depends_on:
+      - payquetzal_api
     networks:
       - payquetzal-network
 

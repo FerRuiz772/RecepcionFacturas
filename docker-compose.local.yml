@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  db:
+    image: mysql:8.0
+    container_name: recepcion_facturas_db_local
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data_local:/var/lib/mysql
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
+      - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
+      - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
+      - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
+      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+    networks:
+      - recepcion_network_local
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recepcion_facturas_api_local
+    restart: unless-stopped
+    ports:
+      - "5000:3000"
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./uploads:/app/uploads
+      - /app/node_modules
+    env_file:
+      - ./.env.local
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - EMAIL_HOST=${EMAIL_HOST}
+      - EMAIL_PORT=${EMAIL_PORT}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_PASS=${EMAIL_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - LOG_LEVEL=debug
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - recepcion_network_local
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: recepcion_facturas_frontend_local
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - api
+    networks:
+      - recepcion_network_local
+
+networks:
+  recepcion_network_local:
+    driver: bridge
+
+volumes:
+  mysql_data_local:
+    driver: local

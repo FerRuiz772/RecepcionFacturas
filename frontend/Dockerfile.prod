@@ -1,0 +1,29 @@
+# Etapa de build
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
+
+# Allow passing API URL at build time so Vite can embed it into the production build.
+# Usage: docker build --build-arg VITE_API_URL=https://api.example.com -f frontend/Dockerfile.prod .
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
+RUN npm run build
+
+# Etapa de producción con Apache
+FROM httpd:2.4-alpine
+
+# Elimina configuración por defecto si no se necesita
+RUN rm -rf /usr/local/apache2/htdocs/*
+
+# Copia los archivos generados por el build de Node
+COPY --from=build /app/dist/ /usr/local/apache2/htdocs/
+
+# Opcional: reemplazar configuración de Apache con tu propio archivo
+# Asegúrate de tener un httpd.conf o vhost.conf preparado
+# COPY ./apache/httpd.conf /usr/local/apache2/conf/httpd.conf
+
+EXPOSE 80
+CMD ["httpd-foreground"]
