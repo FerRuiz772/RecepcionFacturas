@@ -15,7 +15,12 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
+      - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
+      - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
+      - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
+      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
     networks:
       - recepcion_network
     healthcheck:
@@ -32,7 +37,7 @@ services:
     container_name: recepcion_facturas_api
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "5000:3000"
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
@@ -63,7 +68,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     container_name: recepcion_facturas_frontend
     restart: unless-stopped
     ports:

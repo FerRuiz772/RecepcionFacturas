@@ -15,9 +15,13 @@ RUN if [ "$NODE_ENV" = "production" ] ; then \
     fi && npm cache clean --force
 
 COPY --chown=nodeuser:nodejs . .
-RUN mkdir -p uploads logs && chown -R nodeuser:nodejs uploads logs
+
+# Crear TODOS los directorios necesarios incluyendo src/uploads
+RUN mkdir -p uploads logs src/uploads && \
+    chown -R nodeuser:nodejs uploads logs src
 
 USER nodeuser
+
 EXPOSE 3000
 
 # Comando según NODE_ENV
