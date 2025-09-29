@@ -198,8 +198,24 @@ const userController = {
                 return res.status(404).json(createResponse(false, 'Usuario no encontrado', null));
             }
 
+            // Permitimos actualizar name, role, is_active, supplier_id y email
             const updateData = { name, role, is_active, supplier_id };
-            
+
+            // Procesar email si se envía en el body
+            if (typeof req.body.email !== 'undefined' && req.body.email !== null) {
+                const normalizedEmail = String(req.body.email).toLowerCase().trim();
+
+                // Si el email es distinto al actual, comprobar que no exista otro usuario con ese email
+                if (normalizedEmail !== (user.email || '').toLowerCase()) {
+                    const existing = await User.findOne({ where: { email: normalizedEmail } });
+                    if (existing) {
+                        return res.status(400).json(createResponse(false, 'El email ya está registrado por otro usuario', null));
+                    }
+                }
+
+                updateData.email = normalizedEmail;
+            }
+
             await user.update(updateData);
 
             const responseUser = user.toJSON();
@@ -208,6 +224,10 @@ const userController = {
             res.json(createResponse(true, 'Usuario actualizado exitosamente', responseUser));
         } catch (error) {
             console.error('Error al actualizar usuario:', error);
+            // Mapear error de constraint único (email) a 400 para UX amigable
+            if (error && error.name === 'SequelizeUniqueConstraintError') {
+                return res.status(400).json(createResponse(false, 'El email ya está registrado', null));
+            }
             res.status(500).json(createResponse(false, 'Error interno del servidor', null));
         }
     },
