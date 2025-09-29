@@ -288,6 +288,7 @@
                       Descargar
                     </v-btn>
                     <v-btn
+                      v-if="authStore.isContaduria || authStore.isAdmin"
                       variant="outlined"
                       color="error"
                       size="small"
@@ -712,6 +713,7 @@ import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useToast } from 'vue-toastification'
 import { useInvoiceManage } from '../scripts/invoice-manage.js'
+import { useAuthStore } from '../stores/auth.js'
 
 const {
   // Estado reactivo
@@ -793,6 +795,9 @@ const {
   initializeInvoiceManage
 } = useInvoiceManage()
 const toast = useToast()
+
+// Auth store to control role-based UI
+const authStore = useAuthStore()
 
 // Rechazar dialog state and action exposed from composition
 const rejectDialog = ref(false)

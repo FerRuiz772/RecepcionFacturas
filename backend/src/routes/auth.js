@@ -21,8 +21,8 @@ router.get('/me', authenticate, authController.me);
 // Obtener perfil completo del usuario
 router.get('/profile', authenticate, authController.profile);
 
-// Logout
-router.post('/logout', authenticate, authController.logout);
+// Logout (no auth required so clients can safely call logout even if token is missing/expired)
+router.post('/logout', authController.logout);
 
 // Refresh token
 router.post('/refresh', [

@@ -1101,10 +1101,21 @@ const invoiceController = {
                 return res.status(404).json({ error: 'Factura no encontrada' });
             }
 
-            // Permisos: solo usuarios con permiso de editar facturas o rechazar pueden hacerlo
-            if (!req.user.hasPermission('facturas.editar') && !req.user.hasPermission('facturas.reject')) {
+            // Permisos: permitir a contaduría (admin_contaduria, trabajador_contaduria), super_admin
+            // o a usuarios con permisos específicos ('facturas.editar' o 'facturas.reject')
+            const role = req.user.role;
+            const hasEditPerm = req.user.hasPermission && req.user.hasPermission('facturas.editar');
+            const hasRejectPerm = req.user.hasPermission && req.user.hasPermission('facturas.reject');
+
+            if (!(hasEditPerm || hasRejectPerm || ['admin_contaduria', 'trabajador_contaduria', 'super_admin'].includes(role))) {
                 await transaction.rollback();
                 return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
+            }
+
+            // Si es trabajador de contaduría, solo puede rechazar facturas que estén asignadas a él
+            if (role === 'trabajador_contaduria' && invoice.assigned_to !== req.user.userId) {
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Solo puede rechazar facturas asignadas a usted', code: 'ACCESS_DENIED' });
             }
 
             // No permitir rechazar si ya está en proceso_completado o ya rechazada
