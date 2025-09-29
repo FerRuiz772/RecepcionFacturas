@@ -58,10 +58,27 @@ app.use(helmet({
 }));
 
 // Configuración de CORS para permitir peticiones del frontend
-app.use(cors({
-    origin: process.env.FRONTEND_URL, // URL del frontend desde variable de entorno
-    credentials: true // Permitir cookies y headers de autenticación
-}));
+if (process.env.NODE_ENV === 'development') {
+    // En desarrollo permitimos cualquier origin y devolvemos el origin solicitado
+    app.use(cors({
+        origin: true,
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+    }));
+} else {
+    const allowedOrigin = process.env.FRONTEND_URL || '';
+    app.use(cors({
+        origin: (origin, callback) => {
+            if (!origin) return callback(null, true);
+            if (allowedOrigin && origin === allowedOrigin) return callback(null, true);
+            return callback(new Error(`CORS policy: origin not allowed: ${origin}`));
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+    }));
+}
 
 // Rate limiting global - protección contra ataques DDoS y abuso
 const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW) || 15; // 15 minutos por defecto

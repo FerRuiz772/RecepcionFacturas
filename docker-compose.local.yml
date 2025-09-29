@@ -35,7 +35,7 @@ services:
     container_name: recepcion_facturas_api_local
     restart: unless-stopped
     ports:
-      - "5000:3000"
+      - "3000:3000"
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
