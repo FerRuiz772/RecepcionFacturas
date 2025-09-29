@@ -42,7 +42,7 @@ class StatusNotificationService {
       console.log(`📧 Procesando notificación de cambio de estado: ${fromStatus} → ${toStatus}`);
       
       // Usar el servicio existente
-      await invoiceNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier);
+      await invoiceNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, /*notes*/ null);
       
       logger.info(`Notificación de cambio de estado enviada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
     } catch (error) {

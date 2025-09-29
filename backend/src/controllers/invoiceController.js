@@ -1056,7 +1056,8 @@ const invoiceController = {
                     fromStatus: currentStatus,
                     toStatus: status,
                     changedBy: changedBy,
-                    supplier: invoiceWithDetails.supplier
+                    supplier: invoiceWithDetails.supplier,
+                    notes: notes // Pasar notas/reason para casos como 'rechazada'
                 });
                 
                 console.log(`✅ Notificación de cambio de estado enviada: ${currentStatus} → ${status}`);
@@ -1074,6 +1075,84 @@ const invoiceController = {
         } catch (error) {
             await transaction.rollback();
             console.error('Error al actualizar estado:', error);
+            res.status(500).json({ error: 'Error interno del servidor' });
+        }
+    },
+
+    /**
+     * Rechaza una factura con una razón obligatoria.
+     * Crea un InvoiceState con el campo notes/remarks para almacenar el motivo
+     * y envía notificación al proveedor incluyendo la razón.
+     */
+    async rejectInvoice(req, res) {
+        const transaction = await sequelize.transaction();
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+
+            if (!reason || reason.trim() === '') {
+                await transaction.rollback();
+                return res.status(400).json({ error: 'Se requiere una razón para rechazar la factura' });
+            }
+
+            const invoice = await Invoice.findByPk(parseInt(id), { transaction });
+            if (!invoice) {
+                await transaction.rollback();
+                return res.status(404).json({ error: 'Factura no encontrada' });
+            }
+
+            // Permisos: solo usuarios con permiso de editar facturas o rechazar pueden hacerlo
+            if (!req.user.hasPermission('facturas.editar') && !req.user.hasPermission('facturas.reject')) {
+                await transaction.rollback();
+                return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
+            }
+
+            // No permitir rechazar si ya está en proceso_completado o ya rechazada
+            if (['proceso_completado', 'rechazada'].includes(invoice.status)) {
+                await transaction.rollback();
+                return res.status(400).json({ error: `No se puede rechazar una factura en estado '${invoice.status}'` });
+            }
+
+            const oldStatus = invoice.status;
+            // Actualizar estado a rechazada
+            await invoice.update({ status: 'rechazada' }, { transaction });
+
+            // Crear registro de cambio de estado con la razón en notes
+            await InvoiceState.create({
+                invoice_id: invoice.id,
+                from_state: oldStatus,
+                to_state: 'rechazada',
+                user_id: req.user.userId,
+                notes: reason,
+                timestamp: new Date()
+            }, { transaction });
+
+            await transaction.commit();
+
+            // Enviar notificación al proveedor incluyendo la razón
+            try {
+                const invoiceWithDetails = await Invoice.findByPk(id, {
+                    include: [ { model: Supplier, as: 'supplier' } ]
+                });
+
+                const changedBy = await User.findByPk(req.user.userId, { attributes: ['id','name','email'] });
+
+                await statusNotificationService.processNotification('status_change', {
+                    invoice: invoiceWithDetails,
+                    fromStatus: oldStatus,
+                    toStatus: 'rechazada',
+                    changedBy,
+                    supplier: invoiceWithDetails.supplier,
+                    notes: reason
+                });
+            } catch (notificationError) {
+                console.error('❌ Error enviando notificación de rechazo:', notificationError);
+            }
+
+            res.json({ message: 'Factura rechazada', invoice });
+        } catch (error) {
+            await transaction.rollback();
+            console.error('Error al rechazar factura:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },

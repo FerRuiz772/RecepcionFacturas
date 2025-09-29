@@ -122,7 +122,7 @@ class InvoiceNotificationService {
    * @param {Object} changedBy - Usuario que realizó el cambio
    * @param {Object} supplier - Datos del proveedor emisor
    */
-  async notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier) {
+  async notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, notes = null) {
     try {
       console.log(`📧 notifyStatusChange iniciado para factura: ${invoice.number}`);
       console.log(`📧 Cambio de estado: ${fromStatus} → ${toStatus}`);
@@ -153,7 +153,7 @@ class InvoiceNotificationService {
 
         if (proveedorUser?.email) {
           console.log(`📧 Enviando notificación de cambio de estado a: ${proveedorUser.email}`);
-          await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy, proveedorUser);
+          await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy, proveedorUser, notes);
           console.log(`✅ Notificación de cambio de estado enviada exitosamente`);
         } else {
           console.log(`⚠️ No se encontró usuario proveedor para supplier_id: ${supplier.id}`);
@@ -360,7 +360,7 @@ class InvoiceNotificationService {
    * @param {Object} changedBy - Usuario que realizó el cambio
    * @param {Object} proveedorUser - Usuario del proveedor para envío
    */
-  async sendStatusChangeNotification(supplier, invoice, newStatus, message, changedBy, proveedorUser) {
+  async sendStatusChangeNotification(supplier, invoice, newStatus, message, changedBy, proveedorUser, notes = null) {
     const subject = `📄 Actualización de factura ${invoice.number}`;
     
     const statusColors = {
@@ -385,6 +385,13 @@ class InvoiceNotificationService {
       'rechazada': '❌'
     };
     
+    const rejectionHtml = notes ? `
+        <div style="background-color:#fff1f2;padding:15px;border-radius:6px;margin-bottom:16px;">
+          <h4 style="color:#b91c1c;margin:0 0 8px 0;">Motivo del rechazo</h4>
+          <p style="color:#7f1d1d;margin:0;">${notes}</p>
+        </div>
+      ` : '';
+
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -427,6 +434,8 @@ class InvoiceNotificationService {
               </tr>
             </table>
           </div>
+
+          ${rejectionHtml}
 
           <div style="text-align: center; margin-top: 30px;">
             <a href="${this.baseUrl}/invoices/${invoice.id}" 

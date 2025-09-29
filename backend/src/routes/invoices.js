@@ -101,6 +101,11 @@ router.put('/:id/status', requirePermission(['invoices.edit']), [
     body('notes').optional().trim()
 ], validateInvoiceAccess, invoiceController.updateInvoiceStatus);
 
+// Rechazar factura con razón
+router.put('/:id/reject', requirePermission(['invoices.edit']), [
+    body('reason').notEmpty().trim().withMessage('Reason is required')
+], validateInvoiceAccess, invoiceController.rejectInvoice);
+
 // Eliminar factura
 router.delete('/:id', requirePermission(['invoices.delete']), invoiceController.deleteInvoice);
 

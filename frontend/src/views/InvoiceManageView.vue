@@ -287,6 +287,15 @@
                     >
                       Descargar
                     </v-btn>
+                    <v-btn
+                      variant="outlined"
+                      color="error"
+                      size="small"
+                      class="ml-2"
+                      @click="openRejectDialog"
+                    >
+                      Rechazar
+                    </v-btn>
                     <v-btn 
                       variant="outlined" 
                       color="secondary" 
@@ -685,7 +694,9 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref } from 'vue'
+import axios from 'axios'
+import { useToast } from 'vue-toastification'
 import { useInvoiceManage } from '../scripts/invoice-manage.js'
 
 const {
@@ -767,8 +778,58 @@ const {
   saveEdit,
   initializeInvoiceManage
 } = useInvoiceManage()
+const toast = useToast()
+
+// Rechazar dialog state and action exposed from composition
+const rejectDialog = ref(false)
+const rejectReason = ref('')
+
+const openRejectDialog = () => {
+  rejectReason.value = ''
+  rejectDialog.value = true
+}
+
+const confirmReject = async () => {
+  if (!rejectReason.value || rejectReason.value.trim() === '') {
+    // simple client-side validation
+    return toast.error('Debe proporcionar una razón para rechazar la factura')
+  }
+  try {
+    const token = localStorage.getItem('token')
+    await axios.put(`/api/invoices/${invoice.value.id}/reject`, { reason: rejectReason.value }, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    rejectDialog.value = false
+    // Refresh invoice
+    await loadInvoice()
+    toast.success('Factura marcada como rechazada y se notificó al proveedor')
+  } catch (error) {
+    console.error('Error rechazando factura:', error)
+    toast.error(error.response?.data?.error || 'Error al rechazar la factura')
+  }
+}
 
 onMounted(initializeInvoiceManage)
 </script>
+
+<!-- Dialog para rechazar factura -->
+<template #reject-dialog>
+  <v-dialog v-model="rejectDialog" max-width="600">
+    <v-card>
+      <v-card-title>Rechazar Factura</v-card-title>
+      <v-card-text>
+        <v-textarea v-model="rejectReason" label="Motivo del rechazo" rows="4" auto-grow required />
+      </v-card-text>
+      <v-card-actions>
+        <v-spacer />
+        <v-btn variant="outlined" @click="rejectDialog = false">Cancelar</v-btn>
+        <v-btn color="error" @click="confirmReject">Confirmar Rechazo</v-btn>
+      </v-card-actions>
+    </v-card>
+  </v-dialog>
+</template>
+
+<!-- Mount the dialog into the page by rendering it inside the root template via a portal-like slot.
+     Vuetify will still render the dialog correctly because it's a top-level component. -->
 
 <style src="../styles/invoice-detail.css" scoped></style>
