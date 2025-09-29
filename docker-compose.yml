@@ -1,98 +1,88 @@
+version: '3.8'
+
 services:
+  # Base de datos MySQL
   db:
     image: mysql:8.0
     container_name: recepcion_facturas_db
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root123
-      MYSQL_DATABASE: recepcion_facturas
-      MYSQL_USER: admin
-      MYSQL_PASSWORD: admin123
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      # Mapear archivos específicos en orden
-      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
-      - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
-      - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
-      - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
-      - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
-      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+      - ./backend/database/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
-      - app-network
+      - recepcion_network
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
-      timeout: 20s
-      retries: 10
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Backend
   api:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     container_name: recepcion_facturas_api
     restart: unless-stopped
     ports:
       - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - DB_HOST=db
-      - DB_PORT=3306
-      - DB_NAME=recepcion_facturas
-      - DB_USER=admin
-      - DB_PASSWORD=admin123
-      - JWT_SECRET=tu-super-secreto-jwt-aqui-cambiar-en-produccion
-      - JWT_REFRESH_SECRET=tu-refresh-secret-aqui-cambiar-en-produccion
-      - JWT_EXPIRE=1h
-      - JWT_REFRESH_EXPIRE=7d
-      - ENCRYPTION_KEY=tu-clave-encriptacion-32-caracteres
-      - BCRYPT_ROUNDS=12
-      - UPLOAD_PATH=./uploads
-      - MAX_FILE_SIZE=10485760
-      - FRONTEND_URL=http://localhost:8080
-      - RATE_LIMIT_WINDOW=1
-      - RATE_LIMIT_MAX=1000
-      # Email Configuration
-      - EMAIL_SERVICE=gmail
-      - EMAIL_HOST=smtp.gmail.com
-      - EMAIL_USER=webmaster@clubpremierfs.com
-      - EMAIL_PASSWORD=mxed zaxa ydut aoyr
-      - EMAIL_FROM=Club Premier
-      - EMAIL_PORT=465
-      - EMAIL_SECURE=true
     volumes:
       - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./backend/uploads:/app/uploads
       - /app/node_modules
-      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
     depends_on:
       db:
         condition: service_healthy
     networks:
-      - app-network
+      - recepcion_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
+  # Frontend
   frontend:
-    build: 
+    build:
       context: ./frontend
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: recepcion_facturas_frontend
     restart: unless-stopped
     ports:
-      - "8080:8080"
-    environment:
-      - VITE_API_URL=http://localhost:3000
-      - VITE_APP_TITLE=Sistema de Gestión de Pagos
-      - NODE_ENV=development
+      - "8080:80"
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
     depends_on:
       - api
     networks:
-      - app-network
-    command: npm run dev -- --host 0.0.0.0 --port 8080
+      - recepcion_network
+
+networks:
+  recepcion_network:
+    driver: bridge
 
 volumes:
   mysql_data:
-
-networks:
-  app-network:
-    driver: bridge
+    driver: local
