@@ -24,6 +24,17 @@
               <h1 class="page-title">Nueva Factura</h1>
               <p class="page-subtitle">Subir documentos de facturación</p>
             </div>
+            <div class="ml-auto">
+              <v-btn
+                v-if="editMode && (authStore.isContaduria || authStore.isAdmin)"
+                color="error"
+                variant="outlined"
+                @click="openRejectDialog"
+              >
+                <v-icon class="mr-2">mdi-close-circle</v-icon>
+                Rechazar
+              </v-btn>
+            </div>
           </div>
 
           <!-- Información del proveedor (solo lectura) -->
@@ -245,6 +256,21 @@
             </v-btn>
           </div>
         </v-container>
+
+        <!-- Dialog para rechazar factura -->
+        <v-dialog v-model="rejectDialog" max-width="600">
+          <v-card>
+            <v-card-title>Rechazar Factura</v-card-title>
+            <v-card-text>
+              <v-textarea v-model="rejectReason" label="Motivo del rechazo" rows="4" auto-grow required />
+            </v-card-text>
+            <v-card-actions>
+              <v-spacer />
+              <v-btn variant="outlined" @click="rejectDialog = false">Cancelar</v-btn>
+              <v-btn color="error" @click="confirmReject">Confirmar Rechazo</v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-dialog>
       </v-main>
     </div>
   </template>
@@ -252,6 +278,7 @@
   <script setup>
   import { onMounted } from 'vue'
   import { useNewInvoice } from '../scripts/new-invoice.js'
+  import { useAuthStore } from '../stores/auth'
   
   const {
     // Reactive state
@@ -260,6 +287,9 @@
     isDragging,
     uploadedFiles,
     form,
+    editMode,
+    rejectDialog,
+    rejectReason,
     
     // Computed properties
     supplierInfo,
@@ -275,10 +305,14 @@
     getFileIconColor,
     formatFileSize,
     submitInvoice,
+    openRejectDialog,
+    confirmReject,
     initializeNewInvoice
   } = useNewInvoice()
   
   onMounted(initializeNewInvoice)
+  const authStore = useAuthStore()
   </script>
   
   <style src="../styles/new-invoice.css" scoped></style>
+

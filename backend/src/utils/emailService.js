@@ -30,28 +30,51 @@ const nodemailer = require('nodemailer');
  * @returns {nodemailer.Transporter} Transportador configurado para envío
  */
 const createTransporter = () => {
-  // Detectar si usamos SendGrid (API key empieza con 'SG.')
-  if (process.env.EMAIL_PASSWORD && process.env.EMAIL_PASSWORD.startsWith('SG.')) {
+  // Support multiple env var names for password to avoid misconfigurations
+  const password = process.env.EMAIL_PASSWORD || process.env.EMAIL_PASS || process.env.EMAIL_PASSWD || '';
+  const user = process.env.EMAIL_USER || '';
+  const host = process.env.EMAIL_HOST || '';
+  const port = process.env.EMAIL_PORT ? parseInt(process.env.EMAIL_PORT, 10) : undefined;
+  const secureEnv = (process.env.EMAIL_SECURE || '').toLowerCase();
+  const secure = secureEnv === 'true' || port === 465;
+
+  // If password looks like a SendGrid API key, use SendGrid SMTP
+  if (password && password.startsWith('SG.')) {
     console.log('🔧 Using SendGrid SMTP configuration');
     return nodemailer.createTransport({
-      host: 'smtp.sendgrid.net',
-      port: 587,
-      secure: false, // TLS en puerto 587
+      host: host || 'smtp.sendgrid.net',
+      port: port || 587,
+      secure: secure || false,
       auth: {
-        user: 'apikey', // Usuario fijo para SendGrid
-        pass: process.env.EMAIL_PASSWORD // API key de SendGrid
-      }
-    });
-  } else {
-    console.log('🔧 Using Gmail service configuration');
-    return nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD // App password de Gmail
+        user: 'apikey',
+        pass: password
       }
     });
   }
+
+  // If a custom SMTP host is provided, use it (allows other SMTP providers)
+  if (host) {
+    console.log(`🔧 Using custom SMTP host configuration: ${host}:${port || '(default)'}`);
+    return nodemailer.createTransport({
+      host: host,
+      port: port || 587,
+      secure: secure || false,
+      auth: {
+        user: user,
+        pass: password
+      }
+    });
+  }
+
+  // Fallback: use gmail service if no custom host provided
+  console.log('🔧 Using Gmail service configuration (fallback)');
+  return nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+      user: user,
+      pass: password
+    }
+  });
 };
 
 /**
@@ -73,8 +96,12 @@ const sendPasswordResetEmail = async (userEmail, userName, resetToken) => {
     const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password/${resetToken}`;
     console.log('🔗 Reset URL:', resetUrl);
 
+    const fromAddress = (process.env.EMAIL_FROM && process.env.EMAIL_FROM.includes('@'))
+      ? process.env.EMAIL_FROM
+      : (process.env.EMAIL_USER ? `${process.env.EMAIL_FROM || 'No Reply'} <${process.env.EMAIL_USER}>` : (process.env.EMAIL_FROM || 'no-reply@example.com'));
+
     const mailOptions = {
-      from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
+      from: fromAddress,
       to: userEmail,
       subject: 'Recuperación de Contraseña - Sistema de Recepción de Facturas',
       html: `
@@ -172,7 +199,7 @@ const sendPasswordResetEmail = async (userEmail, userName, resetToken) => {
     };
 
     console.log('📤 Enviando email...');
-    console.log('📧 From:', mailOptions.from);
+  console.log('📧 From:', mailOptions.from);
     console.log('📧 To:', mailOptions.to);
 
     const info = await transporter.sendMail(mailOptions);

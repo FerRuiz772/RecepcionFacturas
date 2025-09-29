@@ -23,14 +23,26 @@
               Factura {{ invoice.number }} - {{ invoice.supplier?.business_name }}
             </p>
           </div>
-          <div>
+          <div class="d-flex align-center">
             <v-btn 
               variant="outlined"
               @click="$router.go(-1)"
               prepend-icon="mdi-arrow-left"
-              class="back-btn"
+              class="back-btn mr-3"
             >
               Volver
+            </v-btn>
+            <!-- Rechazar visible en header y más prominente -->
+            <v-btn
+              v-if="authStore.isContaduria || authStore.isAdmin"
+              color="error"
+              variant="tonal"
+              class="ml-2"
+              @click="openRejectDialog"
+              style="font-weight:700; padding:10px 18px;"
+            >
+              <v-icon left>mdi-close-circle</v-icon>
+              Rechazar factura
             </v-btn>
           </div>
         </div>

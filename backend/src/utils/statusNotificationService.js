@@ -37,12 +37,12 @@ class StatusNotificationService {
   /**
    * Maneja notificaciones cuando cambia el estado de una factura
    */
-  async handleStatusChange(invoice, fromStatus, toStatus, changedBy, supplier) {
+  async handleStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, notes = null) {
     try {
       console.log(`📧 Procesando notificación de cambio de estado: ${fromStatus} → ${toStatus}`);
       
       // Usar el servicio existente
-      await invoiceNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, /*notes*/ null);
+      await invoiceNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, notes);
       
       logger.info(`Notificación de cambio de estado enviada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
     } catch (error) {
@@ -160,7 +160,8 @@ class StatusNotificationService {
           
         case 'status_change':
           console.log('🔔 Procesando status_change...');
-          await this.handleStatusChange(data.invoice, data.fromStatus, data.toStatus, data.changedBy, data.supplier);
+          // Pasar notes si vienen en el payload (ej. motivo de rechazo)
+          await this.handleStatusChange(data.invoice, data.fromStatus, data.toStatus, data.changedBy, data.supplier, data.notes || null);
           console.log('✅ status_change procesado exitosamente');
           break;
           

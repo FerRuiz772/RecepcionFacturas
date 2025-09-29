@@ -25,6 +25,7 @@ const errorHandler = require('./src/middleware/errorHandler');
 const requestLogger = require('./src/middleware/requestLogger');
 const logger = require('./src/utils/logger');
 const bcrypt = require('bcrypt');
+const emailService = require('./src/utils/emailService');
 
 const app = express();
 
@@ -64,7 +65,8 @@ if (process.env.NODE_ENV === 'development') {
         origin: true,
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+        // Allow common request headers including cache control which some browsers add
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cache-Control', 'Pragma', 'Expires']
     }));
 } else {
     const allowedOrigin = process.env.FRONTEND_URL || '';
@@ -76,7 +78,8 @@ if (process.env.NODE_ENV === 'development') {
         },
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept']
+        // Allow common request headers including cache control which some browsers add
+        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Cache-Control', 'Pragma', 'Expires']
     }));
 }
 
@@ -158,12 +161,19 @@ process.on('unhandledRejection', (err, promise) => {
  * Configuración del puerto y logging de inicio
  */
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     logger.info(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`🚀 Servidor corriendo en puerto ${PORT}`);
     console.log(`🌐 API disponible en: http://localhost:${PORT}`);
     console.log(`❤️ Health check: http://localhost:${PORT}/health`);
     console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+    // Verificar configuración SMTP para facilitar debugging de envios de email
+    try {
+        const ok = await emailService.verifyConfiguration();
+        console.log(`📧 Verificación SMTP: ${ok ? 'OK' : 'FAIL'}`);
+    } catch (err) {
+        console.error('❌ Error verificando SMTP en el arranque:', err);
+    }
 });
 
 module.exports = app;

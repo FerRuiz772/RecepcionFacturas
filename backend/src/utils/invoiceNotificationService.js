@@ -395,54 +395,77 @@ class InvoiceNotificationService {
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
         <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-          <div style="text-align: center; margin-bottom: 30px;">
+          <div style="text-align: center; margin-bottom: 20px;">
             <h1 style="color: #0f172a; margin: 0;">🧾 Recepción de Facturas</h1>
             <div style="width: 60px; height: 3px; background-color: ${statusColors[newStatus] || '#64748b'}; margin: 10px auto;"></div>
           </div>
-          
-          <div style="background-color: #f8fafc; border-left: 4px solid ${statusColors[newStatus] || '#64748b'}; padding: 20px; margin-bottom: 25px;">
-            <h2 style="color: ${statusColors[newStatus] || '#64748b'}; margin: 0 0 10px 0;">${statusIcons[newStatus] || '📄'} Actualización de Estado</h2>
-            <p style="color: #0f172a; margin: 0; font-size: 16px;">Hola ${proveedorUser.name}, ${message}</p>
-          </div>
 
-          <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
-            <h3 style="color: #0f172a; margin: 0 0 15px 0;">📋 Detalles de la Factura</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Número:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${invoice.number}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Proveedor:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${supplier.business_name}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Nuevo Estado:</td>
-                <td style="padding: 8px 0;">
-                  <span style="background-color: ${statusColors[newStatus] || '#64748b'}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
-                    ${newStatus.replace('_', ' ').toUpperCase()}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Actualizado por:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${changedBy?.name || 'Sistema'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-GT')} ${new Date().toLocaleTimeString('es-GT')}</td>
-              </tr>
-            </table>
-          </div>
+          <!-- Rejection-specific layout -->
+          ${newStatus === 'rechazada' ? `
+            <div style="background-color:#fff1f2;padding:18px;border-radius:8px;margin-bottom:18px;border:1px solid #fecaca;">
+              <h2 style="color:#7f1d1d;margin:0 0 6px 0;font-size:20px;">❌ Tu factura ha sido rechazada</h2>
+              <p style="color:#7f1d1d;margin:0 0 8px 0;">Hola ${proveedorUser.name}, lamentamos informarte que tu factura fue rechazada por el siguiente motivo:</p>
+              <div style="background:#fff5f5;border-left:4px solid #ef4444;padding:12px;border-radius:6px;margin-top:8px;margin-bottom:8px;">
+                <p style="color:#7f1d1d;margin:0;">${notes || 'No se proporcionó un motivo'}</p>
+              </div>
+            </div>
+            <div style="background-color: #f8fafc; padding: 16px; border-radius: 8px; margin-bottom: 18px;">
+              <h3 style="color: #0f172a; margin: 0 0 8px 0;">📋 Detalles de la Factura</h3>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;width:40%">Número:</td><td style="padding:6px 0;color:#0f172a">${invoice.number}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Proveedor:</td><td style="padding:6px 0;color:#0f172a">${supplier.business_name}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Actualizado por:</td><td style="padding:6px 0;color:#0f172a">${changedBy?.name || 'Sistema'}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Fecha:</td><td style="padding:6px 0;color:#0f172a">${new Date().toLocaleDateString('es-GT')} ${new Date().toLocaleTimeString('es-GT')}</td></tr>
+              </table>
+            </div>
+            <div style="text-align:center;margin-top:18px;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" style="background-color:#ef4444;color:white;padding:14px 28px;text-decoration:none;border-radius:8px;font-weight:bold;display:inline-block;">Ver Detalles de la Factura</a>
+            </div>
+          ` : `
+            <div style="background-color: #f8fafc; border-left: 4px solid ${statusColors[newStatus] || '#64748b'}; padding: 20px; margin-bottom: 25px;">
+              <h2 style="color: ${statusColors[newStatus] || '#64748b'}; margin: 0 0 10px 0;">${statusIcons[newStatus] || '📄'} Actualización de Estado</h2>
+              <p style="color: #0f172a; margin: 0; font-size: 16px;">Hola ${proveedorUser.name}, ${message}</p>
+            </div>
 
-          ${rejectionHtml}
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
+              <h3 style="color: #0f172a; margin: 0 0 15px 0;">📋 Detalles de la Factura</h3>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Número:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${invoice.number}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Proveedor:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${supplier.business_name}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Nuevo Estado:</td>
+                  <td style="padding: 8px 0;">
+                    <span style="background-color: ${statusColors[newStatus] || '#64748b'}; color: white; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
+                      ${newStatus.replace('_', ' ').toUpperCase()}
+                    </span>
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Actualizado por:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${changedBy?.name || 'Sistema'}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-GT')} ${new Date().toLocaleTimeString('es-GT')}</td>
+                </tr>
+              </table>
+            </div>
 
-          <div style="text-align: center; margin-top: 30px;">
-            <a href="${this.baseUrl}/invoices/${invoice.id}" 
-               style="background-color: ${statusColors[newStatus] || '#64748b'}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
-              Ver Detalles de la Factura
-            </a>
-          </div>
+            ${rejectionHtml}
+
+            <div style="text-align: center; margin-top: 30px;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" 
+                 style="background-color: ${statusColors[newStatus] || '#64748b'}; color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                Ver Detalles de la Factura
+              </a>
+            </div>
+          `}
 
           <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px;">
             <p>© ${new Date().getFullYear()} Sistema de Recepción de Facturas. Todos los derechos reservados.</p>

@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useInvoicesStore } from '../stores/invoices'
 import { useToast } from 'vue-toastification'
@@ -23,6 +23,12 @@ export function useNewInvoice() {
     due_date: '',
     description: ''
   })
+
+  // Edit mode when loading an existing invoice
+  const editMode = ref(false)
+  const currentInvoiceId = ref(null)
+  const rejectDialog = ref(false)
+  const rejectReason = ref('')
 
   const supplierInfo = computed(() => {
     return {
@@ -159,10 +165,67 @@ export function useNewInvoice() {
     }
   }
 
+  // Cargar factura existente si vinimos en modo edición (query ?invoiceId=)
+  const route = useRoute()
+  const loadExistingInvoice = async () => {
+    const invoiceId = route.query.invoiceId || route.params?.id
+    if (!invoiceId) return
+    try {
+      const { data } = await axios.get(`/api/invoices/${invoiceId}`)
+      const inv = data.invoice || data
+      // Rellenar formulario con datos existentes
+      form.value.number = inv.number || ''
+      form.value.amount = inv.amount || ''
+      form.value.date = inv.date ? inv.date.split('T')[0] : ''
+      form.value.due_date = inv.due_date ? inv.due_date.split('T')[0] : ''
+      form.value.description = inv.description || ''
+      // Mapear archivos subidos para visualización (no son File objects)
+      uploadedFiles.value = (inv.uploaded_files || []).map(f => ({
+        name: f.originalName || f.filename || 'archivo.pdf',
+        size: f.size || 0,
+        type: f.mimetype || 'application/pdf',
+        remote: true,
+        id: f.id
+      }))
+      editMode.value = true
+      currentInvoiceId.value = invoiceId
+    } catch (err) {
+      console.error('Error cargando factura existente:', err)
+    }
+  }
+
+  const openRejectDialog = () => {
+    rejectReason.value = ''
+    rejectDialog.value = true
+  }
+
+  const confirmReject = async () => {
+    if (!rejectReason.value || !rejectReason.value.trim()) {
+      return toast.error('Debe proporcionar una razón para rechazar la factura')
+    }
+    if (!currentInvoiceId.value) {
+      return toast.error('Factura no identificada')
+    }
+    try {
+      await axios.put(`/api/invoices/${currentInvoiceId.value}/reject`, { reason: rejectReason.value })
+      rejectDialog.value = false
+      toast.success('Factura rechazada y proveedor notificado')
+      // Actualizar listados
+      await invoicesStore.loadInvoices()
+      // Redirigir a lista de facturas
+      router.push('/invoices')
+    } catch (error) {
+      console.error('Error rechazando factura:', error)
+      toast.error(error.response?.data?.error || 'Error al rechazar la factura')
+    }
+  }
+
   // Función de inicialización
   const initializeNewInvoice = () => {
     // Inicializar fecha actual
     form.value.date = new Date().toISOString().split('T')[0]
+    // Intentar cargar una factura existente si se pasó invoiceId
+    loadExistingInvoice()
   }
 
   return {
@@ -172,6 +235,10 @@ export function useNewInvoice() {
     isDragging,
     uploadedFiles,
     form,
+    editMode,
+    currentInvoiceId,
+    rejectDialog,
+    rejectReason,
     
     // Computed properties
     supplierInfo,
@@ -187,6 +254,8 @@ export function useNewInvoice() {
     getFileIconColor,
     formatFileSize,
     submitInvoice,
+    openRejectDialog,
+    confirmReject,
     initializeNewInvoice
   }
 }
