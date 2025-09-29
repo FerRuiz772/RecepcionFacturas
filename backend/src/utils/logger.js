@@ -33,9 +33,17 @@ const fs = require('fs');
 
 // Crear directorio de logs si no existe
 const logDir = path.join(__dirname, '../../logs');
-if (!fs.existsSync(logDir)) {
-    fs.mkdirSync(logDir, { recursive: true });
-    console.log('📁 Directorio de logs creado:', logDir);
+let useFileLogs = true;
+try {
+    if (!fs.existsSync(logDir)) {
+        fs.mkdirSync(logDir, { recursive: true });
+        console.log('📁 Directorio de logs creado:', logDir);
+    }
+} catch (err) {
+    // Si no se puede crear el directorio (p. ej. EACCES en contenedores con volumen montado),
+    // no detener la aplicación. Hacer fallback a logging por consola únicamente.
+    useFileLogs = false;
+    console.warn('⚠️ No se pudo crear el directorio de logs, usando solo consola. Error:', err.message);
 }
 
 /**
@@ -64,34 +72,42 @@ const logger = winston.createLogger({
     level: process.env.LOG_LEVEL || 'info', // Nivel configurable por entorno
     format: logFormat,
     defaultMeta: { service: 'payquetzal-backend' },
-    transports: [
-        // Transporte para logs de error únicamente
-        new winston.transports.File({
-            filename: path.join(logDir, 'error.log'),
-            level: 'error',
-            maxsize: 5242880, // 5MB por archivo
-            maxFiles: 5, // Mantener 5 archivos rotativos
-            tailable: true // Permitir lectura en tiempo real
-        }),
-        
-        // Transporte para todos los logs combinados
-        new winston.transports.File({
-            filename: path.join(logDir, 'combined.log'),
-            maxsize: 5242880, // 5MB por archivo
-            maxFiles: 5, // Mantener 5 archivos rotativos
-            tailable: true
-        }),
-        
-        // Transporte específico para logs de acceso HTTP
-        new winston.transports.File({
-            filename: path.join(logDir, 'access.log'),
-            level: 'http', // Solo logs de nivel HTTP y superiores
-            maxsize: 5242880, // 5MB por archivo
-            maxFiles: 3, // Menos archivos para logs de acceso
-            tailable: true
-        })
-    ]
+    transports: []
 });
+
+// Agregar transportes condicionalmente: archivos si están disponibles, y consola en desarrollo
+if (useFileLogs) {
+    logger.add(new winston.transports.File({
+        filename: path.join(logDir, 'error.log'),
+        level: 'error',
+        maxsize: 5242880,
+        maxFiles: 5,
+        tailable: true
+    }));
+
+    logger.add(new winston.transports.File({
+        filename: path.join(logDir, 'combined.log'),
+        maxsize: 5242880,
+        maxFiles: 5,
+        tailable: true
+    }));
+
+    logger.add(new winston.transports.File({
+        filename: path.join(logDir, 'access.log'),
+        level: 'http',
+        maxsize: 5242880,
+        maxFiles: 3,
+        tailable: true
+    }));
+} else {
+    // Si no podemos escribir archivos, asegurarnos de que haya al menos salida por consola
+    logger.add(new winston.transports.Console({
+        format: winston.format.combine(
+            winston.format.colorize(),
+            winston.format.simple()
+        )
+    }));
+}
 
 // En desarrollo, agregar output a consola con colores para mejor legibilidad
 if (process.env.NODE_ENV === 'development') {

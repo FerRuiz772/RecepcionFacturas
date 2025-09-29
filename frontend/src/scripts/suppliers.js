@@ -27,6 +27,12 @@ export function useSuppliers() {
     is_active: true
   })
 
+  // Reglas de validación (coinciden con las del backend)
+  const nitRules = [
+    v => !!v || 'NIT requerido',
+    v => (v && v.length >= 8 && v.length <= 20) || 'El NIT debe tener entre 8 y 20 caracteres'
+  ]
+
   const statusOptions = [
     { title: 'Activos', value: true },
     { title: 'Inactivos', value: false }
@@ -120,7 +126,15 @@ export function useSuppliers() {
       loadSuppliers()
     } catch (error) {
       console.error('Error saving supplier:', error)
-      toast.error(error.response?.data?.error || 'Error al guardar el proveedor')
+      // Mostrar mensajes de validación del servidor si existen
+      let serverMessage = null
+      if (error.response?.data) {
+        if (error.response.data.error) serverMessage = error.response.data.error
+        else if (Array.isArray(error.response.data.errors)) {
+          serverMessage = error.response.data.errors.map(e => e.msg).join(', ')
+        }
+      }
+      toast.error(serverMessage || 'Error al guardar el proveedor')
     } finally {
       saving.value = false
     }
@@ -166,6 +180,7 @@ export function useSuppliers() {
     formValid,
     supplierFormRef,
     supplierForm,
+  nitRules,
     
     // Static data
     statusOptions,

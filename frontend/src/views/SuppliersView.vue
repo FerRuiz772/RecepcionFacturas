@@ -198,7 +198,7 @@
                   v-model="supplierForm.nit"
                   label="NIT"
                   variant="outlined"
-                  :rules="[v => !!v || 'NIT requerido']"
+                  :rules="nitRules"
                   required
                 ></v-text-field>
               </v-col>
