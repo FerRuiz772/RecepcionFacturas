@@ -1,0 +1,93 @@
+version: '3.8'
+
+services:
+  # Base de datos MySQL
+  db:
+    image: mysql:8.0
+    container_name: recepcion_facturas_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
+      - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
+      - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
+      - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
+      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+    networks:
+      - recepcion_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u${DB_USER}", "-p${DB_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # API Backend
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: recepcion_facturas_api
+    restart: unless-stopped
+    ports:
+      - "5000:3000"
+    volumes:
+      - ./backend:/app
+      - ./backend/logs:/app/logs
+      - ./backend/uploads:/app/uploads
+      - /app/node_modules
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=3000
+      - DB_HOST=db
+      - DB_PORT=3306
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - JWT_SECRET=${JWT_SECRET}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - recepcion_network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: recepcion_facturas_frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+    depends_on:
+      - api
+    networks:
+      - recepcion_network
+
+networks:
+  recepcion_network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+    driver: local
