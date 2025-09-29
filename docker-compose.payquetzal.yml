@@ -16,8 +16,12 @@ services:
       - "127.0.0.1:3306:3306"
     volumes:
       - payquetzal_db_data:/var/lib/mysql
-      - ./database:/docker-entrypoint-initdb.d
-    networks:
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+      - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
+      - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
+      - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
+      - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
+      - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql    networks:
       - payquetzal-network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]

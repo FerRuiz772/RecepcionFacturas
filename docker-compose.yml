@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # Base de datos MySQL
   db:
     image: mysql:8.0
     container_name: recepcion_facturas_db
@@ -29,7 +28,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # API Backend
   api:
     build:
       context: ./backend
@@ -44,7 +42,7 @@ services:
       - ./backend/uploads:/app/uploads
       - /app/node_modules
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
+      - NODE_ENV=${NODE_ENV:-production}
       - PORT=3000
       - DB_HOST=db
       - DB_PORT=3306
@@ -58,13 +56,7 @@ services:
         condition: service_healthy
     networks:
       - recepcion_network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
 
-  # Frontend
   frontend:
     build:
       context: ./frontend
@@ -77,8 +69,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     environment:
-      - NODE_ENV=${NODE_ENV:-development}
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:3000}
+      - NODE_ENV=${NODE_ENV:-production}
+      - VITE_API_URL=${VITE_API_URL:-https://hubsistema.com/api}
     depends_on:
       - api
     networks:
