@@ -690,6 +690,20 @@
       style="display: none" 
       @change="replacePassword"
     />
+    <!-- Dialog para rechazar factura -->
+    <v-dialog v-model="rejectDialog" max-width="600">
+      <v-card>
+        <v-card-title>Rechazar Factura</v-card-title>
+        <v-card-text>
+          <v-textarea v-model="rejectReason" label="Motivo del rechazo" rows="4" auto-grow required />
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="outlined" @click="rejectDialog = false">Cancelar</v-btn>
+          <v-btn color="error" @click="confirmReject">Confirmar Rechazo</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -811,25 +825,5 @@ const confirmReject = async () => {
 
 onMounted(initializeInvoiceManage)
 </script>
-
-<!-- Dialog para rechazar factura -->
-<template #reject-dialog>
-  <v-dialog v-model="rejectDialog" max-width="600">
-    <v-card>
-      <v-card-title>Rechazar Factura</v-card-title>
-      <v-card-text>
-        <v-textarea v-model="rejectReason" label="Motivo del rechazo" rows="4" auto-grow required />
-      </v-card-text>
-      <v-card-actions>
-        <v-spacer />
-        <v-btn variant="outlined" @click="rejectDialog = false">Cancelar</v-btn>
-        <v-btn color="error" @click="confirmReject">Confirmar Rechazo</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
-</template>
-
-<!-- Mount the dialog into the page by rendering it inside the root template via a portal-like slot.
-     Vuetify will still render the dialog correctly because it's a top-level component. -->
 
 <style src="../styles/invoice-detail.css" scoped></style>
