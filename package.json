@@ -1,0 +1,16 @@
+{
+  "name": "recepcion-facturas",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "docker-compose -f docker-compose.local.yml --env-file .env.local up --build",
+    "dev:down": "docker-compose -f docker-compose.local.yml --env-file .env.local down",
+    "dev:clean": "docker-compose -f docker-compose.local.yml --env-file .env.local down -v",
+    "dev:logs": "docker-compose -f docker-compose.local.yml --env-file .env.local logs -f",
+    
+    "prod": "docker-compose -f docker-compose.prod.yml --env-file .env.production up -d --build",
+    "prod:down": "docker-compose -f docker-compose.prod.yml --env-file .env.production down",
+    "prod:logs": "docker-compose -f docker-compose.prod.yml --env-file .env.production logs -f",
+    "prod:restart": "docker-compose -f docker-compose.prod.yml --env-file .env.production restart",
+    "prod:rebuild": "docker-compose -f docker-compose.prod.yml --env-file .env.production up -d --build --force-recreate"
+  }
+}

@@ -28,6 +28,15 @@ const bcrypt = require('bcrypt');
 
 const app = express();
 
+// Validar variables de entorno críticas para evitar errores silenciosos en runtime
+const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
+const missing = requiredEnv.filter(k => !process.env[k]);
+if (missing.length) {
+    console.error('Faltan variables de entorno críticas:', missing.join(', '));
+    // Salir con código de error para que Docker / orchestrator lo detecte
+    process.exit(1);
+}
+
 // Inicializar conexión a base de datos MySQL
 initializeDatabase().then(connected => {
     if (!connected) {
