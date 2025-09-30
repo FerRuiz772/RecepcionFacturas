@@ -2,7 +2,7 @@
   min-height: 100vh;
   height: 100vh;
   display: flex;
-  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  background: linear-gradient(135deg, #f0f4f1 0%, #e8f5ed 100%);
   margin: 0;
   padding: 0;
   position: fixed;
@@ -53,7 +53,7 @@
 
 .right-panel {
   flex: 1;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: linear-gradient(135deg, #2d7a5f 0%, #3a9b7a 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -94,7 +94,7 @@
 .brand-logo {
   width: auto;
   height: auto;
-  background: #0f172a;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a);
   border-radius: 12px;
   margin: 0 auto 10px;
   display: flex;
@@ -102,7 +102,7 @@
   justify-content: center;
   color: white;
   font-size: 28px;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 16px rgba(45, 122, 95, 0.3);
   transition: transform 0.2s ease;
 }
 
@@ -135,7 +135,7 @@
 .brand-title {
   font-size: 32px;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e4d3c;
   margin-bottom: 8px;
   letter-spacing: -0.025em;
 }
@@ -153,7 +153,7 @@
 .form-title {
   font-size: 24px;
   font-weight: 600;
-  color: #1e293b;
+  color: #1e4d3c;
   margin-bottom: 8px;
 }
 
@@ -179,8 +179,8 @@
 }
 
 .custom-input :deep(.v-field--focused) {
-  border-color: #0f172a;
-  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.1);
+  border-color: #3a9b7a;
+  box-shadow: 0 0 0 3px rgba(58, 155, 122, 0.1);
   background: white;
 }
 
@@ -190,7 +190,7 @@
 }
 
 .custom-input :deep(.v-input__prepend-inner) {
-  color: #64748b;
+  color: #3a9b7a;
   padding-inline-end: 12px;
 }
 
@@ -201,7 +201,7 @@
 }
 
 .custom-input :deep(.v-input__append-inner:hover) {
-  color: #0f172a;
+  color: #2d7a5f;
 }
 
 /* Estilos mejorados para el checkbox */
@@ -213,7 +213,7 @@
 
 .checkbox-label {
   font-size: 14px;
-  color: #1e293b;
+  color: #1e4d3c;
   font-weight: 500;
   cursor: pointer;
   user-select: none;
@@ -221,11 +221,11 @@
 }
 
 .checkbox-label:hover {
-  color: #0f172a;
+  color: #2d7a5f;
 }
 
 .custom-checkbox :deep(.v-selection-control__wrapper) {
-  background: rgba(15, 23, 42, 0.08);
+  background: rgba(58, 155, 122, 0.08);
   border: 2px solid #cbd5e1;
   border-radius: 6px;
   padding: 0;
@@ -235,16 +235,16 @@
 }
 
 .custom-checkbox :deep(.v-checkbox .v-selection-control__input) {
-  color: #0f172a;
+  color: #3a9b7a;
 }
 
 .custom-checkbox :deep(.v-checkbox .v-selection-control__input:hover) {
-  background: rgba(15, 23, 42, 0.12);
+  background: rgba(58, 155, 122, 0.12);
 }
 
 .custom-checkbox :deep(.v-selection-control--dirty .v-selection-control__wrapper) {
-  background: #0f172a;
-  border-color: #0f172a;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a);
+  border-color: #2d7a5f;
 }
 
 .custom-checkbox :deep(.v-selection-control--dirty .v-selection-control__input) {
@@ -255,30 +255,30 @@
 .login-button {
   height: 48px;
   border-radius: 8px;
-  background: #0f172a !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
   font-weight: 600;
   font-size: 15px;
   letter-spacing: 0.025em;
   text-transform: none;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.4);
+  box-shadow: 0 4px 16px rgba(45, 122, 95, 0.4);
   transition: all 0.2s ease;
   border: none;
 }
 
 .login-button:hover {
-  background: #1e293b !important;
-  box-shadow: 0 6px 24px rgba(15, 23, 42, 0.5);
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  box-shadow: 0 6px 24px rgba(45, 122, 95, 0.5);
   transform: translateY(-2px);
 }
 
 .login-button:active {
   transform: translateY(0);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.3);
+  box-shadow: 0 2px 8px rgba(45, 122, 95, 0.3);
 }
 
 .login-button:disabled {
-  background: #64748b !important;
+  background: #94a3b8 !important;
   color: white !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   transform: none;
@@ -286,8 +286,8 @@
 }
 
 .login-button.v-btn--loading {
-  background: #0f172a !important;
-  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.4);
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
+  box-shadow: 0 4px 16px rgba(45, 122, 95, 0.4);
 }
 
 .login-button :deep(.v-btn__loader) {
@@ -295,7 +295,7 @@
 }
 
 .forgot-link {
-  color: #0f172a;
+  color: #3a9b7a;
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
@@ -303,7 +303,7 @@
 }
 
 .forgot-link:hover {
-  color: #334155;
+  color: #2d7a5f;
   text-decoration: underline;
 }
 

@@ -1,5 +1,5 @@
 .dashboard-layout {
-  background: #f8fafc;
+  background: #f0f4f1;
   min-height: 100vh;
 }
 
@@ -10,7 +10,7 @@
 }
 
 .breadcrumb-container {
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e2e8f0;
   padding: 12px 0;
 }
@@ -23,7 +23,7 @@
 }
 
 .breadcrumb-item.active {
-  color: #0f172a;
+  color: #1e4d3c;
 }
 
 .page-header {
@@ -36,7 +36,7 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e4d3c;
   margin-bottom: 4px;
 }
 
@@ -61,7 +61,7 @@
 }
 
 .stats-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(45, 122, 95, 0.15);
   transform: translateY(-1px);
 }
 
@@ -80,11 +80,11 @@
 }
 
 .stats-icon.primary {
-  background: rgba(15, 23, 42, 0.1);
+  background: rgba(45, 122, 95, 0.1);
 }
 
 .stats-icon.success {
-  background: rgba(16, 185, 129, 0.1);
+  background: rgba(58, 155, 122, 0.1);
 }
 
 .stats-icon.warning {
@@ -92,13 +92,13 @@
 }
 
 .stats-icon.info {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(45, 122, 95, 0.1);
 }
 
 .stats-value {
   font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e4d3c;
   line-height: 1;
   margin-bottom: 4px;
 }
@@ -138,14 +138,14 @@
 .card-title {
   font-size: 18px;
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
   display: flex;
   align-items: center;
 }
 
 .card-title .v-icon {
   margin-right: 8px;
-  color: #64748b;
+  color: #3a9b7a;
 }
 
 /* Estilos específicos para secciones por rol */
@@ -191,7 +191,7 @@
 }
 
 .work-item:hover {
-  background-color: #f8fafc;
+  background-color: #f0f4f1;
 }
 
 .work-item:last-child {
@@ -220,7 +220,7 @@
 }
 
 .pending-item:hover {
-  background-color: #f8fafc;
+  background-color: #f0f4f1;
 }
 
 .pending-item:last-child {
@@ -256,7 +256,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f8fafc;
+  background: #f0f4f1;
   border-radius: 8px;
   border: 2px dashed #e2e8f0;
 }
@@ -307,8 +307,8 @@
 }
 
 .status-indicator.processing {
-  background: rgba(59, 130, 246, 0.05);
-  border-left-color: #3b82f6;
+  background: rgba(45, 122, 95, 0.05);
+  border-left-color: #3a9b7a;
 }
 
 .status-indicator.completed {
@@ -322,8 +322,8 @@
 }
 
 .status-indicator.assigned {
-  background: rgba(168, 85, 247, 0.05);
-  border-left-color: #a855f7;
+  background: rgba(45, 122, 95, 0.05);
+  border-left-color: #2d7a5f;
 }
 
 .status-label {
@@ -335,7 +335,7 @@
 .status-count {
   font-size: 24px;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e4d3c;
 }
 
 .status-percentage {
@@ -356,8 +356,8 @@
 }
 
 .processing-chip {
-  background: rgba(59, 130, 246, 0.1) !important;
-  color: #3b82f6 !important;
+  background: rgba(58, 155, 122, 0.1) !important;
+  color: #3a9b7a !important;
 }
 
 .completed-chip {
@@ -371,8 +371,8 @@
 }
 
 .assigned-chip {
-  background: rgba(168, 85, 247, 0.1) !important;
-  color: #a855f7 !important;
+  background: rgba(45, 122, 95, 0.1) !important;
+  color: #2d7a5f !important;
 }
 
 .rejected-chip {
@@ -382,7 +382,7 @@
 
 .amount-text {
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
 }
 
 .date-text {
@@ -403,7 +403,7 @@
 }
 
 .invoice-group:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(45, 122, 95, 0.15);
 }
 
 .invoice-header {
@@ -411,7 +411,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 16px 20px;
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e2e8f0;
 }
 
@@ -419,7 +419,7 @@
   font-size: 16px;
   font-weight: 600;
   margin: 0 0 4px 0;
-  color: #1e293b;
+  color: #1e4d3c;
 }
 
 .invoice-info p {
@@ -440,7 +440,7 @@
 }
 
 .document-item:hover {
-  background-color: #f8fafc;
+  background-color: #f0f4f1;
 }
 
 .document-item:last-child {
@@ -481,57 +481,57 @@
 
 /* Botones principales - mejorar visibilidad */
 .v-btn {
-  border: 2px solid #000 !important;
+  border: 2px solid #1e4d3c !important;
   font-weight: 600 !important;
-  color: #000 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  color: #1e4d3c !important;
+  box-shadow: 0 2px 4px rgba(45, 122, 95, 0.2) !important;
 }
 
 .v-btn:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-  border-color: #333 !important;
+  box-shadow: 0 4px 8px rgba(45, 122, 95, 0.3) !important;
+  border-color: #2d7a5f !important;
 }
 
 /* Botón primario */
 .v-btn--variant-flat.bg-primary {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border-color: #1976d2 !important;
+  border-color: #2d7a5f !important;
 }
 
 .v-btn--variant-flat.bg-primary:hover {
-  background-color: #1565c0 !important;
-  border-color: #1565c0 !important;
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  border-color: #1e6d51 !important;
 }
 
 /* Botones de acción */
 .action-button {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border: 2px solid #1976d2 !important;
+  border: 2px solid #2d7a5f !important;
   font-weight: 700 !important;
 }
 
 .action-button:hover {
-  background-color: #1565c0 !important;
-  border-color: #1565c0 !important;
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  border-color: #1e6d51 !important;
 }
 
 .view-all-button {
   background-color: #f5f5f5 !important;
-  color: #000 !important;
-  border: 2px solid #666 !important;
+  color: #1e4d3c !important;
+  border: 2px solid #3a9b7a !important;
   font-weight: 600 !important;
 }
 
 .view-all-button:hover {
   background-color: #e0e0e0 !important;
-  border-color: #333 !important;
+  border-color: #2d7a5f !important;
 }
 
 /* Iconos - asegurar visibilidad */
 .v-icon {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-size: 18px !important;
   font-weight: bold !important;
 }
@@ -541,34 +541,34 @@
 }
 
 .card-title .v-icon {
-  color: #1976d2 !important;
+  color: #3a9b7a !important;
   font-size: 20px !important;
 }
 
 /* Texto en general - mejorar contraste */
 .v-data-table td {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 500 !important;
 }
 
 .v-data-table th {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
 /* Títulos */
 .page-title {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 800 !important;
 }
 
 .card-title {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
 .stats-value {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 800 !important;
 }
 
@@ -578,12 +578,12 @@
 }
 
 .status-label {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 600 !important;
 }
 
 .status-count {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 800 !important;
 }
 
@@ -595,9 +595,9 @@
 }
 
 .processing-chip {
-  background: #e3f2fd !important;
-  color: #000 !important;
-  border-color: #3b82f6 !important;
+  background: #d4ede4 !important;
+  color: #1e4d3c !important;
+  border-color: #3a9b7a !important;
 }
 
 .completed-chip {
@@ -613,9 +613,9 @@
 }
 
 .assigned-chip {
-  background: #f3e8ff !important;
-  color: #000 !important;
-  border-color: #a855f7 !important;
+  background: #c8e6d7 !important;
+  color: #1e4d3c !important;
+  border-color: #2d7a5f !important;
 }
 
 .rejected-chip {
@@ -636,9 +636,9 @@
 }
 
 .status-indicator.processing {
-  background: #e3f2fd !important;
-  border-color: #3b82f6 !important;
-  border-left-color: #3b82f6 !important;
+  background: #d4ede4 !important;
+  border-color: #3a9b7a !important;
+  border-left-color: #3a9b7a !important;
 }
 
 .status-indicator.completed {
@@ -654,14 +654,14 @@
 }
 
 .status-indicator.assigned {
-  background: #f3e8ff !important;
-  border-color: #a855f7 !important;
-  border-left-color: #a855f7 !important;
+  background: #c8e6d7 !important;
+  border-color: #2d7a5f !important;
+  border-left-color: #2d7a5f !important;
 }
 
 /* Texto de información */
 .amount-text {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
@@ -677,7 +677,7 @@
 
 /* Información de facturas */
 .invoice-info h4 {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
@@ -688,12 +688,12 @@
 
 /* Breadcrumbs */
 .breadcrumb-item {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 600 !important;
 }
 
 .breadcrumb-item.active {
-  color: #1976d2 !important;
+  color: #3a9b7a !important;
   font-weight: 700 !important;
 }
 
@@ -701,16 +701,16 @@
 .work-item:hover,
 .pending-item:hover,
 .document-item:hover {
-  background-color: #f3f4f6 !important;
-  border-left: 4px solid #1976d2 !important;
+  background-color: #e8f5ed !important;
+  border-left: 4px solid #3a9b7a !important;
 }
 
 .stats-card:hover {
-  border: 2px solid #1976d2 !important;
+  border: 2px solid #3a9b7a !important;
 }
 
 .invoice-group:hover {
-  border: 2px solid #1976d2 !important;
+  border: 2px solid #3a9b7a !important;
 }
 
 /* Emojis y texto de stats */
@@ -751,12 +751,12 @@
 
 /* Mejorar visibilidad de la paginación */
 .v-pagination .v-btn {
-  color: #000 !important;
-  border: 1px solid #000 !important;
+  color: #1e4d3c !important;
+  border: 1px solid #1e4d3c !important;
 }
 
 .v-pagination .v-btn--active {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border-color: #1976d2 !important;
+  border-color: #2d7a5f !important;
 }

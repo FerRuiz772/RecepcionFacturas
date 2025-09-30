@@ -1,6 +1,6 @@
 .invoices-layout {
   min-height: 100vh;
-  background: #f8fafc;
+  background: #f0f4f1;
 }
 
 /* Maximizar el uso del ancho disponible y reducir padding lateral */
@@ -12,7 +12,7 @@
 }
 
 .main-content {
-  background: #f8fafc;
+  background: #f0f4f1;
   min-height: calc(100vh - 64px);
 }
 
@@ -26,7 +26,7 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #0f172a;
+  color: #1e4d3c;
   margin-bottom: 4px;
 }
 
@@ -37,7 +37,7 @@
 }
 
 .breadcrumb-container {
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e2e8f0;
   padding: 12px 0;
 }
@@ -50,11 +50,11 @@
 }
 
 .breadcrumb-item.active {
-  color: #0f172a;
+  color: #1e4d3c;
 }
 
 .breadcrumb-item:hover {
-  color: #0f172a;
+  color: #2d7a5f;
 }
 
 .filter-card {
@@ -64,18 +64,18 @@
 }
 
 .card-title-bg {
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e2e8f0;
   font-size: 18px;
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
   padding: 16px 24px;
 }
 
 .card-title {
   font-size: 18px;
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
   display: flex;
   align-items: center;
 }
@@ -120,14 +120,14 @@
 .invoice-id {
   font-family: 'Courier New', monospace;
   font-weight: 600;
-  color: #6366f1;
+  color: #3a9b7a;
   font-size: 12px;
 }
 
 .invoice-number {
   font-family: 'Courier New', monospace;
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
   font-size: 14px;
 }
 
@@ -138,7 +138,7 @@
 
 .supplier-name {
   font-weight: 500;
-  color: #0f172a;
+  color: #1e4d3c;
   font-size: 14px;
 }
 
@@ -149,7 +149,7 @@
 
 .amount-cell {
   font-weight: 600;
-  color: #059669;
+  color: #2d7a5f;
   font-size: 14px;
 }
 
@@ -175,7 +175,7 @@
 
 .assigned-name {
   font-weight: 500;
-  color: #0f172a;
+  color: #1e4d3c;
   font-size: 13px;
 }
 
@@ -301,53 +301,53 @@
 
 /* Botones principales - mejorar visibilidad */
 .v-btn {
-  border: 2px solid #000 !important;
+  border: 2px solid #1e4d3c !important;
   font-weight: 600 !important;
-  color: #000 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+  color: #1e4d3c !important;
+  box-shadow: 0 2px 4px rgba(45, 122, 95, 0.2) !important;
 }
 
 .v-btn:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-  border-color: #333 !important;
+  box-shadow: 0 4px 8px rgba(45, 122, 95, 0.3) !important;
+  border-color: #2d7a5f !important;
 }
 
 /* Botón primario */
 .v-btn--variant-flat.bg-primary {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border-color: #1976d2 !important;
+  border-color: #2d7a5f !important;
 }
 
 .v-btn--variant-flat.bg-primary:hover {
-  background-color: #1565c0 !important;
-  border-color: #1565c0 !important;
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  border-color: #1e6d51 !important;
 }
 
 /* Botón nueva factura */
 .new-invoice-btn {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border: 2px solid #1976d2 !important;
+  border: 2px solid #2d7a5f !important;
   font-weight: 700 !important;
 }
 
 .new-invoice-btn:hover {
-  background-color: #1565c0 !important;
-  border-color: #1565c0 !important;
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  border-color: #1e6d51 !important;
 }
 
 /* Botones de reset y exportación */
 .reset-btn {
   background-color: #f5f5f5 !important;
-  color: #000 !important;
-  border: 2px solid #666 !important;
+  color: #1e4d3c !important;
+  border: 2px solid #3a9b7a !important;
   font-weight: 600 !important;
 }
 
 .reset-btn:hover {
   background-color: #e0e0e0 !important;
-  border-color: #333 !important;
+  border-color: #2d7a5f !important;
 }
 
 .export-btn {
@@ -383,7 +383,7 @@
 
 /* Iconos - asegurar visibilidad */
 .v-icon {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-size: 18px !important;
   font-weight: bold !important;
 }
@@ -394,12 +394,12 @@
 
 /* Texto en tablas - mejorar contraste */
 .v-data-table td {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 500 !important;
 }
 
 .v-data-table th {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
@@ -417,21 +417,21 @@
 
 /* Información de factura */
 .invoice-id {
-  color: #1976d2 !important;
+  color: #3a9b7a !important;
   font-weight: 700 !important;
-  background-color: #e3f2fd !important;
+  background-color: #d4ede4 !important;
   padding: 2px 6px !important;
   border-radius: 4px !important;
-  border: 1px solid #1976d2 !important;
+  border: 1px solid #3a9b7a !important;
 }
 
 .invoice-number {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
 .supplier-name {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 600 !important;
 }
 
@@ -441,21 +441,21 @@
 }
 
 .amount-cell {
-  color: #2e7d32 !important;
+  color: #2d7a5f !important;
   font-weight: 700 !important;
-  background-color: #e8f5e8 !important;
+  background-color: #d4ede4 !important;
   padding: 4px 8px !important;
   border-radius: 4px !important;
-  border: 1px solid #2e7d32 !important;
+  border: 1px solid #2d7a5f !important;
 }
 
 .date-cell {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 600 !important;
 }
 
 .assigned-name {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 600 !important;
 }
 
@@ -466,45 +466,45 @@
 
 /* Inputs y selects - mejorar contraste */
 .v-field {
-  border: 2px solid #000 !important;
+  border: 2px solid #1e4d3c !important;
   background-color: white !important;
 }
 
 .v-field input {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 500 !important;
 }
 
 .v-field .v-field__input {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 500 !important;
 }
 
 /* Títulos */
 .page-title {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 800 !important;
 }
 
 .section-title {
-  color: #000 !important;
+  color: #1e4d3c !important;
   font-weight: 700 !important;
 }
 
 /* Hover effects para filas */
 .v-data-table tbody tr:hover {
-  background: #f3f4f6 !important;
-  border-left: 4px solid #1976d2 !important;
+  background: #e8f5ed !important;
+  border-left: 4px solid #3a9b7a !important;
 }
 
 /* Mejorar visibilidad de la paginación */
 .v-pagination .v-btn {
-  color: #000 !important;
-  border: 1px solid #000 !important;
+  color: #1e4d3c !important;
+  border: 1px solid #1e4d3c !important;
 }
 
 .v-pagination .v-btn--active {
-  background-color: #1976d2 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
-  border-color: #1976d2 !important;
+  border-color: #2d7a5f !important;
 }

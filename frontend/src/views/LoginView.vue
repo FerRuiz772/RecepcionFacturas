@@ -2,7 +2,7 @@
   <div class="login-container">
       <!-- Logo empresa arriba a la izquierda -->
       <div class="empresa-logo">
-        <img src="/empresa_logo.png" alt="Empresa Logo" style="height: 90px; width: auto;" />
+        <img src="/empresa_logo.png" alt="Empresa Logo" />
       </div>
       
       <!-- Panel Izquierdo - Formulario -->
@@ -11,7 +11,7 @@
           <!-- Marca -->
           <div class="brand-section">
             <div class="brand-logo brand-logo-image">
-              <img src="/logo-payquetzal.png" alt="PayQuetzal Logo" style="height: 360px; width: auto;" />
+              <img src="/logo-payquetzal.png" alt="PayQuetzal Logo" />
             </div>
           </div>
           
@@ -102,7 +102,7 @@
             <h2 style="font-size: 28px; font-weight: 700; margin-bottom: 12px;">
               Gestión Integral de Pagos
             </h2>
-            <p style="font-size: 16px; opacity: 0.8; max-width: 400px;">
+            <p style="font-size: 16px; opacity: 0.8; max-width: 400px; margin: 0 auto;">
               Optimice los procesos de pago de su empresa con nuestra plataforma profesional
             </p>
           </div>

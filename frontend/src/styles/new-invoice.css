@@ -1,6 +1,6 @@
 /* NewInvoiceView Styles */
 .new-invoice-layout {
-  background: #f8fafc;
+  background: #f0f4f1;
   min-height: 100vh;
 }
 
@@ -13,7 +13,7 @@
 }
 
 .breadcrumb-container {
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e5e7eb;
   padding: 8px 0;
 }
@@ -26,7 +26,7 @@
 }
 
 .breadcrumb-item.active {
-  color: #374151;
+  color: #1e4d3c;
 }
 
 .page-header {
@@ -39,7 +39,7 @@
 .page-title {
   font-size: 28px;
   font-weight: 700;
-  color: #374151;
+  color: #1e4d3c;
   margin-bottom: 4px;
   margin: 0;
 }
@@ -69,7 +69,7 @@
 .section-title {
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: #1e4d3c;
   margin-bottom: 16px;
   display: flex;
   align-items: center;
@@ -77,7 +77,7 @@
 }
 
 .section-icon {
-  color: #3b82f6;
+  color: #3a9b7a;
   font-size: 20px;
 }
 
@@ -100,7 +100,7 @@
 .form-label {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: #1e4d3c;
   margin-bottom: 8px;
 }
 
@@ -113,19 +113,19 @@
   border-radius: 8px;
   padding: 32px;
   text-align: center;
-  background: #f8fafc;
+  background: #f0f4f1;
   transition: all 0.2s ease;
   cursor: pointer;
 }
 
 .upload-area:hover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: #3a9b7a;
+  background: #e8f5ed;
 }
 
 .upload-area.dragover {
-  border-color: #3b82f6;
-  background: #eff6ff;
+  border-color: #3a9b7a;
+  background: #e8f5ed;
   transform: scale(1.02);
 }
 
@@ -137,7 +137,7 @@
 
 .upload-text {
   font-size: 16px;
-  color: #374151;
+  color: #1e4d3c;
   margin-bottom: 8px;
 }
 
@@ -172,14 +172,14 @@
 }
 
 .file-icon {
-  color: #3b82f6;
+  color: #3a9b7a;
   font-size: 20px;
 }
 
 .file-details h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: #1e4d3c;
   margin: 0 0 4px 0;
 }
 
@@ -212,7 +212,7 @@
 
 .btn-cancel {
   background: #f3f4f6 !important;
-  color: #374151 !important;
+  color: #1e4d3c !important;
 }
 
 .btn-cancel:hover {
@@ -220,12 +220,12 @@
 }
 
 .btn-submit {
-  background: #3b82f6 !important;
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
   color: white !important;
 }
 
 .btn-submit:hover {
-  background: #2563eb !important;
+  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
 }
 
 .btn-submit:disabled {
@@ -313,13 +313,13 @@
   align-items: flex-start;
   gap: 16px;
   padding: 16px;
-  background: rgba(25, 118, 210, 0.04);
+  background: rgba(58, 155, 122, 0.04);
   border-radius: 12px;
-  border: 1px solid rgba(25, 118, 210, 0.12);
+  border: 1px solid rgba(58, 155, 122, 0.12);
 }
 
 .instruction-item strong {
-  color: #1976d2;
+  color: #2d7a5f;
   font-weight: 600;
   font-size: 14px;
   line-height: 1.4;
