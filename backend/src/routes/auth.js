@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const authController = require('../controllers/authController');
-const { authenticate, authRateLimit } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { authRateLimit } = require('../middleware/rateLimiting');
 const { body } = require('express-validator');
 
+// Rate limiting para rutas de autenticación sensibles
 // Rate limiting para rutas de autenticación sensibles
 router.use('/login', authRateLimit);
 router.use('/forgot-password', authRateLimit);
@@ -21,8 +23,8 @@ router.get('/me', authenticate, authController.me);
 // Obtener perfil completo del usuario
 router.get('/profile', authenticate, authController.profile);
 
-// Logout (no auth required so clients can safely call logout even if token is missing/expired)
-router.post('/logout', authController.logout);
+// Logout
+router.post('/logout', authenticate, authController.logout);
 
 // Refresh token
 router.post('/refresh', [

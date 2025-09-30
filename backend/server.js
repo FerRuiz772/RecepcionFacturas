@@ -29,6 +29,9 @@ const emailService = require('./src/utils/emailService');
 
 const app = express();
 
+// Confiar en el primer proxy (Apache) para que req.ip refleje X-Forwarded-For
+app.set('trust proxy', 1);
+
 // Validar variables de entorno críticas para evitar errores silenciosos en runtime
 const requiredEnv = ['JWT_SECRET', 'JWT_REFRESH_SECRET', 'DB_USER', 'DB_PASSWORD', 'DB_NAME'];
 const missing = requiredEnv.filter(k => !process.env[k]);
@@ -83,21 +86,8 @@ if (process.env.NODE_ENV === 'development') {
     }));
 }
 
-// Rate limiting global - protección contra ataques DDoS y abuso
-const windowMs = parseInt(process.env.RATE_LIMIT_WINDOW) || 15; // 15 minutos por defecto
-const maxRequests = parseInt(process.env.RATE_LIMIT_MAX) || (process.env.NODE_ENV === 'development' ? 1000 : 100); // Más permisivo en desarrollo
-
-const limiter = rateLimit({
-    windowMs: windowMs * 60 * 1000, // Convertir minutos a milisegundos
-    max: maxRequests, // Límite de peticiones por ventana de tiempo
-    message: 'Demasiadas peticiones, intente nuevamente más tarde',
-    skip: (req) => {
-        // Saltar rate limiting para IPs locales en desarrollo
-        const isLocal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip.startsWith('192.168.') || req.ip.startsWith('::ffff:192.168.')
-        return process.env.NODE_ENV === 'development' && isLocal
-    }
-});
-app.use('/api/', limiter); // Aplicar rate limiting solo a rutas de API
+// Nota: eliminamos el rate limiting global para aplicar limiters más selectivos por ruta
+// (lectura, escritura, autenticación) y para soportar rate limiting por userId cuando exista.
 
 // Middleware general para procesamiento de peticiones
 app.use(compression()); // Compresión gzip para mejorar performance

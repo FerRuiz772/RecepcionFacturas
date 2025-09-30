@@ -2,22 +2,23 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 const { authenticate, requirePermission } = require('../middleware/auth');
+const { readRateLimit, writeRateLimit } = require('../middleware/rateLimiting');
 const { body } = require('express-validator');
 
 // Todas las rutas protegidas
 router.use(authenticate);
 
 // Listar usuarios
-router.get('/', requirePermission(['users.view']), userController.getAllUsers);
+router.get('/', readRateLimit, requirePermission(['users.view']), userController.getAllUsers);
 
 // Ver detalles de usuario
-router.get('/:id', requirePermission(['users.view']), userController.getUserById);
+router.get('/:id', readRateLimit, requirePermission(['users.view']), userController.getUserById);
 
 // Obtener permisos de usuario - permitir ver propios permisos
-router.get('/:id/permissions', authenticate, userController.getUserPermissions);
+router.get('/:id/permissions', readRateLimit, authenticate, userController.getUserPermissions);
 
 // Crear usuario (super admin y admin contaduria)
-router.post('/', requirePermission(['users.create']), [
+router.post('/', writeRateLimit, requirePermission(['users.create']), [
   body('email').isEmail().normalizeEmail(),
   body('password').isLength({ min: 6 }),
   body('name').notEmpty().trim(),
@@ -25,10 +26,10 @@ router.post('/', requirePermission(['users.create']), [
 ], userController.createUser);
 
 // Actualizar usuario
-router.put('/:id', requirePermission(['users.edit']), userController.updateUser);
+router.put('/:id', writeRateLimit, requirePermission(['users.edit']), userController.updateUser);
 
 // Cambiar contraseña de usuario
-router.put('/:id/change-password', [
+router.put('/:id/change-password', [writeRateLimit,
   // Middleware personalizado para verificar permisos
   (req, res, next) => {
     const targetUserId = parseInt(req.params.id);
@@ -46,9 +47,9 @@ router.put('/:id/change-password', [
 ], userController.changePassword);
 
 // Eliminar usuario
-router.delete('/:id', requirePermission(['users.delete']), userController.deleteUser);
+router.delete('/:id', writeRateLimit, requirePermission(['users.delete']), userController.deleteUser);
 
 // Actualizar permisos de usuario
-router.put('/:id/permissions', requirePermission(['users.edit']), userController.updateUserPermissions);
+router.put('/:id/permissions', writeRateLimit, requirePermission(['users.edit']), userController.updateUserPermissions);
 
 module.exports = router;
