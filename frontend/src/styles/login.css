@@ -88,7 +88,7 @@
 .brand-section {
   text-align: center;
   margin-bottom: 28px;
-  margin-top: -40px;
+  margin-top: -20px; /* Ajustado de -40px para bajar el logo */
 }
 
 .brand-logo {
@@ -112,20 +112,22 @@
   border-radius: 0 !important;
   width: auto;
   height: auto;
-  max-width: 320px;
+  max-width: 280px; /* Reducido de 320px */
   display: flex;
   justify-content: center;
   align-items: center;
+  margin: 0 auto;
 }
 
 .brand-logo-image img {
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  height: 280px;
+  height: 180px; /* Reducido significativamente de 280px */
   width: auto;
   max-width: 100%;
   object-fit: contain;
+  transition: all 0.3s ease;
 }
 
 .brand-logo:hover {
@@ -469,7 +471,7 @@
   }
   
   .brand-logo-image img {
-    height: 200px;
+    height: 80px;
   }
 }
 
@@ -502,13 +504,13 @@
   }
 
   .brand-logo {
-    width: 56px;
-    height: 56px;
+    width: 140px;
+    height: 140px;
     font-size: 24px;
   }
   
   .brand-logo-image img {
-    height: 160px;
+    height: 140px;
   }
 
   .brand-title {
