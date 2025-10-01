@@ -1,4 +1,17 @@
-﻿<template>
+﻿<!-- NewInvoiceView.vue
+Propósito: Formulario para crear nuevas facturas.
+
+Funcionalidades principales:
+
+Formulario de creación de facturas
+
+Subida de archivos PDF
+
+Interfaz diferente según el rol (proveedor vs contaduría)
+
+Instrucciones específicas para proveedores -->
+
+<template>
     <div class="invoice-layout">
       <v-main class="main-content no-top-padding">
         <!-- Breadcrumb -->

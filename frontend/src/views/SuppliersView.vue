@@ -26,6 +26,7 @@
               @click="openCreateDialog"
               prepend-icon="mdi-plus"
               class="new-supplier-btn"
+              size="large"
             >
               Nuevo Proveedor
             </v-btn>
@@ -83,11 +84,14 @@
 
       <!-- Tabla de proveedores -->
       <v-card elevation="2">
-        <v-card-title class="card-title-bg">
-          <div class="d-flex align-center justify-space-between w-100">
-            <div class="card-title">
+        <v-card-title class="table-header">
+          <div class="d-flex align-center justify-space-between w-100 flex-wrap">
+            <div class="table-title">
               <v-icon class="mr-2">mdi-domain</v-icon>
-              Lista de Proveedores ({{ totalSuppliers }})
+              Lista de Proveedores
+              <v-chip v-if="totalSuppliers > 0" color="primary" variant="flat" size="small" class="ml-2">
+                {{ totalSuppliers }}
+              </v-chip>
             </div>
           </div>
         </v-card-title>
@@ -110,13 +114,9 @@
           </template>
 
           <template v-slot:item.is_active="{ item }">
-            <v-chip
-              :color="item.is_active ? 'success' : 'error'"
-              size="small"
-              class="status-chip"
-            >
+            <div :class="item.is_active ? 'status-active' : 'status-inactive'">
               {{ item.is_active ? 'Activo' : 'Inactivo' }}
-            </v-chip>
+            </div>
           </template>
 
           <template v-slot:item.created_at="{ item }">
@@ -127,11 +127,11 @@
             <div class="actions-cell">
               <v-btn
                 v-if="authStore.canEditSuppliers"
-                variant="outlined"
+                variant="flat"
                 size="small"
                 color="warning"
                 @click="editSupplier(item)"
-                class="ml-2"
+                class="action-btn btn-edit"
               >
                 <v-icon class="mr-1" size="16">mdi-pencil-outline</v-icon>
                 Editar
@@ -139,11 +139,10 @@
 
               <v-btn
                 v-if="authStore.canDeleteSuppliers"
-                variant="outlined"
+                variant="flat"
                 size="small"
-                :color="item.is_active ? 'error' : 'success'"
+                :class="item.is_active ? 'action-btn btn-toggle deactivate' : 'action-btn btn-toggle activate'"
                 @click="toggleSupplier(item)"
-                class="ml-2"
               >
                 <v-icon class="mr-1" size="16">
                   {{ item.is_active ? 'mdi-pause' : 'mdi-play' }}

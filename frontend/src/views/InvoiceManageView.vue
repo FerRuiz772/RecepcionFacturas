@@ -1,3 +1,20 @@
+<!-- InvoiceManageView.vue
+Propósito: Vista especializada para la gestión documental completa de una factura específica.
+
+Funcionalidades principales:
+
+Visualización y edición de información de facturas
+
+Gestión de documentos obligatorios (retención ISR, retención IVA)
+
+Subida de comprobantes de pago y documentos de contraseña
+
+Progreso del proceso documental
+
+Rechazo de facturas (para contaduría/administradores) -->
+
+
+
 <template>
   <div class="accounting-layout">
     <!-- Breadcrumb -->

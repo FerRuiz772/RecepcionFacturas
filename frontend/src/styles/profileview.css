@@ -1,0 +1,205 @@
+/* ProfileView Styles - REDISEÑO COMPLETO */
+.profile-view {
+  min-height: 100vh;
+  background: #f0f4f1;
+}
+
+/* Header mejorado - igual que otras páginas */
+.profile-view .v-container {
+  max-width: 1200px;
+}
+
+.profile-view h1.text-h4 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1e4d3c;
+  margin-bottom: 8px;
+}
+
+.profile-view .text-body-1 {
+  font-size: 16px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* Tarjetas con estilo consistente */
+.profile-view .v-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.profile-view .v-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.profile-view .v-card-title {
+  background: #f8fafc !important;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e4d3c;
+  padding: 16px 20px;
+}
+
+.profile-view .v-card-title .v-icon {
+  color: #2d7a5f !important;
+}
+
+/* Campos de formulario mejorados */
+.profile-view .v-text-field .v-field {
+  background: white !important;
+  border-radius: 8px !important;
+}
+
+.profile-view .v-text-field .v-field__prepend-inner .v-icon {
+  color: #2d7a5f !important;
+}
+
+.profile-view .v-text-field .v-field--disabled {
+  background: #f8fafc !important;
+}
+
+/* Botón Cambiar Contraseña */
+.profile-view .v-btn--variant-flat.bg-primary {
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
+  color: white !important;
+  border: none !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+  margin-top: 8px;
+}
+
+.profile-view .v-btn--variant-flat.bg-primary:hover {
+  background: linear-gradient(135deg, #1e4d3c, #2d7a5f) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45, 122, 95, 0.3) !important;
+}
+
+/* Alert de información */
+.profile-view .v-alert {
+  border-radius: 8px !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Sección de Información de Empresa para Proveedores */
+.supplier-info-section {
+  margin-top: 24px;
+}
+
+.supplier-table {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.supplier-table .v-table {
+  background: transparent;
+}
+
+.supplier-table .v-table thead tr {
+  background: #f8fafc !important;
+}
+
+.supplier-table .v-table th {
+  background: #f8fafc !important;
+  color: #1e4d3c !important;
+  font-weight: 600 !important;
+  font-size: 14px;
+  padding: 16px 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.supplier-table .v-table td {
+  padding: 16px 12px;
+  border-bottom: 1px solid #e2e8f0;
+  color: #1e4d3c;
+  font-weight: 500;
+}
+
+.supplier-table .v-table tbody tr:hover {
+  background: #f8fafc !important;
+}
+
+/* Estilos específicos para campos de empresa */
+.business-name {
+  font-weight: 600;
+  color: #1e4d3c;
+  font-size: 14px;
+}
+
+.business-address {
+  color: #64748b;
+  font-size: 13px;
+  max-width: 300px;
+  line-height: 1.4;
+}
+
+.business-nit {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #3a9b7a;
+  font-size: 13px;
+  background: rgba(58, 155, 122, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+/* Iconos de mostrar/ocultar contraseña */
+.profile-view .v-field__append-inner span {
+  color: #64748b !important;
+  transition: color 0.2s ease;
+}
+
+.profile-view .v-field__append-inner span:hover {
+  color: #2d7a5f !important;
+}
+
+/* Estados de carga */
+.profile-view .v-input--loading .v-field {
+  background: #f8fafc !important;
+}
+
+/* Responsive */
+@media (max-width: 960px) {
+  .profile-view h1.text-h4 {
+    font-size: 24px;
+  }
+  
+  .profile-view .v-card-title {
+    padding: 12px 16px;
+    font-size: 15px;
+  }
+  
+  .supplier-table .v-table th,
+  .supplier-table .v-table td {
+    padding: 12px 8px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 600px) {
+  .profile-view .v-container {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  .profile-view .v-card-text {
+    padding: 16px;
+  }
+  
+  .supplier-table {
+    margin: 0 -12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+  }
+  
+  .business-address {
+    max-width: 200px;
+  }
+}

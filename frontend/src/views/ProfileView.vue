@@ -15,7 +15,7 @@
         <!-- Información Personal -->
         <v-col cols="12" lg="6">
           <v-card class="mb-6">
-            <v-card-title class="d-flex align-center bg-light">
+            <v-card-title class="d-flex align-center">
               <v-icon class="me-3">mdi-account</v-icon>
               <span>Información Personal</span>
             </v-card-title>
@@ -48,20 +48,39 @@
                     </template>
                   </v-text-field>
                 </v-col>
-                <v-col cols="12" v-if="profileForm.supplier_name">
-                  <v-text-field
-                    v-model="profileForm.supplier_name"
-                    label="Empresa"
-                    variant="outlined"
-                    readonly
-                    :loading="loadingProfile"
-                  >
-                    <template v-slot:prepend-inner>
-                      <v-icon>mdi-domain</v-icon>
-                    </template>
-                  </v-text-field>
-                </v-col>
               </v-row>
+            </v-card-text>
+          </v-card>
+
+          <!-- Información de Empresa para Proveedores -->
+          <v-card v-if="profileForm.supplier_name" class="supplier-info-section">
+            <v-card-title class="d-flex align-center">
+              <v-icon class="me-3">mdi-domain</v-icon>
+              <span>Información de Empresa</span>
+            </v-card-title>
+            <v-card-text class="pa-0">
+              <v-table class="supplier-table">
+                <thead>
+                  <tr>
+                    <th class="text-left">Nombre de Empresa</th>
+                    <th class="text-left">Dirección</th>
+                    <th class="text-left">NIT</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>
+                      <div class="business-name">{{ profileForm.supplier_name }}</div>
+                    </td>
+                    <td>
+                      <div class="business-address">{{ profileForm.supplier_address || 'No especificada' }}</div>
+                    </td>
+                    <td>
+                      <div class="business-nit">{{ profileForm.supplier_nit || 'N/A' }}</div>
+                    </td>
+                  </tr>
+                </tbody>
+              </v-table>
             </v-card-text>
           </v-card>
         </v-col>
@@ -69,7 +88,7 @@
         <!-- Cambiar Contraseña -->
         <v-col cols="12" lg="6">
           <v-card>
-            <v-card-title class="d-flex align-center bg-light">
+            <v-card-title class="d-flex align-center">
               <v-icon class="me-3">mdi-lock-reset</v-icon>
               <span>Cambiar Contraseña</span>
             </v-card-title>
@@ -181,7 +200,9 @@ const changingPassword = ref(false)
 const profileForm = ref({
   name: '',
   email: '',
-  supplier_name: ''
+  supplier_name: '',
+  supplier_address: '',
+  supplier_nit: ''
 })
 
 // Formulario de contraseña
@@ -199,16 +220,43 @@ const loadProfile = async () => {
   loadingProfile.value = true
   try {
     const response = await axios.get('/api/auth/me')
+    const userData = response.data.user
+    
     profileForm.value = {
-      name: response.data.user.name || '',
-      email: response.data.user.email || '',
-      supplier_name: response.data.user.supplier_name || ''
+      name: userData.name || '',
+      email: userData.email || '',
+      supplier_name: userData.supplier_name || '',
+      supplier_address: userData.supplier_address || '',
+      supplier_nit: userData.supplier_nit || ''
+    }
+    
+    // Si el usuario es proveedor pero no tiene información de empresa en el perfil,
+    // intentar cargar la información del proveedor
+    if (authStore.isProveedor && (!userData.supplier_name || !userData.supplier_nit)) {
+      await loadSupplierInfo()
     }
   } catch (error) {
     console.error('Error cargando perfil:', error)
     toast.error('Error al cargar la información del perfil')
   } finally {
     loadingProfile.value = false
+  }
+}
+
+// Cargar información específica del proveedor
+const loadSupplierInfo = async () => {
+  try {
+    const response = await axios.get('/api/suppliers/my-supplier')
+    const supplierData = response.data.data
+    
+    if (supplierData) {
+      profileForm.value.supplier_name = supplierData.business_name || ''
+      profileForm.value.supplier_address = supplierData.address || ''
+      profileForm.value.supplier_nit = supplierData.nit || ''
+    }
+  } catch (error) {
+    console.error('Error cargando información del proveedor:', error)
+    // No mostrar error al usuario ya que esta información es complementaria
   }
 }
 
@@ -220,9 +268,6 @@ const changePassword = async () => {
   
   changingPassword.value = true
   try {
-    // Usar el mismo endpoint que la pantalla de editar usuarios
-    // Obtener el ID del usuario desde el store de auth
-    const authStore = useAuthStore()
     const userId = authStore.user?.id
     
     if (!userId) {
@@ -264,13 +309,4 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
-.profile-view {
-  min-height: 100vh;
-  background-color: #f5f5f5;
-}
-
-.bg-light {
-  background-color: #f8f9fa !important;
-}
-</style>
+<style src="../styles/profileview.css" scoped></style>

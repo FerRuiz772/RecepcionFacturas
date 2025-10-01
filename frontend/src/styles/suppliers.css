@@ -1,19 +1,35 @@
-/* SuppliersView Styles */
+/* SuppliersView Styles - REDISEÑO COMPLETO */
 .suppliers-layout {
-  background: #f8fafc;
   min-height: 100vh;
+  background: #f0f4f1;
 }
 
-/* Maximizar el uso del ancho disponible y reducir padding lateral */
-.suppliers-layout .v-container {
-  max-width: 95vw !important;
-  width: 95vw !important;
-  padding-left: 12px !important;
-  padding-right: 12px !important;
+/* Header mejorado - igual que facturas */
+.page-header {
+  background: linear-gradient(135deg, #1e4d3c 0%, #2d7a5f 100%);
+  border-bottom: none;
+  padding: 40px 0 32px 0;
+  margin-bottom: 32px;
+  color: white;
 }
 
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: white !important;
+  margin-bottom: 8px;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.9) !important;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Breadcrumb igual que facturas */
 .breadcrumb-container {
-  background: #f8fafc;
+  background: #f0f4f1;
   border-bottom: 1px solid #e2e8f0;
   padding: 12px 0;
 }
@@ -26,398 +42,386 @@
 }
 
 .breadcrumb-item.active {
-  color: #0f172a;
+  color: #1e4d3c;
 }
 
-.page-header {
+.breadcrumb-item:hover {
+  color: #2d7a5f;
+}
+
+/* Filtros mejorados - estilo igual a facturas */
+.filter-card {
   background: white;
-  border-bottom: 1px solid #e2e8f0;
-  padding: 32px 0;
-  margin-bottom: 32px;
-}
-
-.page-title {
-  font-size: 28px;
-  font-weight: 700;
-  color: #0f172a;
-  margin-bottom: 4px;
-}
-
-.page-subtitle {
-  font-size: 16px;
-  color: #64748b;
-  margin: 0;
-}
-
-.suppliers-section {
-  background: white;
-  border-radius: 12px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border-radius: 12px;
+  transition: all 0.3s ease;
 }
 
-.section-header {
-  padding: 24px 24px 0 24px;
-  border-bottom: 1px solid #f1f5f9;
-  margin-bottom: 0;
+.filter-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
-.section-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #0f172a;
-  margin-bottom: 24px;
-}
-
-.filters-row {
-  margin-bottom: 24px;
-}
-
-.suppliers-table {
-  margin: 0;
-}
-
-/* Ampliar el ancho de la tabla de proveedores */
-.suppliers-table .v-data-table__wrapper {
-  width: 100%;
-  margin: 0 -24px;
-  padding: 0 24px;
-}
-
-/* Asegurar que las cartas ocupen todo el ancho disponible */
-.suppliers-layout .v-card {
-  margin: 0 -8px;
-  padding: 0;
-}
-
-.suppliers-layout .v-card-text {
-  padding-left: 24px !important;
-  padding-right: 24px !important;
-}
-
-.table-container {
-  overflow-x: auto;
-}
-
-.supplier-row {
-  border-bottom: 1px solid #f1f5f9;
-}
-
-.supplier-row:hover {
+.card-title-bg {
   background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e4d3c;
+  padding: 16px 20px;
 }
 
+/* BOTÓN NUEVO PROVEEDOR - FONDO BLANCO Y LETRAS VERDES */
+.new-supplier-btn.v-btn {
+  background: white !important;
+  color: #2d7a5f !important;
+  border: 2px solid white !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+  border-radius: 8px !important;
+}
+
+.new-supplier-btn.v-btn .v-btn__content {
+  color: #2d7a5f !important;
+  justify-content: center !important;
+}
+
+.new-supplier-btn.v-btn:hover {
+  background: rgba(255, 255, 255, 0.9) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 255, 255, 0.3) !important;
+}
+
+.new-supplier-btn.v-btn .v-icon {
+  color: #2d7a5f !important;
+}
+
+/* Tabla mejorada - estilo igual a facturas */
+.suppliers-table-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.table-header {
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 20px 24px;
+}
+
+.table-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e4d3c;
+  display: flex;
+  align-items: center;
+}
+
+/* Estilos de celdas mejorados */
 .supplier-name {
   font-weight: 600;
-  color: #0f172a;
+  color: #1e4d3c;
   font-size: 14px;
 }
 
-.supplier-nit {
-  color: #64748b;
-  font-size: 13px;
-  margin-top: 2px;
-}
-
-.contact-info {
-  font-size: 13px;
-  color: #64748b;
-}
-
-.contact-email {
-  color: #3b82f6;
-  text-decoration: none;
-}
-
-.contact-email:hover {
-  text-decoration: underline;
-}
-
-.status-chip {
-  font-size: 12px;
+.nit-cell {
+  font-family: 'Courier New', monospace;
   font-weight: 600;
+  color: #3a9b7a;
+  font-size: 13px;
+  background: rgba(58, 155, 122, 0.1);
   padding: 4px 8px;
   border-radius: 6px;
-  text-transform: uppercase;
+  display: inline-block;
 }
 
+/* ESTADOS MEJORADOS - TEXTO COLORADO SIN CHIP */
 .status-active {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: #10b981 !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.1) !important;
+  display: inline-block;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
 }
 
 .status-inactive {
-  background: rgba(107, 114, 128, 0.1);
-  color: #6b7280;
+  color: #ef4444 !important;
+  font-weight: 700 !important;
+  font-size: 13px !important;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.1) !important;
+  display: inline-block;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
 }
 
-.action-buttons {
+/* Eliminar los estilos antiguos del chip si existen */
+.status-chip {
+  display: none !important;
+}
+
+.date-cell {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* Acciones mejoradas */
+.actions-cell {
   display: flex;
-  gap: 20px;
-  padding: 16px 12px;
-  min-height: 70px;
+  gap: 8px;
   align-items: center;
-  min-width: 180px;
+  min-height: 52px;
 }
 
+.action-btn {
+  min-width: 80px;
+  font-weight: 600;
+  border: 2px solid;
+}
+
+/* Botones específicos */
 .btn-edit {
-  background: #f59e0b !important;
+  background: linear-gradient(135deg, #f59e0b, #fbbf24) !important;
   color: white !important;
-  font-size: 12px;
-  min-width: auto;
-  min-height: 40px;
-  padding: 8px 16px;
-}
-
-.btn-toggle {
-  font-size: 12px;
-  min-width: auto;
-  min-height: 40px;
-  padding: 8px 16px;
+  border: none !important;
 }
 
 .btn-toggle.activate {
-  background: #10b981 !important;
+  background: linear-gradient(135deg, #10b981, #34d399) !important;
   color: white !important;
+  border: none !important;
 }
 
 .btn-toggle.deactivate {
-  background: #ef4444 !important;
+  background: linear-gradient(135deg, #ef4444, #f87171) !important;
   color: white !important;
+  border: none !important;
 }
 
-.loading-container {
+/* Estados de la tabla */
+.v-data-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.v-data-table tbody tr:hover {
+  background: #f8fafc !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Paginación personalizada */
+.custom-footer {
   display: flex;
-  justify-content: center;
   align-items: center;
-  min-height: 200px;
-  color: #64748b;
-}
-
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: #64748b;
-}
-
-.empty-icon {
-  font-size: 48px;
-  color: #cbd5e1;
-  margin-bottom: 16px;
-}
-
-.pagination-container {
-  padding: 20px 24px;
-  border-top: 1px solid #f1f5f9;
+  justify-content: space-between;
+  padding: 16px 24px;
   background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.footer-info {
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.footer-pagination {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.items-per-page-select {
+  min-width: 100px;
+}
+
+/* PAGINACIÓN - ESTILO IGUAL A FACTURAS */
+.pagination-controls .v-pagination__list {
+  gap: 4px;
+}
+
+.pagination-controls .v-pagination__item {
+  border: 1px solid #e2e8f0 !important;
+  font-weight: 600 !important;
+  min-width: 36px !important;
+  border-radius: 6px !important;
+}
+
+.pagination-controls .v-pagination__item--is-active {
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
+  color: white !important;
+  border-color: #2d7a5f !important;
+}
+
+/* Ocultar botones de primera y última página (los círculos) */
+.pagination-controls button[aria-label="Go to first page"],
+.pagination-controls button[aria-label="Go to last page"],
+.pagination-controls button[aria-label="Ir a la primera página"],
+.pagination-controls button[aria-label="Ir a la última página"] {
+  display: none !important;
+}
+
+/* No data state */
+.no-data {
+  text-align: center;
+  padding: 60px 40px;
+  color: #64748b;
+}
+
+.no-data h3 {
+  margin: 16px 0 8px 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.no-data p {
+  margin: 0;
+  font-size: 14px;
+  color: #94a3b8;
+}
+
+.reset-btn {
+  text-transform: none;
+  font-weight: 600;
+  border: 2px solid #64748b !important;
+  color: #64748b !important;
+}
+
+.total-badge {
+  font-weight: 600;
+  margin-left: 24px !important;
+}
+
+/* === CORRECCIONES PARA PAGINACIÓN Y BOTONES === */
+
+/* ELIMINAR COMPLETAMENTE LOS BOTONES DE NAVEGACIÓN DE PAGINACIÓN */
+.pagination-controls .v-pagination__prev,
+.pagination-controls .v-pagination__next,
+.pagination-controls .v-pagination__first,
+.pagination-controls .v-pagination__last {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+/* Asegurar que solo se muestren los números de página */
+.pagination-controls .v-pagination__list {
+  display: flex !important;
+  gap: 4px;
+  margin: 0 auto !important;
+}
+
+.pagination-controls .v-pagination__item {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0 !important;
+  font-weight: 600 !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  border-radius: 6px !important;
+  margin: 0 2px !important;
+}
+
+.pagination-controls .v-pagination__item--is-active {
+  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
+  color: white !important;
+  border-color: #2d7a5f !important;
+}
+
+/* CENTRAR TEXTO EN BOTONES DE ACCIÓN - REGLAS MÁS ESPECÍFICAS */
+.actions-cell .action-btn .v-btn__content {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.actions-cell .action-btn {
+  display: flex !important;
+  justify-content: center !important;
+}
+
+/* CENTRAR BOTÓN NUEVO PROVEEDOR - REGLAS MÁS ESPECÍFICAS */
+.new-supplier-btn.v-btn .v-btn__content {
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  width: 100% !important;
+  text-align: center !important;
+}
+
+.new-supplier-btn.v-btn {
+  display: flex !important;
+  justify-content: center !important;
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .page-header .d-flex {
+@media (max-width: 960px) {
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .table-header {
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  
+  .custom-footer {
     flex-direction: column;
     align-items: flex-start;
-    gap: 16px;
   }
   
-  .filters-row .d-flex {
+  .footer-pagination {
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .actions-cell {
+    flex-wrap: wrap;
+  }
+  
+  .total-badge {
+    margin-left: 0 !important;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 600px) {
+  .v-container {
+    padding-left: 8px !important;
+    padding-right: 8px !important;
+  }
+  
+  .filter-card .v-card-text {
+    padding: 16px;
+  }
+  
+  .table-header {
+    padding: 16px;
+  }
+  
+  .actions-cell {
     flex-direction: column;
-    gap: 16px;
+    align-items: flex-start;
   }
   
-  .suppliers-section {
-    margin: 0 -8px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
+  .action-btn {
+    min-width: 100%;
+    margin-bottom: 8px;
   }
-}
-
-/* ========================================
-   MEJORAS DE CONTRASTE Y VISIBILIDAD
-   ======================================== */
-
-/* Botones principales - mejorar visibilidad */
-.v-btn {
-  border: 2px solid #000 !important;
-  font-weight: 600 !important;
-  color: #000 !important;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
-}
-
-.v-btn:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3) !important;
-  border-color: #333 !important;
-}
-
-/* Botón primario */
-.v-btn--variant-flat.bg-primary {
-  background-color: #1976d2 !important;
-  color: white !important;
-  border-color: #1976d2 !important;
-}
-
-.v-btn--variant-flat.bg-primary:hover {
-  background-color: #1565c0 !important;
-  border-color: #1565c0 !important;
-}
-
-/* Botones de acciones específicas */
-.btn-edit {
-  background: #f59e0b !important;
-  color: #000 !important;
-  border: 2px solid #d97706 !important;
-  font-weight: 600 !important;
-}
-
-.btn-edit:hover {
-  background: #d97706 !important;
-  color: white !important;
-  border-color: #b45309 !important;
-}
-
-.btn-toggle.activate {
-  background: #10b981 !important;
-  color: #000 !important;
-  border: 2px solid #059669 !important;
-  font-weight: 600 !important;
-}
-
-.btn-toggle.activate:hover {
-  background: #059669 !important;
-  color: white !important;
-  border-color: #047857 !important;
-}
-
-.btn-toggle.deactivate {
-  background: #ef4444 !important;
-  color: #000 !important;
-  border: 2px solid #dc2626 !important;
-  font-weight: 600 !important;
-}
-
-.btn-toggle.deactivate:hover {
-  background: #dc2626 !important;
-  color: white !important;
-  border-color: #b91c1c !important;
-}
-
-/* Iconos - asegurar visibilidad */
-.v-icon {
-  color: #000 !important;
-  font-size: 18px !important;
-  font-weight: bold !important;
-}
-
-.v-btn .v-icon {
-  color: inherit !important;
-}
-
-/* Texto en general - mejorar contraste */
-.v-data-table td {
-  color: #000 !important;
-  font-weight: 500 !important;
-}
-
-.v-data-table th {
-  color: #000 !important;
-  font-weight: 700 !important;
-}
-
-/* Status chips - mejorar contraste */
-.status-chip {
-  font-weight: 700 !important;
-  border: 2px solid !important;
-}
-
-.status-active {
-  background: #dcfce7 !important;
-  color: #000 !important;
-  border-color: #10b981 !important;
-}
-
-.status-inactive {
-  background: #f3f4f6 !important;
-  color: #000 !important;
-  border-color: #6b7280 !important;
-}
-
-/* Enlaces - mejorar visibilidad */
-.contact-email {
-  color: #1976d2 !important;
-  font-weight: 600 !important;
-  text-decoration: underline !important;
-}
-
-.contact-email:hover {
-  color: #1565c0 !important;
-  text-decoration: underline !important;
-}
-
-/* Inputs y selects - mejorar contraste */
-.v-field {
-  border: 2px solid #000 !important;
-  background-color: white !important;
-}
-
-.v-field input {
-  color: #000 !important;
-  font-weight: 500 !important;
-}
-
-.v-field .v-field__input {
-  color: #000 !important;
-  font-weight: 500 !important;
-}
-
-/* Breadcrumbs */
-.breadcrumb-item {
-  color: #000 !important;
-  font-weight: 600 !important;
-}
-
-.breadcrumb-item.active {
-  color: #1976d2 !important;
-  font-weight: 700 !important;
-}
-
-/* Títulos */
-.page-title {
-  color: #000 !important;
-  font-weight: 800 !important;
-}
-
-.section-title {
-  color: #000 !important;
-  font-weight: 700 !important;
-}
-
-.supplier-name {
-  color: #000 !important;
-  font-weight: 700 !important;
-}
-
-/* Información de contacto */
-.supplier-nit,
-.contact-info {
-  color: #374151 !important;
-  font-weight: 600 !important;
-}
-
-/* Hover effects para filas */
-.supplier-row:hover {
-  background: #f3f4f6 !important;
-  border-left: 4px solid #1976d2 !important;
-}
-
-/* Mejorar visibilidad de la paginación */
-.v-pagination .v-btn {
-  color: #000 !important;
-  border: 1px solid #000 !important;
-}
-
-.v-pagination .v-btn--active {
-  background-color: #1976d2 !important;
-  color: white !important;
-  border-color: #1976d2 !important;
 }

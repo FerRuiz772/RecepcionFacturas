@@ -28,46 +28,89 @@
     <v-app-bar-nav-icon 
       v-if="$vuetify.display.mdAndDown"
       @click="toggleSidebar"
-      class="sidebar-toggle"
+      class="sidebar-toggle mobile-toggle"
     >
       <v-icon>mdi-menu</v-icon>
     </v-app-bar-nav-icon>
 
-    <!-- Toggle sidebar en desktop -->
-    <v-app-bar-nav-icon 
+    <!-- Toggle sidebar en desktop - MEJORADO -->
+    <v-btn 
       v-if="$vuetify.display.lgAndUp"
       @click="toggleSidebar"
       class="sidebar-toggle desktop-toggle"
+      variant="text"
+      size="small"
     >
-      <v-icon>{{ drawerOpen ? 'mdi-menu-open' : 'mdi-menu' }}</v-icon>
-    </v-app-bar-nav-icon>
+      <img src="/slidemenu.png" alt="Menú" class="menu-icon-img">
+    </v-btn>
 
     <v-spacer />
 
     <!-- Información del usuario y controles (solo en desktop) -->
     <div v-if="$vuetify.display.lgAndUp" class="topbar-user">
-      <!-- Información del usuario -->
-      <div class="user-info">
-        <div class="user-details">
-          <div class="user-name">{{ authStore.userName }}</div>
-          <div class="user-role">{{ roleDisplayName }}</div>
-        </div>
-        <v-avatar size="40" class="user-avatar">
-          <span class="text-white font-weight-bold">{{ userInitials }}</span>
-        </v-avatar>
-      </div>
+      <!-- Menú de usuario - SOLO AVATAR -->
+      <v-menu offset-y location="bottom end">
+        <template v-slot:activator="{ props }">
+          <div 
+            class="user-avatar-trigger"
+            v-bind="props"
+          >
+            <v-avatar size="40" class="user-avatar">
+              <span class="text-white font-weight-bold">{{ userInitials }}</span>
+            </v-avatar>
+            <!-- Badge de estado -->
+            <div class="user-status-indicator"></div>
+          </div>
+        </template>
+        
+        <v-list class="user-menu" min-width="220">
+          <!-- Header del menú con información del usuario -->
+          <v-list-item class="user-menu-header">
+            <template v-slot:prepend>
+              <v-avatar size="44" class="user-avatar-large">
+                <span class="text-white font-weight-bold">{{ userInitials }}</span>
+              </v-avatar>
+            </template>
+            <v-list-item-title class="user-menu-name">
+              {{ authStore.userName }}
+            </v-list-item-title>
+            <v-list-item-subtitle class="user-menu-role">
+              {{ roleDisplayName }}
+            </v-list-item-subtitle>
+          </v-list-item>
+          
+          <v-divider class="my-2" />
+          
+          <v-list-item @click="goToProfile" class="user-menu-item">
+            <template v-slot:prepend>
+              <v-icon color="#64748b" size="20">mdi-account-cog-outline</v-icon>
+            </template>
+            <v-list-item-title>Configuración de cuenta</v-list-item-title>
+          </v-list-item>
+          
+          <v-divider class="my-2" />
+          
+          <v-list-item @click="logout" class="user-menu-item logout-item">
+            <template v-slot:prepend>
+              <v-icon color="#ef4444" size="20">mdi-logout</v-icon>
+            </template>
+            <v-list-item-title>Cerrar Sesión</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
+    </div>
 
-      <!-- Menú de usuario -->
+    <!-- Versión móvil del menú de usuario -->
+    <div v-if="$vuetify.display.mdAndDown" class="topbar-user-mobile">
       <v-menu offset-y>
         <template v-slot:activator="{ props }">
-          <v-btn 
-            icon 
-            variant="text" 
+          <v-avatar 
+            size="36" 
+            class="user-avatar-mobile"
             v-bind="props"
-            class="user-menu-toggle"
           >
-            <v-icon>mdi-chevron-down</v-icon>
-          </v-btn>
+            <span class="text-white font-weight-bold">{{ userInitials }}</span>
+          </v-avatar>
         </template>
         
         <v-list class="user-menu" min-width="200">
@@ -199,110 +242,161 @@ const logout = async () => {
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
 
 /* Ajustar posición cuando el drawer está abierto en desktop */
 .topbar--with-drawer {
-  left: 0 !important; /* El topbar siempre empieza desde la izquierda */
-  width: 100% !important; /* Y siempre ocupa el ancho completo */
+  left: 0 !important;
+  width: 100% !important;
 }
 
-/* Transición suave para el cambio de estado */
-@media (min-width: 1024px) {
-  .topbar {
-    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1), width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  }
-}
-
+/* Botón de toggle del sidebar - MEJORADO */
 .sidebar-toggle {
   margin-right: 8px;
 }
 
-.desktop-toggle {
-  border-radius: 8px;
+.mobile-toggle {
   background: #f8fafc;
   border: 1px solid #e2e8f0;
-  transition: all 0.2s ease;
+  border-radius: 8px;
+  margin-left: 8px !important;
+}
+
+.desktop-toggle {
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #000000 !important; /* Color negro/gris oscuro */
+  border: 1px solid #e2e8f0 !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  margin-left: 16px !important; /* Separación del borde izquierdo */
 }
 
 .desktop-toggle:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
+  background: #f8fafc !important;
+  border-color: #cbd5e1 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
 }
 
+.desktop-toggle:active {
+  transform: translateY(0);
+}
+
+/* Contenedor del usuario */
 .topbar-user {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-right: 16px !important; 
 }
 
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: all 0.2s ease;
+/* Trigger del avatar - MEJORADO */
+.user-avatar-trigger {
+  position: relative;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
 }
 
-.user-details {
-  text-align: right;
-}
-
-.user-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #0f172a;
-  line-height: 1.2;
-}
-
-.user-role {
-  font-size: 12px;
-  color: #64748b;
-  line-height: 1.2;
+.user-avatar-trigger:hover {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  transform: scale(1.05);
 }
 
 .user-avatar {
-  background: #0f172a !important;
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
+  transition: all 0.3s ease;
 }
 
-.user-menu-toggle {
-  color: #64748b;
-  transition: all 0.2s ease;
+.user-avatar-large {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.2);
 }
 
-.user-menu-toggle:hover {
-  color: #0f172a;
-  background: #f1f5f9 !important;
+/* Indicador de estado (punto verde) */
+.user-status-indicator {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  width: 12px;
+  height: 12px;
+  background: #10b981;
+  border: 2px solid white;
+  border-radius: 50%;
+  z-index: 2;
 }
 
+/* Menú de usuario - MEJORADO */
 .user-menu {
-  border-radius: 12px;
+  border-radius: 16px;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.15), 0 10px 20px -5px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   margin-top: 8px;
   z-index: 2000 !important;
+}
+
+.user-menu-header {
+  background: linear-gradient(135deg, #f8fafc, #f0f4f1);
+  padding: 20px 16px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.user-menu-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.user-menu-role {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .user-menu-item {
   padding: 12px 16px;
   transition: all 0.2s ease;
   cursor: pointer;
+  border-radius: 8px;
+  margin: 2px 8px;
 }
 
 .user-menu-item:hover {
   background: #f8fafc !important;
+  transform: translateX(4px);
 }
 
 .logout-item:hover {
   background: #fef2f2 !important;
+  color: #ef4444;
+}
+
+/* Versión móvil */
+.topbar-user-mobile {
+  display: flex;
+  align-items: center;
+  margin-right: 12px !important;
+}
+
+.user-avatar-mobile {
+  background: linear-gradient(135deg, #0f172a, #1e293b) !important;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.2);
 }
 
 /* Responsive */
 @media (max-width: 1023px) {
-  /* En tablet y móvil, el topbar siempre ocupa el ancho completo */
   .topbar--with-drawer {
     left: 0 !important;
     width: 100% !important;
@@ -313,31 +407,43 @@ const logout = async () => {
   }
 }
 
-@media (max-width: 959px) {
-  /* En móvil, el drawer es temporal, así que el topbar siempre es full width */
-  .topbar--with-drawer {
-    left: 0 !important;
-    width: 100% !important;
-  }
-}
-
 @media (max-width: 599px) {
   .topbar {
     padding: 0 4px !important;
   }
 }
 
-/* Estados de focus */
-.user-menu-toggle:focus,
-.user-menu-item:focus {
+/* Estados de focus mejorados */
+.user-avatar-trigger:focus {
   outline: 2px solid #3b82f6;
   outline-offset: 2px;
 }
 
-/* Animaciones */
-.user-info,
-.user-menu-toggle,
-.user-menu-item {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+.user-menu-item:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
 }
+
+/* Animaciones mejoradas */
+.user-avatar-trigger,
+.user-menu-item {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Efecto de pulso sutil en el avatar */
+@keyframes subtle-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.user-avatar-trigger:hover .user-avatar {
+  animation: subtle-pulse 0.6s ease-in-out;
+}
+
+.menu-icon-img {
+  width: 24px;
+  height: 24px;
+  filter: brightness(0); /* Para asegurar que sea negro */
+}
+
 </style>

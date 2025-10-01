@@ -1,3 +1,18 @@
+<!-- InvoiceDetailView.vue
+Propósito: Vista de solo lectura para ver los detalles completos de una factura.
+
+Funcionalidades principales:
+
+Información general de la factura
+
+Visualización de archivos originales
+
+Lista de documentos generados
+
+Historial de estados y cambios
+
+Redirección a la vista de gestión -->
+
 <template>
   <div class="invoice-detail-layout">
     <!-- Breadcrumb -->
@@ -16,14 +31,8 @@
     <!-- Header de página -->
     <div class="page-header">
       <v-container>
-        <div class="d-flex align-center justify-space-between">
-          <div>
-            <h1 class="page-title">Detalle de Factura</h1>
-            <p class="page-subtitle" v-if="invoice">
-              {{ invoice.number }} - {{ invoice.supplier?.business_name }}
-            </p>
-          </div>
-          <div class="d-flex gap-3">
+        <div class="header-content">
+          <div class="header-left">
             <v-btn 
               variant="outlined"
               @click="$router.go(-1)"
@@ -32,6 +41,14 @@
             >
               Volver
             </v-btn>
+            <div class="title-section">
+              <h1 class="page-title">Detalle de Factura</h1>
+              <p class="page-subtitle" v-if="invoice">
+                {{ invoice.number }} - {{ invoice.supplier?.business_name }}
+              </p>
+            </div>
+          </div>
+          <div class="header-right">
             <v-btn 
               v-if="canManage"
               color="primary"

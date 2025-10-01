@@ -2,393 +2,352 @@
   <div class="invoices-layout">
     <!-- Breadcrumb -->
     <div class="breadcrumb-container">
-        <v-container>
-          <div class="d-flex align-center">
-            <router-link to="/dashboard" class="breadcrumb-item">Dashboard</router-link>
-            <v-icon size="16" color="#cbd5e1" class="mx-2">mdi-chevron-right</v-icon>
-            <span class="breadcrumb-item active">Facturas</span>
-          </div>
-        </v-container>
-      </div>
+      <v-container>
+        <div class="d-flex align-center">
+          <router-link to="/dashboard" class="breadcrumb-item">Dashboard</router-link>
+          <v-icon size="16" color="#cbd5e1" class="mx-2">mdi-chevron-right</v-icon>
+          <span class="breadcrumb-item active">Facturas</span>
+        </div>
+      </v-container>
+    </div>
 
-      <!-- Header de página -->
-      <div class="page-header">
-        <v-container>
-          <div class="d-flex align-center justify-space-between">
-            <div>
-              <h1 class="page-title">Gestión de Facturas</h1>
-              <p class="page-subtitle">Administra todas las facturas del sistema</p>
-            </div>
-            <div v-if="authStore.canCreateInvoices">
-              <v-btn 
-                color="primary" 
-                @click="$router.push('/invoices/new')"
-                prepend-icon="mdi-plus"
-                class="new-invoice-btn"
+    <!-- Header de página - MEJORADO -->
+    <div class="page-header">
+      <v-container>
+        <div class="d-flex align-center justify-space-between">
+          <div>
+            <h1 class="page-title">Gestión de Facturas</h1>
+            <p class="page-subtitle">Administra y revisa todas las facturas del sistema</p>
+          </div>
+          <div v-if="authStore.canCreateInvoices" class="header-actions">
+            <v-btn 
+              color="primary" 
+              @click="$router.push('/invoices/new')"
+              prepend-icon="mdi-plus"
+              class="new-invoice-btn"
+              size="large"
+            >
+              Nueva Factura
+            </v-btn>
+          </div>
+        </div>
+      </v-container>
+    </div>
+
+    <v-container class="py-6">
+      <!-- Filtros - MEJORADO -->
+      <v-card class="filter-card mb-6" elevation="1">
+        <v-card-title class="card-title-bg">
+          <v-icon class="mr-2">mdi-filter-outline</v-icon>
+          Filtros de Búsqueda
+          <v-spacer></v-spacer>
+          <v-chip 
+            v-if="hasActiveFilters"
+            color="primary" 
+            variant="outlined"
+            size="small"
+            class="active-filters-badge"
+          >
+            Filtros activos
+          </v-chip>
+        </v-card-title>
+        <v-card-text class="pa-4">
+          <v-row dense>
+            <v-col cols="12" sm="6" md="3" lg="2">
+              <v-select
+                v-model="filters.status"
+                :items="statusOptions"
+                label="Estado"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                @update:model-value="applyFilters"
+                prepend-inner-icon="mdi-flag-outline"
+                hide-details
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3" lg="2" v-if="!authStore.isProveedor">
+              <v-select
+                v-model="filters.supplier_id"
+                :items="suppliers"
+                item-title="business_name"
+                item-value="id"
+                label="Proveedor"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                @update:model-value="applyFilters"
+                prepend-inner-icon="mdi-domain"
+                hide-details
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3" lg="2" v-if="authStore.isAdmin">
+              <v-select
+                v-model="filters.assigned_to"
+                :items="users"
+                item-title="name"
+                item-value="id"
+                label="Asignado a"
+                variant="outlined"
+                density="comfortable"
+                clearable
+                @update:model-value="applyFilters"
+                prepend-inner-icon="mdi-account"
+                hide-details
+                class="assigned-filter"
+              ></v-select>
+            </v-col>
+            <v-col cols="12" sm="6" md="3" lg="2">
+              <v-text-field
+                v-model="filters.search"
+                label="Buscar por número"
+                variant="outlined"
+                density="comfortable"
+                prepend-inner-icon="mdi-magnify"
+                clearable
+                @input="debounceSearch"
+                hide-details
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="3" lg="2">
+              <v-text-field
+                v-model="filters.start_date"
+                label="Fecha desde"
+                type="date"
+                variant="outlined"
+                density="comfortable"
+                @update:model-value="applyFilters"
+                prepend-inner-icon="mdi-calendar-start"
+                hide-details
+              ></v-text-field>
+            </v-col>
+            <v-col cols="12" sm="6" md="3" lg="2">
+              <v-text-field
+                v-model="filters.end_date"
+                label="Fecha hasta"
+                type="date"
+                variant="outlined"
+                density="comfortable"
+                @update:model-value="applyFilters"
+                prepend-inner-icon="mdi-calendar-end"
+                hide-details
+              ></v-text-field>
+            </v-col>
+          </v-row>
+          <v-row class="mt-3">
+            <v-col cols="12" class="d-flex gap-3 flex-wrap align-center">
+              <v-btn
+                color="secondary"
+                variant="outlined"
+                @click="resetFilters"
+                prepend-icon="mdi-filter-off"
+                class="reset-btn"
+                size="small"
               >
-                Nueva Factura
+                Limpiar Filtros
               </v-btn>
-            </div>
-          </div>
-        </v-container>
-      </div>
-
-      <v-container class="py-8">
-        <!-- Filtros -->
-        <v-card class="filter-card mb-6" elevation="2">
-          <v-card-title class="card-title-bg">
-            <v-icon class="mr-2">mdi-filter-outline</v-icon>
-            Filtros de Búsqueda
-          </v-card-title>
-          <v-card-text class="pa-6">
-            <v-row>
-              <v-col cols="12" md="2">
-                <v-select
-                  v-model="filters.status"
-                  :items="statusOptions"
-                  label="Estado"
-                  variant="outlined"
-                  density="comfortable"
-                  clearable
-                  @update:model-value="applyFilters"
-                  prepend-inner-icon="mdi-flag-outline"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="2" v-if="!authStore.isProveedor">
-                <v-select
-                  v-model="filters.supplier_id"
-                  :items="suppliers"
-                  item-title="business_name"
-                  item-value="id"
-                  label="Proveedor"
-                  variant="outlined"
-                  density="comfortable"
-                  clearable
-                  @update:model-value="applyFilters"
-                  prepend-inner-icon="mdi-domain"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="2" v-if="authStore.isAdmin">
-                <v-select
-                  v-model="filters.assigned_to"
-                  :items="users"
-                  item-title="name"
-                  item-value="id"
-                  label="Asignado a"
-                  variant="outlined"
-                  density="comfortable"
-                  clearable
-                  @update:model-value="applyFilters"
-                  prepend-inner-icon="mdi-account"
-                ></v-select>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="filters.search"
-                  label="Buscar por número"
-                  variant="outlined"
-                  density="comfortable"
-                  prepend-inner-icon="mdi-magnify"
-                  clearable
-                  @input="debounceSearch"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="filters.start_date"
-                  label="Fecha desde"
-                  type="date"
-                  variant="outlined"
-                  density="comfortable"
-                  @update:model-value="applyFilters"
-                  prepend-inner-icon="mdi-calendar-start"
-                ></v-text-field>
-              </v-col>
-              <v-col cols="12" md="2">
-                <v-text-field
-                  v-model="filters.end_date"
-                  label="Fecha hasta"
-                  type="date"
-                  variant="outlined"
-                  density="comfortable"
-                  @update:model-value="applyFilters"
-                  prepend-inner-icon="mdi-calendar-end"
-                ></v-text-field>
-              </v-col>
-            </v-row>
-              <v-row class="mt-2">
-                <v-col cols="12" class="d-flex gap-2 flex-wrap align-center">
-                  <v-btn
-                    color="secondary"
-                    variant="outlined"
-                    @click="resetFilters"
-                    prepend-icon="mdi-filter-off"
-                    class="reset-btn"
-                  >
-                    Limpiar Filtros
-                  </v-btn>
-                  <!-- Badge de conteo y información -->
-                  <v-chip
-                    v-if="totalInvoices > 0"
-                    color="primary"
-                    variant="outlined"
-                    size="small"
-                    class="ml-2"
-                  >
-                    Total: {{ totalInvoices }} facturas
-                  </v-chip>
-                  
-                  <v-chip
-                    v-if="hasActiveFilters"
-                    color="warning"
-                    variant="outlined"
-                    size="small"
-                    class="ml-1"
-                  >
-                    Filtros activos
-                  </v-chip>
-                </v-col>
-              </v-row>
-          </v-card-text>
-        </v-card>
-
-        <!-- Tabla de facturas -->
-        <v-card elevation="2">
-          <v-card-title class="card-title-bg">
-            <div class="d-flex align-center justify-space-between w-100">
-              <div class="card-title">
-                <v-icon class="mr-2">mdi-receipt-text-outline</v-icon>
-                Lista de Facturas ({{ totalInvoices }})
-              </div>
-              <v-chip 
-                v-if="hasActiveFilters"
-                color="primary" 
+              
+              <v-chip
+                v-if="totalInvoices > 0"
+                color="primary"
                 variant="outlined"
                 size="small"
+                class="total-badge"
               >
-                Filtros activos
+                {{ totalInvoices }} facturas encontradas
+              </v-chip>
+            </v-col>
+          </v-row>
+        </v-card-text>
+      </v-card>
+
+      <!-- Tabla de facturas - MEJORADA -->
+      <v-card elevation="1" class="invoices-table-card">
+        <v-card-title class="table-header">
+          <div class="d-flex align-center justify-space-between w-100 flex-wrap">
+            <div class="table-title">
+              <v-icon class="mr-2">mdi-receipt-text-outline</v-icon>
+              Lista de Facturas
+              <v-chip v-if="totalInvoices > 0" color="primary" variant="flat" size="small" class="ml-2">
+                {{ totalInvoices }}
               </v-chip>
             </div>
-          </v-card-title>
-          
-          <v-data-table-server
-            v-model:items-per-page="itemsPerPage"
-            :headers="headers"
-            :items="invoices"
-            :items-length="totalInvoices"
-            :loading="loading"
-            @update:options="loadInvoices"
-            class="invoices-table"
-          >
-            <template v-slot:item.id="{ item }">
-              <div class="invoice-id">ID-{{ item.id }}</div>
-            </template>
+          </div>
+        </v-card-title>
+        
+        <v-data-table-server
+          v-model:items-per-page="itemsPerPage"
+          :headers="headers"
+          :items="invoices"
+          :items-length="totalInvoices"
+          :loading="loading"
+          @update:options="loadInvoices"
+          class="invoices-table"
+          :items-per-page-options="[
+            { value: 10, title: '10' },
+            { value: 25, title: '25' },
+            { value: 50, title: '50' },
+            { value: 100, title: '100' }
+          ]"
+        >
+          <template v-slot:item.id="{ item }">
+            <div class="invoice-id">ID-{{ item.id }}</div>
+          </template>
 
-            <template v-slot:item.number="{ item }">
-              <div class="invoice-number">{{ item.number }}</div>
-            </template>
+          <template v-slot:item.number="{ item }">
+            <div class="invoice-number">{{ item.number }}</div>
+          </template>
 
-            <template v-slot:item.supplier="{ item }">
-              <div class="supplier-info">
-                <div class="supplier-name">{{ item.supplier?.business_name || 'N/A' }}</div>
-                <div class="supplier-nit">NIT: {{ item.supplier?.nit || 'N/A' }}</div>
-              </div>
-            </template>
+          <template v-slot:item.supplier="{ item }">
+            <div class="supplier-info">
+              <div class="supplier-name">{{ item.supplier?.business_name || 'N/A' }}</div>
+              <div class="supplier-nit">NIT: {{ item.supplier?.nit || 'N/A' }}</div>
+            </div>
+          </template>
 
-            <template v-slot:item.amount="{ item }">
-              <div class="amount-cell">Q{{ formatNumber(item.amount) }}</div>
-            </template>
+          <template v-slot:item.amount="{ item }">
+            <div class="amount-cell">Q{{ formatNumber(item.amount) }}</div>
+          </template>
 
-            <template v-slot:item.status="{ item }">
-              <v-chip
-                :color="getStatusColor(item.status)"
-                size="small"
-                class="status-chip"
-              >
-                <span class="status-text">{{ getStatusText(item.status) }}</span>
-              </v-chip>
-            </template>
+          <template v-slot:item.status="{ item }">
+            <v-chip
+              :color="getStatusColor(item.status)"
+              size="small"
+              class="status-chip"
+            >
+              <span class="status-text">{{ getStatusText(item.status) }}</span>
+            </v-chip>
+          </template>
 
-            <template v-slot:item.created_at="{ item }">
-              <div class="date-cell">{{ formatDate(item.created_at) }}</div>
-            </template>
+          <template v-slot:item.created_at="{ item }">
+            <div class="date-cell">{{ formatDate(item.created_at) }}</div>
+          </template>
 
-            <template v-slot:item.assigned_to="{ item }">
-              <div v-if="item.assignedUser" class="assigned-info">
-                <div class="assigned-name">{{ item.assignedUser.name }}</div>
-                <div class="assigned-email">{{ item.assignedUser.email }}</div>
-              </div>
-              <v-chip v-else size="small" color="warning" variant="outlined">
-                Sin asignar
-              </v-chip>
-            </template>
+          <template v-slot:item.assigned_to="{ item }">
+            <div v-if="item.assignedUser" class="assigned-info">
+              <div class="assigned-name">{{ item.assignedUser.name }}</div>
+              <div class="assigned-email">{{ item.assignedUser.email }}</div>
+            </div>
+            <v-chip v-else size="small" color="orange" variant="flat" class="unassigned-chip">
+              <span class="status-text">Sin asignar</span>
+            </v-chip>
+          </template>
 
-            <template v-slot:item.actions="{ item }">
-              <div class="actions-cell">
-                <!-- ACCIONES PARA PROVEEDOR -->
-                <template v-if="authStore.isProveedor">
-                  <!-- Ver detalles -->
-                  <v-btn
-                    variant="outlined"
-                    size="small"
-                    color="primary"
-                    @click="viewInvoice(item)"
-                    :title="`Ver detalles de la factura #${item.number}`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
-                    Ver
-                  </v-btn>
-                  
-                  <!-- Descargar facturas -->
-                  <v-btn
-                    variant="outlined"
-                    size="small"
-                    color="success"
-                    @click="downloadInvoiceFiles(item)"
-                    :title="`Descargar factura #${item.number} en formato PDF`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-download</v-icon>
-                    Descargar
-                  </v-btn>
-                  
-                  <!-- Descargar retenciones ISR (si disponible) -->
-                  <v-btn
-                    v-if="hasRetentionISR(item)"
-                    variant="outlined"
-                    size="small"
-                    color="blue"
-                    @click="downloadRetentionISR(item)"
-                    :title="`Descargar constancia de retención ISR`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-file-document</v-icon>
-                    ISR
-                  </v-btn>
-                  
-                  <!-- Descargar retenciones IVA (si disponible) -->
-                  <v-btn
-                    v-if="hasRetentionIVA(item)"
-                    variant="outlined"
-                    size="small"
-                    color="cyan"
-                    @click="downloadRetentionIVA(item)"
-                    :title="`Descargar constancia de retención IVA`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-file-certificate</v-icon>
-                    IVA
-                  </v-btn>
-                  
-                  <!-- Descargar comprobante de pago (si disponible) -->
-                  <v-btn
-                    v-if="hasPaymentProof(item)"
-                    variant="outlined"
-                    size="small"
-                    color="green"
-                    @click="downloadPaymentProof(item)"
-                    :title="`Descargar comprobante de pago`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-receipt</v-icon>
-                    Comprobante
-                  </v-btn>
-                  
-                  <!-- Descargar archivo de contraseña (si disponible) -->
-                  <v-btn
-                    v-if="hasPasswordFile(item)"
-                    variant="outlined"
-                    size="small"
-                    color="purple"
-                    @click="downloadPasswordFile(item)"
-                    :title="`Descargar archivo de contraseña`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-key</v-icon>
-                    Contraseña
-                  </v-btn>
-                </template>
-
-                <!-- ACCIONES PARA CONTADURÍA -->
-                <template v-if="authStore.isContaduria || authStore.isAdmin">
-                  <!-- Ver detalles -->
-                  <v-btn
-                    variant="outlined"
-                    size="small"
-                    color="primary"
-                    @click="viewInvoice(item)"
-                    :title="`Ver todos los detalles de la factura #${item.number}`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
-                    Ver
-                  </v-btn>
-                  
-                  <!-- Gestionar documentos -->
-                  <v-btn
-                    variant="elevated"
-                    size="small"
-                    color="indigo"
-                    @click="manageInvoice(item)"
-                    :title="`Gestionar documentos de la factura #${item.number}`"
-                  >
-                    <v-icon class="mr-1" size="16">mdi-cog</v-icon>
-                    Gestionar
-                  </v-btn>
-                </template>
-
-                <!-- Menú de más opciones -->
-                <v-menu v-if="!authStore.isProveedor">
-                  <template v-slot:activator="{ props }">
-                    <v-btn
-                      variant="outlined"
-                      size="small"
-                      color="secondary"
-                      v-bind="props"
-                      :title="'Más opciones'"
-                    >
-                      <v-icon size="16">mdi-dots-vertical</v-icon>
-                    </v-btn>
-                  </template>
-                  <v-list>
-                    <v-list-item v-if="authStore.isContaduria && canGeneratePassword(item)" @click="generatePassword(item)">
-                      <template v-slot:prepend>
-                        <v-icon size="20">mdi-key</v-icon>
-                      </template>
-                      <v-list-item-title>Generar contraseña</v-list-item-title>
-                    </v-list-item>
-                    <v-list-item v-if="authStore.isAdmin" @click="reassignInvoice(item)">
-                      <template v-slot:prepend>
-                        <v-icon size="20">mdi-account-switch</v-icon>
-                      </template>
-                      <v-list-item-title>Reasignar factura</v-list-item-title>
-                    </v-list-item>
-                  </v-list>
-                </v-menu>
-              </div>
-            </template>
-
-            <template v-slot:loading>
-              <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
-            </template>
-
-            <template v-slot:no-data>
-              <div class="no-data">
-                <v-icon size="64" color="grey-lighten-2">mdi-receipt-text-outline</v-icon>
-                <h3>No hay facturas</h3>
-                <p>No se encontraron facturas con los filtros aplicados</p>
-                <v-btn 
-                  v-if="authStore.isProveedor"
-                  color="primary" 
-                  @click="$router.push('/invoices/new')"
-                  class="mt-4"
+          <template v-slot:item.actions="{ item }">
+            <div class="actions-cell">
+              <!-- ACCIONES PARA PROVEEDOR -->
+              <template v-if="authStore.isProveedor">
+                <v-btn
+                  variant="outlined"
+                  size="small"
+                  color="primary"
+                  @click="viewInvoice(item)"
+                  class="action-btn"
                 >
-                  Crear primera factura
+                  <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
+                  Ver
                 </v-btn>
+                
+                <v-btn
+                  variant="outlined"
+                  size="small"
+                  color="success"
+                  @click="downloadInvoiceFiles(item)"
+                  class="action-btn"
+                >
+                  <v-icon class="mr-1" size="16">mdi-download</v-icon>
+                  Descargar
+                </v-btn>
+              </template>
+
+              <!-- ACCIONES PARA CONTADURÍA -->
+              <template v-if="authStore.isContaduria || authStore.isAdmin">
+                <v-btn
+                  variant="outlined"
+                  size="small"
+                  color="primary"
+                  @click="viewInvoice(item)"
+                  class="action-btn"
+                >
+                  <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
+                  Ver
+                </v-btn>
+                
+                <v-btn
+                  variant="flat"
+                  size="small"
+                  color="indigo"
+                  @click="manageInvoice(item)"
+                  class="action-btn manage-btn"
+                >
+                  <v-icon class="mr-1" size="16">mdi-cog</v-icon>
+                  Gestionar
+                </v-btn>
+              </template>
+            </div>
+          </template>
+
+          <template v-slot:loading>
+            <tbody>
+              <tr v-for="n in 5" :key="n">
+                <td v-for="m in headers.length" :key="m">
+                  <v-skeleton-loader type="text"></v-skeleton-loader>
+                </td>
+              </tr>
+            </tbody>
+          </template>
+
+          <template v-slot:no-data>
+            <div class="no-data">
+              <v-icon size="64" color="#e2e8f0">mdi-receipt-text-outline</v-icon>
+              <h3>No hay facturas</h3>
+              <p>No se encontraron facturas con los filtros aplicados</p>
+              <v-btn 
+                v-if="authStore.isProveedor"
+                color="primary" 
+                @click="$router.push('/invoices/new')"
+                class="mt-4"
+                size="small"
+              >
+                Crear primera factura
+              </v-btn>
+            </div>
+          </template>
+
+          <!-- Personalización del footer de paginación -->
+          <template v-slot:footer="{ pagination, options }">
+            <div class="custom-footer">
+              <div class="footer-info">
+                Mostrando {{ getDisplayedItems(pagination) }} de {{ totalInvoices }} facturas
               </div>
-            </template>
-          </v-data-table-server>
-        </v-card>
-      </v-container>
+              <div class="footer-pagination">
+                <v-select
+                  :model-value="itemsPerPage"
+                  @update:model-value="handleItemsPerPageChange"
+                  :items="[10, 25, 50, 100]"
+                  density="compact"
+                  variant="outlined"
+                  hide-details
+                  class="items-per-page-select"
+                ></v-select>
+                <v-pagination
+                  :model-value="options.page"
+                  @update:model-value="handlePageChange"
+                  :length="Math.ceil(totalInvoices / itemsPerPage)"
+                  :total-visible="5"
+                  class="pagination-controls"
+                ></v-pagination>
+              </div>
+            </div>
+          </template>
+        </v-data-table-server>
+      </v-card>
+    </v-container>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, computed } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useInvoices } from '../scripts/invoices.js'
 
@@ -440,6 +399,23 @@ const {
   initializeInvoices
 } = useInvoices()
 
+// Función para calcular los elementos mostrados
+const getDisplayedItems = (pagination) => {
+  const start = (pagination.page - 1) * pagination.itemsPerPage + 1
+  const end = Math.min(pagination.page * pagination.itemsPerPage, totalInvoices.value)
+  return `${start}-${end}`
+}
+
+const handleItemsPerPageChange = (newValue) => {
+  itemsPerPage.value = newValue
+  loadInvoices()
+}
+
+const handlePageChange = (newPage) => {
+
+}
+
 onMounted(initializeInvoices)
 </script>
+
 <style src="../styles/invoices.css" scoped></style>

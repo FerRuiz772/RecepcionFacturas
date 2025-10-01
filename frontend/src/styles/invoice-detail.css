@@ -1,7 +1,7 @@
-/* InvoiceDetailView Styles */
+/* InvoiceDetailView Styles - Updated to match dashboard style */
 .invoice-detail-layout {
   min-height: 100vh;
-  background: #f0f4f1;
+  background: #f8fafc;
 }
 
 .invoice-detail-layout .v-container {
@@ -10,68 +10,107 @@
 }
 
 .breadcrumb-container {
-  background: #f0f4f1;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 12px 0;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 16px 0;
 }
 
 .breadcrumb-item {
-  color: #6b7280;
+  color: #64748b;
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
 }
 
 .breadcrumb-item.active {
-  color: #1e4d3c;
+  color: #0f766e;
+  font-weight: 600;
 }
 
 .breadcrumb-item:hover {
-  color: #2d7a5f;
+  color: #0f766e;
 }
 
 .page-header {
-  background: white;
-  border-bottom: 1px solid #e5e7eb;
-  padding: 32px 0;
-  margin-bottom: 32px;
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  padding: 40px 0;
+  margin-bottom: 0;
+  color: white;
+}
+
+.header-content {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 24px;
+  flex: 1;
+}
+
+.title-section {
+  flex: 1;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
 }
 
 .page-title {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
-  color: #1e4d3c;
-  margin-bottom: 4px;
+  color: white;
+  margin-bottom: 8px;
 }
 
 .page-subtitle {
   font-size: 16px;
-  color: #6b7280;
+  color: #e2e8f0;
   margin: 0;
+  opacity: 0.9;
 }
 
-.back-btn, .manage-btn {
+/* Botón Volver - Estilo secundario */
+.back-btn {
+  background: white !important;
+  border: 1px solid #0f766e !important;
+  color: #0f766e !important;
+  backdrop-filter: blur(10px);
+  min-width: 120px;
+  margin-top: 8px;
   text-transform: none;
   font-weight: 500;
 }
 
-.back-btn {
-  border-color: #cbd5e1 !important;
-  color: #6b7280 !important;
-}
-
 .back-btn:hover {
-  background: #f0f4f1 !important;
-  border-color: #94a3b8 !important;
+  background: #f0fdfa !important;
+  border-color: #0f766e !important;
+  color: #0f766e !important;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.15);
 }
 
+
+/* Botón Gestionar - Estilo primario */
 .manage-btn {
-  background: linear-gradient(135deg, #2d7a5f, #3a9b7a) !important;
-  color: white !important;
+  background: white !important;
+  color: #0f766e !important;
+  font-weight: 600;
+  min-width: 140px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  text-transform: none;
+  font-weight: 500;
 }
 
 .manage-btn:hover {
-  background: linear-gradient(135deg, #1e6d51, #2d7a5f) !important;
+  background: #f8fafc !important;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 118, 110, 0.25);
 }
 
 .loading-container, .error-container {
@@ -80,40 +119,52 @@
   align-items: center;
   justify-content: center;
   min-height: 300px;
-  color: #6b7280;
+  color: #64748b;
   text-align: center;
 }
 
 .loading-spinner {
-  color: #3a9b7a;
+  color: #0f766e;
 }
 
 .loading-text {
   margin-left: 16px;
-  color: #6b7280;
+  color: #64748b;
   font-size: 16px;
 }
 
 .invoice-info-card, .status-card, .files-card, .documents-card, .history-card {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: none;
   border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(15, 118, 110, 0.1), 0 1px 2px rgba(15, 118, 110, 0.06);
+  transition: all 0.2s ease;
+}
+
+.invoice-info-card:hover, .status-card:hover, .files-card:hover, .documents-card:hover, .history-card:hover {
+  box-shadow: 0 4px 6px rgba(15, 118, 110, 0.1), 0 2px 4px rgba(15, 118, 110, 0.06);
+  transform: translateY(-2px);
 }
 
 .detail-card {
   background: white;
-  border: 1px solid #e5e7eb;
+  border: none;
   border-radius: 12px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 1px 3px rgba(15, 118, 110, 0.1), 0 1px 2px rgba(15, 118, 110, 0.06);
 }
 
 .card-title-bg {
-  background: #f0f4f1;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 18px;
+  background: linear-gradient(135deg, #0f766e 0%, #115e59 100%);
+  color: white !important;
+  border-bottom: none;
+  font-size: 16px;
   font-weight: 600;
-  color: #1e4d3c;
-  padding: 16px 24px;
+  padding: 20px 24px;
+  border-radius: 12px 12px 0 0;
+}
+
+.card-title-bg .v-icon {
+  color: white;
 }
 
 .info-field {
@@ -122,7 +173,7 @@
 
 .info-field label {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -145,7 +196,7 @@
 .info-label {
   font-size: 12px;
   font-weight: 600;
-  color: #6b7280;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 4px;
@@ -154,29 +205,30 @@
 .info-value {
   font-size: 14px;
   font-weight: 500;
-  color: #1e4d3c;
+  color: #0f172a;
 }
 
 .info-value.amount {
-  color: #2d7a5f;
+  color: #0f766e;
   font-size: 20px;
+  font-weight: 700;
 }
 
 .info-subtitle {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
   margin-top: 2px;
 }
 
 .amount-display {
   font-size: 24px;
   font-weight: 700;
-  color: #2d7a5f;
+  color: #0f766e;
 }
 
 .amount-currency {
   font-size: 16px;
-  color: #6b7280;
+  color: #64748b;
   margin-left: 4px;
 }
 
@@ -188,7 +240,7 @@
 .status-chip-large {
   font-size: 14px;
   font-weight: 600;
-  padding: 12px 16px;
+  padding: 8px 16px;
 }
 
 .priority-chip {
@@ -210,7 +262,11 @@
 .no-files, .no-documents {
   text-align: center;
   padding: 40px 20px;
-  color: #6b7280;
+  color: #94a3b8;
+}
+
+.no-files .v-icon, .no-documents .v-icon {
+  color: #cbd5e1;
 }
 
 .documents-section {
@@ -222,15 +278,15 @@
   align-items: center;
   justify-content: space-between;
   padding: 16px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #f1f5f9;
   border-radius: 8px;
   margin-bottom: 12px;
   transition: all 0.2s ease;
 }
 
 .document-item:hover {
-  box-shadow: 0 2px 8px rgba(45, 122, 95, 0.15);
-  border-color: #3a9b7a;
+  border-color: #0f766e;
+  box-shadow: 0 2px 8px rgba(15, 118, 110, 0.1);
 }
 
 .document-info {
@@ -252,13 +308,13 @@
 .document-details h4 {
   font-size: 14px;
   font-weight: 600;
-  color: #1e4d3c;
+  color: #0f172a;
   margin: 0 0 4px 0;
 }
 
 .document-details p {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
   margin: 0;
 }
 
@@ -309,32 +365,32 @@
 
 .timeline-time {
   font-size: 12px;
-  color: #6b7280;
+  color: #64748b;
   font-weight: 500;
 }
 
 .timeline-title {
   font-size: 14px;
   font-weight: 600;
-  color: #1e4d3c;
+  color: #0f172a;
   margin-bottom: 4px;
 }
 
 .timeline-subtitle {
   font-size: 13px;
-  color: #6b7280;
+  color: #64748b;
   margin-bottom: 4px;
 }
 
 .timeline-description {
   font-size: 13px;
-  color: #6b7280;
+  color: #64748b;
   margin-bottom: 4px;
 }
 
 .timeline-notes {
   font-size: 14px;
-  color: #1e4d3c;
+  color: #0f172a;
   font-style: italic;
 }
 
@@ -346,22 +402,22 @@
 /* Status Colors */
 .status-pending {
   background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
+  color: #d97706;
 }
 
 .status-processing {
-  background: rgba(58, 155, 122, 0.1);
-  color: #3a9b7a;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
 }
 
 .status-completed {
   background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
+  color: #059669;
 }
 
 .status-rejected {
   background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
+  color: #dc2626;
 }
 
 /* Document Icons */
@@ -371,8 +427,8 @@
 }
 
 .doc-image {
-  background: rgba(58, 155, 122, 0.1);
-  color: #3a9b7a;
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
 }
 
 .doc-excel {
@@ -380,15 +436,65 @@
   color: #10b981;
 }
 
-/* Responsive */
+/* Loading state */
+.loading-container {
+  background: white;
+  border-radius: 12px;
+  padding: 60px 20px;
+  box-shadow: 0 1px 3px rgba(15, 118, 110, 0.1);
+}
+
+/* Ajustes responsive */
 @media (max-width: 768px) {
-  .page-header .d-flex {
+  .page-header {
+    padding: 24px 0;
+  }
+  
+  .page-title {
+    font-size: 24px;
+  }
+  
+  .header-content {
     flex-direction: column;
-    align-items: flex-start;
     gap: 16px;
+  }
+  
+  .header-left {
+    flex-direction: column;
+    gap: 16px;
+    width: 100%;
+  }
+  
+  .back-btn {
+    align-self: flex-start;
+    margin-top: 0;
+  }
+  
+  .header-right {
+    width: 100%;
+  }
+  
+  .manage-btn {
+    width: 100%;
   }
   
   .timeline-time {
     margin-bottom: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-content {
+    gap: 12px;
+  }
+  
+  .back-btn, .manage-btn {
+    min-width: auto;
+  }
+  
+  .info-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 16px;
   }
 }

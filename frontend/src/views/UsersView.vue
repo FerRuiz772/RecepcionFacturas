@@ -26,6 +26,7 @@
               @click="openCreateDialog"
               prepend-icon="mdi-plus"
               class="new-user-btn"
+              size="large"
             >
               Nuevo Usuario
             </v-btn>
@@ -94,11 +95,14 @@
 
       <!-- Tabla de usuarios -->
       <v-card elevation="2">
-        <v-card-title class="card-title-bg">
-          <div class="d-flex align-center justify-space-between w-100">
-            <div class="card-title">
+        <v-card-title class="table-header">
+          <div class="d-flex align-center justify-space-between w-100 flex-wrap">
+            <div class="table-title">
               <v-icon class="mr-2">mdi-account-multiple</v-icon>
-              Lista de Usuarios ({{ totalUsers }})
+              Lista de Usuarios
+              <v-chip v-if="totalUsers > 0" color="primary" variant="flat" size="small" class="ml-2">
+                {{ totalUsers }}
+              </v-chip>
             </div>
           </div>
         </v-card-title>
@@ -145,6 +149,9 @@
           </template>
 
           <template v-slot:item.is_active="{ item }">
+            <div :class="item.is_active ? 'status-active' : 'status-inactive'">
+              {{ item.is_active ? 'Activo' : 'Inactivo' }}
+            </div>
             <v-chip
               :color="item.is_active ? 'success' : 'error'"
               size="small"
@@ -159,18 +166,7 @@
           </template>
 
           <template v-slot:item.actions="{ item }">
-            <div class="actions-cell">
-              <v-btn
-                v-if="auth.canViewUsers"
-                variant="outlined"
-                size="small"
-                color="primary"
-                @click="viewUser(item)"
-              >
-                <v-icon class="mr-1" size="16">mdi-eye-outline</v-icon>
-                Ver
-              </v-btn>
-              
+            <div class="actions-cell">     
               <v-btn
                 v-if="auth.canEditUsers"
                 variant="outlined"

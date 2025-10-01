@@ -15,7 +15,7 @@
         <div class="d-flex align-center justify-space-between">
           <div>
             <h1 class="page-title">
-              Dashboard
+              Bienvenido de vuelta, {{ authStore.userName }}
               <v-progress-circular 
                 v-if="refreshing"
                 indeterminate
@@ -26,7 +26,7 @@
               ></v-progress-circular>
             </h1>
             <p class="page-subtitle">
-              Bienvenido de vuelta, {{ authStore.userName }}
+              Aquí tienes un resumen de tu actividad
               <v-chip 
                 v-if="refreshing" 
                 size="x-small" 
@@ -62,6 +62,9 @@
             </div>
             <div class="stats-value">{{ stat.value }}</div>
             <div class="stats-label">{{ stat.title }}</div>
+            <div v-if="stat.change" :class="['stats-change', stat.changeType]">
+              {{ stat.change }}
+            </div>
           </div>
         </v-col>
       </v-row>
@@ -343,7 +346,7 @@
               :headers="invoiceHeaders"
               :items="recentInvoices"
               :items-per-page="8"
-              class="data-table"
+              class="data-table recent-invoices-table"
               hide-default-footer
               :loading="loadingRecentInvoices"
             >
