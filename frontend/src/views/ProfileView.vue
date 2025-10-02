@@ -63,7 +63,6 @@
                 <thead>
                   <tr>
                     <th class="text-left">Nombre de Empresa</th>
-                    <th class="text-left">Dirección</th>
                     <th class="text-left">NIT</th>
                   </tr>
                 </thead>
@@ -71,9 +70,6 @@
                   <tr>
                     <td>
                       <div class="business-name">{{ profileForm.supplier_name }}</div>
-                    </td>
-                    <td>
-                      <div class="business-address">{{ profileForm.supplier_address || 'No especificada' }}</div>
                     </td>
                     <td>
                       <div class="business-nit">{{ profileForm.supplier_nit || 'N/A' }}</div>
