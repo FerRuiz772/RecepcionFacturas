@@ -62,9 +62,6 @@
             </div>
             <div class="stats-value">{{ stat.value }}</div>
             <div class="stats-label">{{ stat.title }}</div>
-            <div v-if="stat.change" :class="['stats-change', stat.changeType]">
-              {{ stat.change }}
-            </div>
           </div>
         </v-col>
       </v-row>
