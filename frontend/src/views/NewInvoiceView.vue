@@ -1,16 +1,4 @@
-﻿<!-- NewInvoiceView.vue
-Propósito: Formulario para crear nuevas facturas.
-
-Funcionalidades principales:
-
-Formulario de creación de facturas
-
-Subida de archivos PDF
-
-Interfaz diferente según el rol (proveedor vs contaduría)
-
-Instrucciones específicas para proveedores -->
-
+﻿<!-- NewInvoiceView.vue -->
 <template>
     <div class="invoice-layout">
       <v-main class="main-content no-top-padding">
@@ -27,30 +15,42 @@ Instrucciones específicas para proveedores -->
           </v-container>
         </div>
   
-        <v-container class="py-3" max-width="800">
-          <!-- Header con botón volver -->
-          <div class="d-flex align-center mb-4">
-            <v-btn icon @click="goBack" color="#64748b" class="mr-3" variant="outlined">
-              <v-icon>mdi-arrow-left</v-icon>
-            </v-btn>
-            <div>
-              <h1 class="page-title">Nueva Factura</h1>
-              <p class="page-subtitle">Subir documentos de facturación</p>
+        <!-- Header con gradiente -->
+        <div class="page-header">
+          <v-container>
+            <div class="header-content">
+              <div class="header-left">
+                <v-btn 
+                  variant="outlined"
+                  @click="goBack"
+                  prepend-icon="mdi-arrow-left"
+                  class="back-btn"
+                >
+                  Volver
+                </v-btn>
+                <div class="title-section">
+                  <h1 class="page-title">Nueva Factura</h1>
+                  <p class="page-subtitle">Subir documentos de facturación</p>
+                </div>
+              </div>
+              <div class="header-right">
+                <v-btn
+                  v-if="editMode && (authStore.isContaduria || authStore.isAdmin)"
+                  color="error"
+                  variant="outlined"
+                  @click="openRejectDialog"
+                  class="reject-btn"
+                >
+                  <v-icon class="mr-2">mdi-close-circle</v-icon>
+                  Rechazar
+                </v-btn>
+              </div>
             </div>
-            <div class="ml-auto">
-              <v-btn
-                v-if="editMode && (authStore.isContaduria || authStore.isAdmin)"
-                color="error"
-                variant="outlined"
-                @click="openRejectDialog"
-              >
-                <v-icon class="mr-2">mdi-close-circle</v-icon>
-                Rechazar
-              </v-btn>
-            </div>
-          </div>
+          </v-container>
+        </div>
 
-          <!-- Información del proveedor (solo lectura) -->
+        <v-container class="py-6" max-width="800">
+          <!-- Información del proveedor (siempre visible) -->
           <v-card class="form-card mb-6" elevation="2">
             <v-card-title class="card-title-bg">
               <v-icon class="mr-2">mdi-account-outline</v-icon>
@@ -59,26 +59,16 @@ Instrucciones específicas para proveedores -->
             <v-card-text class="pa-6">
               <v-row>
                 <v-col cols="12" md="6">
-                  <v-text-field
-                    :value="supplierInfo.business_name"
-                    label="Razón Social"
-                    readonly
-                    variant="outlined"
-                    density="comfortable"
-                    class="custom-input"
-                    prepend-inner-icon="mdi-domain"
-                  ></v-text-field>
+                  <div class="info-field">
+                    <label>Razón Social</label>
+                    <div class="info-value">{{ supplierInfo.business_name || 'No disponible' }}</div>
+                  </div>
                 </v-col>
                 <v-col cols="12" md="6">
-                  <v-text-field
-                    :value="supplierInfo.nit"
-                    label="NIT"
-                    readonly
-                    variant="outlined"
-                    density="comfortable"
-                    class="custom-input"
-                    prepend-inner-icon="mdi-card-account-details-outline"
-                  ></v-text-field>
+                  <div class="info-field">
+                    <label>NIT</label>
+                    <div class="info-value">{{ supplierInfo.nit || 'No disponible' }}</div>
+                  </div>
                 </v-col>
               </v-row>
             </v-card-text>
@@ -172,7 +162,7 @@ Instrucciones específicas para proveedores -->
               </v-alert>
               <div class="instructions-list">
                 <div class="instruction-item">
-                  <v-icon color="primary" class="mr-3">mdi-numeric-1-circle</v-icon>
+                  <v-icon color="#0f766e" class="mr-3">mdi-numeric-1-circle</v-icon>
                   <div>
                     <strong>Suba únicamente el PDF de su factura</strong>
                     <p class="text-caption text-medium-emphasis mt-1">
@@ -181,7 +171,7 @@ Instrucciones específicas para proveedores -->
                   </div>
                 </div>
                 <div class="instruction-item">
-                  <v-icon color="primary" class="mr-3">mdi-numeric-2-circle</v-icon>
+                  <v-icon color="#0f766e" class="mr-3">mdi-numeric-2-circle</v-icon>
                   <div>
                     <strong>Asegúrese de que el PDF sea legible</strong>
                     <p class="text-caption text-medium-emphasis mt-1">
@@ -190,7 +180,7 @@ Instrucciones específicas para proveedores -->
                   </div>
                 </div>
                 <div class="instruction-item">
-                  <v-icon color="primary" class="mr-3">mdi-numeric-3-circle</v-icon>
+                  <v-icon color="#0f766e" class="mr-3">mdi-numeric-3-circle</v-icon>
                   <div>
                     <strong>Recibirá notificación del estado</strong>
                     <p class="text-caption text-medium-emphasis mt-1">
@@ -251,7 +241,9 @@ Instrucciones específicas para proveedores -->
                 </v-list>
               </div>
             </v-card-text>
-          </v-card>          <!-- Botones de acción -->
+          </v-card>
+
+          <!-- Botones de acción -->
           <div class="action-buttons">
             <v-btn @click="goBack" variant="outlined" class="cancel-btn">
               <v-icon class="mr-2">mdi-arrow-left</v-icon>
@@ -328,4 +320,3 @@ Instrucciones específicas para proveedores -->
   </script>
   
   <style src="../styles/new-invoice.css" scoped></style>
-
