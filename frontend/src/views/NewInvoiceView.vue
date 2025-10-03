@@ -58,16 +58,45 @@
             </v-card-title>
             <v-card-text class="pa-6">
               <v-row>
+                <!-- Campos adicionales para administradores: Selector de Proveedor y Usuarios -->
+                <v-col cols="12" md="6" v-if="authStore.isAdmin">
+                  <label>Proveedor</label>
+                  <v-autocomplete
+                    :items="suppliers"
+                    item-title="business_name"
+                    v-model="selectedSupplier"
+                    return-object
+                    clearable
+                    dense
+                    hide-details
+                    placeholder="Seleccione un proveedor"
+                  />
+                </v-col>
+
+                <v-col cols="12" md="6" v-if="authStore.isAdmin">
+                  <label>Usuarios (del proveedor)</label>
+                  <v-autocomplete
+                    :items="supplierUsers"
+                    item-title="name"
+                    v-model="selectedSupplierUser"
+                    return-object
+                    clearable
+                    dense
+                    hide-details
+                    placeholder="Seleccione un usuario asociado"
+                  />
+                </v-col>
+
                 <v-col cols="12" md="6">
                   <div class="info-field">
                     <label>Razón Social</label>
-                    <div class="info-value">{{ supplierInfo.business_name || 'No disponible' }}</div>
+                      <div class="info-value">{{ supplierInfo.business_name || 'No disponible' }}</div>
                   </div>
                 </v-col>
                 <v-col cols="12" md="6">
                   <div class="info-field">
                     <label>NIT</label>
-                    <div class="info-value">{{ supplierInfo.nit || 'No disponible' }}</div>
+                      <div class="info-value">{{ supplierInfo.nit || 'No disponible' }}</div>
                   </div>
                 </v-col>
               </v-row>
@@ -281,7 +310,7 @@
   </template>
   
   <script setup>
-  import { onMounted } from 'vue'
+  import { onMounted, ref, watch } from 'vue'
   import { useNewInvoice } from '../scripts/new-invoice.js'
   import { useAuthStore } from '../stores/auth'
   
@@ -299,6 +328,10 @@
     // Computed properties
     supplierInfo,
     isProvider,
+  suppliers,
+  selectedSupplier,
+  supplierUsers,
+  loadUsersBySupplier,
     
     // Functions
     goBack,
@@ -314,6 +347,21 @@
     confirmReject,
     initializeNewInvoice
   } = useNewInvoice()
+
+  // Usuario seleccionado dentro del proveedor (solo para admin)
+  const selectedSupplierUser = ref(null)
+
+  // Cuando el admin selecciona un proveedor, cargar sus usuarios
+  watch(selectedSupplier, (val) => {
+    console.log('selectedSupplier changed ->', val)
+    if (val && (val.id || val._id)) {
+      const id = val.id || val._id
+      loadUsersBySupplier(id).then(() => console.log('supplierUsers loaded', supplierUsers.value))
+    } else {
+      supplierUsers.value = []
+      console.log('supplierUsers cleared')
+    }
+  })
   
   onMounted(initializeNewInvoice)
   const authStore = useAuthStore()
