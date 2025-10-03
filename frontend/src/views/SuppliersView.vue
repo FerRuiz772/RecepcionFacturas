@@ -53,7 +53,7 @@
                   density="comfortable"
                   prepend-inner-icon="mdi-magnify"
                   clearable
-                  @input="debounceSearch"
+                  @input="enhancedDebounceSearch"
                   style="width:100%; min-height:48px"
                   hide-details
                 ></v-text-field>
@@ -68,7 +68,7 @@
                   variant="outlined"
                   density="comfortable"
                   clearable
-                  @update:model-value="loadSuppliers"
+                  @update:model-value="onFilterChange"
                   style="width:100%; min-height:48px"
                   hide-details
                 ></v-select>
@@ -76,7 +76,7 @@
             </v-col>
             <v-col cols="12" md="4" class="d-flex align-center justify-end">
               <v-btn
-                @click="resetFilters"
+                @click="enhancedResetFilters"
                 variant="outlined"
                 color="secondary"
                 class="reset-btn"
@@ -306,6 +306,7 @@ const {
   // Static data
   statusOptions,
   headers,
+  nitRules,
   
   // Functions
   loadSuppliers,
@@ -333,6 +334,31 @@ const loadSuppliersWithPagination = async (options = {}) => {
     ...options
   }
   await loadSuppliers(paginationOptions)
+}
+
+// Enhanced handlers for search and filters to keep pagination in sync
+let localSearchTimeout = null
+const enhancedDebounceSearch = () => {
+  // Reset to first page when performing a new search
+  currentPage.value = 1
+  clearTimeout(localSearchTimeout)
+  localSearchTimeout = setTimeout(() => {
+    loadSuppliersWithPagination()
+  }, 500)
+}
+
+const onFilterChange = (newVal) => {
+  // update happens via v-model already; ensure we fetch from page 1
+  currentPage.value = 1
+  loadSuppliersWithPagination()
+}
+
+const enhancedResetFilters = () => {
+  // Use the composable reset to clear local filter state, then reload paginated
+  currentPage.value = 1
+  resetFilters()
+  // resetFilters triggers loadSuppliers(); to ensure pagination integration, call paginated loader
+  loadSuppliersWithPagination()
 }
 
 const onPageChange = (page) => {

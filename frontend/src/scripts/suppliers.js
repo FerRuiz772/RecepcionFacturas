@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToast } from 'vue-toastification'
-import axios from 'axios'
+import axios from '../utils/axios'
 
 export function useSuppliers() {
   const router = useRouter()
@@ -49,14 +49,22 @@ export function useSuppliers() {
   const loadSuppliers = async (options = {}) => {
     loading.value = true
     try {
+      // Normalize search term to improve matching (remove accents/diacritics)
+      const rawSearch = searchQuery.value ? String(searchQuery.value) : ''
+      const normalizedSearch = rawSearch
+        ? rawSearch.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim()
+        : ''
+
       const params = {
         page: options.page || 1,
         limit: options.itemsPerPage || itemsPerPage.value,
-        search: searchQuery.value,
+        search: normalizedSearch,
         is_active: activeFilter.value !== null ? activeFilter.value : undefined
       }
 
-      const response = await axios.get('/api/suppliers', { params })
+  console.log('📡 GET /api/suppliers params ->', params)
+  const response = await axios.get('/api/suppliers', { params })
+  console.log('📥 Response from /api/suppliers:', { status: response.status, keys: Object.keys(response.data || {}) })
       
       // Manejar diferentes estructuras de respuesta del API
       if (response.data.success && response.data.data) {

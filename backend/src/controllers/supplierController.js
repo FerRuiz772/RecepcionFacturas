@@ -15,7 +15,8 @@
  */
 
 const { validationResult } = require('express-validator');
-const { Supplier, User } = require('../models');
+const models = require('../models');
+const { Supplier, User, sequelize, Op } = models;
 const path = require('path');
 const fs = require('fs').promises;
 
@@ -70,13 +71,24 @@ const supplierController = {
      */
     async getAllSuppliers(req, res) {
         try {
-            const { page = 1, limit = 10, is_active } = req.query;
+            const { page = 1, limit = 10, is_active, search } = req.query;
             const offset = (page - 1) * limit;
 
             const where = {};
             if (is_active !== undefined) where.is_active = is_active === 'true';
 
+            // Debug: log incoming params to help trace search issues
+            console.log('🔍 GET /api/suppliers - params:', { page, limit, is_active, search });
+
+            // Búsqueda por nombre usando LIKE (MySQL collation utf8mb4_unicode_ci is case-insensitive)
+            if (search && search.trim() !== '') {
+                const raw = String(search).trim();
+                where.business_name = { [Op.like]: `%${raw}%` };
+                console.log('🔎 Applied search filter for suppliers (business_name LIKE):', raw);
+            }
+
             // Filtrar por rol del usuario
+            console.log('👤 Request user info:', { id: req.user?.userId, role: req.user?.role })
             if (req.user.role === 'proveedor') {
                 // Los proveedores solo ven su propio registro
                 const user = await User.findByPk(req.user.userId);
@@ -93,7 +105,8 @@ const supplierController = {
                 }
             }
             // super_admin, admin_contaduria y trabajador_contaduria ven todos los proveedores
-
+            // Log the final 'where' used for the query to help debugging
+            console.log('🧭 Final suppliers where clause:', JSON.stringify(where))
             const suppliers = await Supplier.findAndCountAll({
                 where,
                 include: [{
@@ -106,6 +119,14 @@ const supplierController = {
                 limit: parseInt(limit),
                 offset: parseInt(offset)
             });
+
+            // Debug: log result count and a few business_name values to verify filtering
+            try {
+                const sampleNames = (suppliers.rows || []).slice(0, 5).map(s => s.business_name)
+                console.log('📊 Suppliers query result - count:', suppliers.count, 'sample:', sampleNames)
+            } catch (e) {
+                console.log('⚠️ Error while logging supplier samples:', e.message)
+            }
 
             res.json({
                 suppliers: suppliers.rows,
