@@ -53,7 +53,7 @@
                   density="comfortable"
                   prepend-inner-icon="mdi-magnify"
                   clearable
-                  @input="debounceSearch"
+                  @input="enhancedDebounceSearch"
                   style="width:100%; min-height:48px"
                   hide-details
                 ></v-text-field>
@@ -68,7 +68,7 @@
                   variant="outlined"
                   density="comfortable"
                   clearable
-                  @update:model-value="loadUsers"
+                  @update:model-value="enhancedOnFilterChange"
                   style="width:100%; min-height:48px"
                   hide-details
                 ></v-select>
@@ -83,7 +83,7 @@
                   variant="outlined"
                   density="comfortable"
                   clearable
-                  @update:model-value="loadUsers"
+                  @update:model-value="enhancedOnFilterChange"
                   style="width:100%; min-height:48px"
                   hide-details
                 ></v-select>
@@ -91,7 +91,7 @@
             </v-col>
             <v-col cols="12" md="3" class="d-flex align-center">
               <v-btn
-                @click="resetFilters"
+                @click="enhancedResetFilters"
                 variant="outlined"
                 color="secondary"
                 class="reset-btn"
@@ -119,15 +119,17 @@
           </div>
         </v-card-title>
         
-        <v-data-table-server
-          v-model:items-per-page="itemsPerPage"
-          :headers="headers"
-          :items="users"
-          :items-length="totalUsers"
-          :loading="loading"
-          @update:options="loadUsers"
-          class="users-table"
-        >
+      <v-data-table-server
+        v-model:page="currentPage"
+        v-model:items-per-page="itemsPerPage"
+        :headers="headers"
+        :items="users"
+        :items-length="totalUsers"
+        :loading="loading"
+        @update:options="onOptionsUpdate"
+        class="users-table"
+        :server-items-length="totalUsers"
+      >
           <template v-slot:item.name="{ item }">
             <div class="d-flex align-center">
               <v-avatar size="32" :color="getAvatarColor(item.name)">
@@ -212,7 +214,7 @@
             <v-skeleton-loader type="table-row@10"></v-skeleton-loader>
           </template>
 
-          <template v-slot:no-data>
+     <template v-slot:no-data>
             <div class="no-data">
               <v-icon size="64" color="grey-lighten-2">mdi-account-multiple</v-icon>
               <h3>No hay usuarios</h3>
@@ -224,6 +226,35 @@
               >
                 Crear primer usuario
               </v-btn>
+            </div>
+          </template>
+
+          <template v-slot:bottom>
+            <div class="custom-footer">
+              <div class="footer-info">
+                Mostrando {{ ((currentPage - 1) * itemsPerPage) + 1 }} 
+                a {{ Math.min(currentPage * itemsPerPage, totalUsers) }} 
+                de {{ totalUsers }} usuarios
+              </div>
+              <div class="footer-pagination">
+                <v-select
+                  v-model="itemsPerPage"
+                  :items="[10, 25, 50, 100]"
+                  label="Por página"
+                  variant="outlined"
+                  density="compact"
+                  class="items-per-page-select"
+                  hide-details
+                  @update:model-value="onItemsPerPageChange"
+                ></v-select>
+                <v-pagination
+                  v-model="currentPage"
+                  :length="totalPages"
+                  :total-visible="7"
+                  class="pagination-controls"
+                  @update:model-value="onPageChange"
+                ></v-pagination>
+              </div>
             </div>
           </template>
         </v-data-table-server>
@@ -731,7 +762,11 @@ import axios from '../utils/axios.js'
 
 const auth = useAuthStore()
 
-// Variable para las pestañas - mantener estado de permisos si viene de ahí
+// Variables para la paginación
+const currentPage = ref(1)
+const totalPages = computed(() => Math.ceil(totalUsers.value / itemsPerPage.value))
+
+// Variable para las pestañas
 const activeTab = ref('general')
 
 // Variables para el manejo de permisos
@@ -763,7 +798,7 @@ const confirmPasswordRules = computed(() => [
   v => v === newPassword.value || 'Las contraseñas no coinciden'
 ])
 
-// Importar todas las funciones y variables de useUsers PRIMERO
+// Importar todas las funciones y variables de useUsers
 const {
   // Reactive state
   loading,
@@ -816,6 +851,49 @@ const {
   resetFilters
 } = useUsers()
 
+// Función para manejar cambio de página
+const onPageChange = (page) => {
+  currentPage.value = page
+  loadUsersWithPagination()
+}
+
+// Función para manejar cambio de items por página
+const onItemsPerPageChange = () => {
+  currentPage.value = 1 // Reset to first page when items per page changes
+  loadUsersWithPagination()
+}
+
+// Función para cargar usuarios con paginación
+const loadUsersWithPagination = async (options = {}) => {
+  const paginationOptions = {
+    page: currentPage.value,
+    itemsPerPage: itemsPerPage.value,
+    ...options
+  }
+  await loadUsers(paginationOptions)
+}
+
+// Función para manejar actualización de opciones del data-table
+const onOptionsUpdate = (newOptions) => {
+  const { page, itemsPerPage: newItemsPerPage } = newOptions
+  if (page !== undefined) {
+    currentPage.value = page
+  }
+  if (newItemsPerPage !== undefined && newItemsPerPage !== itemsPerPage.value) {
+    itemsPerPage.value = newItemsPerPage
+    currentPage.value = 1
+  }
+  loadUsersWithPagination()
+}
+
+// Watch para itemsPerPage para recargar cuando cambie
+watch(itemsPerPage, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    currentPage.value = 1
+    loadUsersWithPagination()
+  }
+})
+
 // Computed para verificar si puede gestionar permisos
 const canManagePermissions = computed(() => {
   return auth.user?.role === 'super_admin' || auth.user?.role === 'admin_contaduria'
@@ -846,11 +924,9 @@ const loadUserPermissions = async (userId) => {
     console.log('📋 Respuesta completa de permisos:', response.data)
     
     if (response.data && response.data.data && response.data.data.permissions) {
-      // El backend devuelve un array de strings con los permisos
       const permissionsList = response.data.data.permissions
       console.log('📝 Lista de permisos recibida:', permissionsList)
       
-      // Reiniciar permisos
       userPermissions.value = {
         invoices: { view: false, create: false, edit: false, delete: false },
         documents: { view: false, upload: false, download: false },
@@ -859,7 +935,6 @@ const loadUserPermissions = async (userId) => {
         dashboard: { view: false, view_stats: false, view_charts: false }
       }
       
-      // Mapear cada permiso del array a la estructura del frontend
       permissionsList.forEach(permission => {
         const [module, action] = permission.split('.')
         console.log(`🔧 Procesando permiso: ${permission} -> módulo: ${module}, acción: ${action}`)
@@ -887,7 +962,6 @@ const savePermissions = async () => {
   
   savingPermissions.value = true
   try {
-    // Convertir la estructura de permisos del frontend a array para el backend
     const permissionsArray = []
     
     Object.keys(userPermissions.value).forEach(module => {
@@ -906,7 +980,6 @@ const savePermissions = async () => {
     
     showMessage('Permisos actualizados correctamente', 'success')
     
-    // Si el usuario editado es el usuario actual, recargar sus permisos
     if (auth.user && auth.user.id === userForm.value.id) {
       console.log('🔄 Recargando permisos del usuario actual...')
       await auth.loadUserPermissions()
@@ -923,7 +996,7 @@ const savePermissions = async () => {
 
 const savePermissionsAndClose = async () => {
   await savePermissions()
-  if (!savingPermissions.value) { // Solo cerrar si no hubo error
+  if (!savingPermissions.value) {
     closeUserDialog()
   }
 }
@@ -947,11 +1020,9 @@ const changePassword = async () => {
     
     showMessage('Contraseña cambiada correctamente', 'success')
     
-    // Limpiar campos
     newPassword.value = ''
     confirmPassword.value = ''
     
-    // Cerrar el diálogo si es exitoso
     closeUserDialog()
     
   } catch (error) {
@@ -965,13 +1036,10 @@ const changePassword = async () => {
 
 // Función personalizada para cerrar el diálogo y limpiar campos de contraseña
 const closeUserDialogAndClearPassword = () => {
-  // Limpiar campos de contraseña
   newPassword.value = ''
   confirmPassword.value = ''
   showNewPassword.value = false
   showConfirmPassword.value = false
-  
-  // Llamar la función original de cierre
   closeUserDialog()
 }
 
@@ -982,16 +1050,12 @@ watch([userForm, activeTab], ([newUserForm, newTab]) => {
   }
 }, { deep: true })
 
-// Watch para cambiar a la pestaña de permisos si se está editando un usuario y tiene permisos
+// Watch para cambiar a la pestaña de permisos
 watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
-  // Solo cambiar a permisos si es edición y puede gestionar permisos
-  // y si no se ha configurado una pestaña específica manualmente
   if (isEditMode && canManage && userForm.value?.id) {
-    // Mantener la pestaña activa, no resetear
+    // Mantener la pestaña activa
   } else if (!isEditMode) {
-    // Solo resetear cuando se cierra completamente el modal
     activeTab.value = 'general'
-    // Limpiar permisos usando estructura moderna
     userPermissions.value = {
       invoices: { view: false, create: false, edit: false, delete: false },
       documents: { view: false, upload: false, download: false },
@@ -1002,21 +1066,26 @@ watch([editMode, canManagePermissions], ([isEditMode, canManage]) => {
   }
 })
 
-//Funciones personalizadas para manejo de tabs
-const editUserPermissions = (user) => {
-  editUser(user)
-  activeTab.value = 'permissions'
+// Sobrescribir funciones de filtro para incluir paginación
+const enhancedDebounceSearch = () => {
+  currentPage.value = 1
+  debounceSearch()
 }
 
-// Función para manejar cuando se guardan los permisos
-const onPermissionsSaved = async () => {
-  console.log('Permisos guardados exitosamente')
-  // Refresh user data to update permissions in auth store
-  await auth.refreshUser()
-  showMessage('Permisos actualizados correctamente', 'success')
+const enhancedResetFilters = () => {
+  currentPage.value = 1
+  resetFilters()
 }
 
-onMounted(initializeUsers)
+const enhancedOnFilterChange = () => {
+  currentPage.value = 1
+  loadUsersWithPagination()
+}
+
+// Inicialización
+onMounted(() => {
+  initializeUsers()
+})
 </script>
 
 <style src="../styles/users.css" scoped></style>

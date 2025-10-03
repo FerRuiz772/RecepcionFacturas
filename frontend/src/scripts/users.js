@@ -63,13 +63,11 @@ export function useUsers() {
         limit: options.itemsPerPage || itemsPerPage.value,
         search: searchQuery.value,
         role: roleFilter.value,
-        // Corregir el filtro de estado - debe usar el valor correcto
-        is_active: activeFilter.value
       }
 
       // Solo enviar is_active si no es null/undefined
-      if (activeFilter.value === null || activeFilter.value === undefined) {
-        delete params.is_active
+      if (activeFilter.value !== null && activeFilter.value !== undefined) {
+        params.is_active = activeFilter.value
       }
 
       const response = await axios.get('/api/users', { params })

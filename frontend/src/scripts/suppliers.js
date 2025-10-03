@@ -82,6 +82,15 @@ export function useSuppliers() {
     }, 500)
   }
 
+  // Limpiar filtros de búsqueda y recargar
+  const resetFilters = () => {
+    searchQuery.value = ''
+    activeFilter.value = null
+    // resetear paginación a por defecto
+    itemsPerPage.value = 10
+    loadSuppliers()
+  }
+
   const openCreateDialog = () => {
     editMode.value = false
     supplierForm.value = {
@@ -189,6 +198,7 @@ export function useSuppliers() {
     // Functions
     loadSuppliers,
     debounceSearch,
+    resetFilters,
     openCreateDialog,
     editSupplier,
     closeSupplierDialog,

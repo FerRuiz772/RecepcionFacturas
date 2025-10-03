@@ -43,36 +43,44 @@
           Filtros de Búsqueda
         </v-card-title>
         <v-card-text class="pa-6">
-          <v-row>
-            <v-col cols="12" md="4">
-              <v-text-field
-                v-model="searchQuery"
-                label="Buscar proveedor"
-                variant="outlined"
-                density="comfortable"
-                prepend-inner-icon="mdi-magnify"
-                clearable
-                @input="debounceSearch"
-              ></v-text-field>
-            </v-col>
-            <v-col cols="12" md="4">
-              <v-select
-                v-model="activeFilter"
-                :items="statusOptions"
-                label="Estado"
-                variant="outlined"
-                density="comfortable"
-                clearable
-                @update:model-value="loadSuppliers"
-              ></v-select>
+          <v-row align="center">
+            <v-col cols="12" md="4" class="d-flex align-center">
+              <div style="width:100%; display:flex; align-items:center">
+                <v-text-field
+                  v-model="searchQuery"
+                  label="Buscar proveedor"
+                  variant="outlined"
+                  density="comfortable"
+                  prepend-inner-icon="mdi-magnify"
+                  clearable
+                  @input="debounceSearch"
+                  style="width:100%; min-height:48px"
+                  hide-details
+                ></v-text-field>
+              </div>
             </v-col>
             <v-col cols="12" md="4" class="d-flex align-center">
+              <div style="width:100%; display:flex; align-items:center">
+                <v-select
+                  v-model="activeFilter"
+                  :items="statusOptions"
+                  label="Estado"
+                  variant="outlined"
+                  density="comfortable"
+                  clearable
+                  @update:model-value="loadSuppliers"
+                  style="width:100%; min-height:48px"
+                  hide-details
+                ></v-select>
+              </div>
+            </v-col>
+            <v-col cols="12" md="4" class="d-flex align-center justify-end">
               <v-btn
                 @click="resetFilters"
                 variant="outlined"
                 color="secondary"
                 class="reset-btn"
-                size="large"
+                style="height:48px; display:flex; align-items:center"
               >
                 <v-icon class="mr-2">mdi-filter-off</v-icon>
                 Limpiar Filtros
@@ -226,7 +234,6 @@
             color="primary" 
             @click="saveSupplier"
             :loading="saving"
-            :disabled="!formValid"
           >
             {{ editMode ? 'Actualizar' : 'Crear' }}
           </v-btn>
@@ -265,6 +272,7 @@ const {
   // Functions
   loadSuppliers,
   debounceSearch,
+  resetFilters,
   openCreateDialog,
   editSupplier,
   closeSupplierDialog,
@@ -279,4 +287,3 @@ onMounted(initializeSuppliers)
 
 <style src="../styles/suppliers.css" scoped></style>
 
-    resetFilters
