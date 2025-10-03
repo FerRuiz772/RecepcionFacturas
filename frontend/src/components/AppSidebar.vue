@@ -166,7 +166,7 @@ const isActiveRoute = (itemPath) => {
 }
 
 .sidebar-header {
-  background: #0f172a;
+  background: #059669;
   color: white;
   padding: 24px 20px;
   position: relative;
@@ -179,14 +179,16 @@ const isActiveRoute = (itemPath) => {
 }
 
 .sidebar-logo {
-  width: 32px;
-  height: 32px;
-  background: white;
-  border-radius: 6px;
+  /* Remove white square behind logo so only icon/triangle shows */
+  width: auto;
+  height: auto;
+  background: transparent;
+  border-radius: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 12px;
+  padding: 0;
   flex-shrink: 0;
 }
 
@@ -218,17 +220,19 @@ const isActiveRoute = (itemPath) => {
 }
 
 .nav-item:hover {
-  background: #e2e8f0 !important;
-  color: #1e293b !important;
+  /* hover uses green tone from dashboard */
+  background: #0f766e !important;
+  color: white !important;
 }
 
 .nav-item--active {
-  background: #0f172a !important;
+  /* active menu item uses dashboard green */
+  background: #0f766e !important;
   color: white !important;
 }
 
 .nav-item--active:hover {
-  background: #1e293b !important;
+  background: #115e59 !important;
   color: white !important;
 }
 

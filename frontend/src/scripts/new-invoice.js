@@ -24,6 +24,11 @@ export function useNewInvoice() {
     description: ''
   })
 
+  // Proveedores y usuarios relacionados (para administradores)
+  const suppliers = ref([])
+  const selectedSupplier = ref(null)
+  const supplierUsers = ref([])
+
   // Edit mode when loading an existing invoice
   const editMode = ref(false)
   const currentInvoiceId = ref(null)
@@ -31,6 +36,14 @@ export function useNewInvoice() {
   const rejectReason = ref('')
 
   const supplierInfo = computed(() => {
+    // Si el admin seleccionó un proveedor, mostrar su info
+    if (selectedSupplier.value) {
+      return {
+        business_name: selectedSupplier.value.business_name || selectedSupplier.value.name || 'Nombre de la empresa',
+        nit: selectedSupplier.value.nit || selectedSupplier.value.tax_id || 'NIT no disponible'
+      }
+    }
+    // Por defecto, usar los datos del usuario autenticado (proveedor asociado)
     return {
       business_name: authStore.user?.supplier_name || 'Nombre de la empresa',
       nit: authStore.user?.supplier_nit || 'NIT no disponible'
@@ -48,6 +61,41 @@ export function useNewInvoice() {
       }
     } else {
       router.push('/dashboard')
+    }
+  }
+
+  // Cargar proveedores activos (para el selector)
+  const loadSuppliers = async () => {
+    try {
+      const response = await axios.get('/api/suppliers?is_active=true')
+      if (response.data && response.data.data && response.data.data.suppliers) {
+        suppliers.value = response.data.data.suppliers || []
+      } else if (response.data && (response.data.suppliers || Array.isArray(response.data))) {
+        suppliers.value = response.data.suppliers || response.data || []
+      } else {
+        suppliers.value = []
+      }
+    } catch (err) {
+      console.error('Error cargando proveedores:', err)
+      suppliers.value = []
+    }
+  }
+
+  // Cargar usuarios asociados a un proveedor
+  const loadUsersBySupplier = async (supplierId) => {
+    try {
+      const params = { supplier_id: supplierId, limit: 100 }
+      const response = await axios.get('/api/users', { params })
+      if (response.data && response.data.data && response.data.data.users) {
+        supplierUsers.value = response.data.data.users || []
+      } else if (response.data && (response.data.users || Array.isArray(response.data))) {
+        supplierUsers.value = response.data.users || response.data || []
+      } else {
+        supplierUsers.value = []
+      }
+    } catch (err) {
+      console.error('Error cargando usuarios por proveedor:', err)
+      supplierUsers.value = []
     }
   }
 
@@ -226,6 +274,10 @@ export function useNewInvoice() {
     form.value.date = new Date().toISOString().split('T')[0]
     // Intentar cargar una factura existente si se pasó invoiceId
     loadExistingInvoice()
+    // Si el usuario es admin, precargar lista de proveedores
+    if (authStore.isAdmin) {
+      loadSuppliers()
+    }
   }
 
   return {
@@ -243,6 +295,9 @@ export function useNewInvoice() {
     // Computed properties
     supplierInfo,
     isProvider,
+  suppliers,
+  selectedSupplier,
+  supplierUsers,
     
     // Functions
     goBack,
@@ -256,6 +311,8 @@ export function useNewInvoice() {
     submitInvoice,
     openRejectDialog,
     confirmReject,
+    loadSuppliers,
+    loadUsersBySupplier,
     initializeNewInvoice
   }
 }
