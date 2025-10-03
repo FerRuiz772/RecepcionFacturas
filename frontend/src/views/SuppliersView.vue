@@ -105,12 +105,13 @@
         </v-card-title>
         
         <v-data-table-server
+          v-model:page="currentPage"
           v-model:items-per-page="itemsPerPage"
           :headers="headers"
           :items="suppliers"
           :items-length="totalSuppliers"
           :loading="loading"
-          @update:options="loadSuppliers"
+          @update:options="onOptionsUpdate"
           class="suppliers-table"
         >
           <template v-slot:item.business_name="{ item }">
@@ -178,7 +179,44 @@
               </v-btn>
             </div>
           </template>
-        </v-data-table-server>
+            <!-- Footer de paginación personalizado -->
+            <template v-slot:bottom>
+              <div class="custom-footer">
+                <div class="footer-info">
+                  Mostrando {{ ((currentPage - 1) * itemsPerPage) + 1 }} a {{ Math.min(currentPage * itemsPerPage, totalSuppliers) }} de {{ totalSuppliers }} proveedores
+                </div>
+                <div class="footer-pagination">
+                  <v-select
+                    v-model="itemsPerPage"
+                    :items="[10, 25, 50, 100]"
+                    label="Por página"
+                    density="compact"
+                    variant="outlined"
+                    hide-details
+                    class="items-per-page-select"
+                    @update:model-value="onItemsPerPageChange"
+                  ></v-select>
+                  <v-pagination
+                    v-model="currentPage"
+                    :length="totalPages"
+                    :total-visible="7"
+                    show-first-last-page
+                    :class="{ 'pagination-controls': true, 'show-first': showFirstButton, 'show-last': showLastButton }"
+                    @update:model-value="onPageChange"
+                  >
+                    <template #first>
+                      <v-icon size="18" class="mr-1">mdi-page-first</v-icon>
+                      IR AL PRIMERO
+                    </template>
+                    <template #last>
+                      IR A LA ÚLTIMA
+                      <v-icon size="18" class="ml-1">mdi-page-last</v-icon>
+                    </template>
+                  </v-pagination>
+                </div>
+              </div>
+            </template>
+          </v-data-table-server>
       </v-card>
     </v-container>
 
@@ -244,7 +282,7 @@
 </template>
 
 <script setup>
-import { onMounted } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useSuppliers } from '../scripts/suppliers.js'
 import { useAuthStore } from '../stores/auth.js'
 
@@ -283,6 +321,58 @@ const {
 } = useSuppliers()
 
 onMounted(initializeSuppliers)
+
+// Handlers para la paginación del footer
+// Pagination state
+const currentPage = ref(1)
+
+const loadSuppliersWithPagination = async (options = {}) => {
+  const paginationOptions = {
+    page: currentPage.value,
+    itemsPerPage: itemsPerPage.value,
+    ...options
+  }
+  await loadSuppliers(paginationOptions)
+}
+
+const onPageChange = (page) => {
+  currentPage.value = page
+  loadSuppliersWithPagination()
+}
+
+const onItemsPerPageChange = () => {
+  currentPage.value = 1
+  loadSuppliersWithPagination()
+}
+
+const onOptionsUpdate = (newOptions) => {
+  const { page, itemsPerPage: newItemsPerPage } = newOptions
+  if (page !== undefined) {
+    currentPage.value = page
+  }
+  if (newItemsPerPage !== undefined && newItemsPerPage !== itemsPerPage.value) {
+    itemsPerPage.value = newItemsPerPage
+    currentPage.value = 1
+  }
+  loadSuppliersWithPagination()
+}
+
+watch(itemsPerPage, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    currentPage.value = 1
+    loadSuppliersWithPagination()
+  }
+})
+
+const totalPages = computed(() => Math.max(1, Math.ceil(Number(totalSuppliers.value || 0) / Number(itemsPerPage.value || 1))))
+
+const showFirstButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value > 1
+})
+
+const showLastButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value < totalPages.value
+})
 </script>
 
 <style src="../styles/suppliers.css" scoped></style>

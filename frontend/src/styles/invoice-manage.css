@@ -189,12 +189,19 @@
 }
 
 .edit-btn {
-  border-color: rgba(255, 255, 255, 0.3) !important;
-  color: white !important;
+  background: white !important;
+  color: #0f172a !important; /* texto negro */
+  border: 1px solid rgba(15, 23, 42, 0.06) !important;
+  font-weight: 600;
+  text-transform: none;
 }
 
+/* Mantener el hover existente (sutil overlay) */
 .edit-btn:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.9) !important;
+  /* conservar el efecto sutil previo: translate y sombra si se desea */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .no-files-display {

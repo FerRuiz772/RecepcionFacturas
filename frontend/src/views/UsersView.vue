@@ -237,6 +237,7 @@
                 de {{ totalUsers }} usuarios
               </div>
               <div class="footer-pagination">
+                <!-- use built-in pagination first/last buttons rendered by v-pagination -->
                 <v-select
                   v-model="itemsPerPage"
                   :items="[10, 25, 50, 100]"
@@ -247,13 +248,25 @@
                   hide-details
                   @update:model-value="onItemsPerPageChange"
                 ></v-select>
-                <v-pagination
-                  v-model="currentPage"
-                  :length="totalPages"
-                  :total-visible="7"
-                  class="pagination-controls"
-                  @update:model-value="onPageChange"
-                ></v-pagination>
+                <div style="display:flex; align-items:center; gap:8px">
+                  <v-pagination
+                    v-model="currentPage"
+                    :length="totalPages"
+                    :total-visible="7"
+                    show-first-last-page
+                    :class="{ 'pagination-controls': true, 'show-first': showFirstButton, 'show-last': showLastButton }"
+                    @update:model-value="onPageChange"
+                  >
+                    <template #first>
+                      <v-icon size="18" class="mr-1">mdi-page-first</v-icon>
+                      IR AL PRIMERO
+                    </template>
+                    <template #last>
+                      IR A LA ÚLTIMA
+                      <v-icon size="18" class="ml-1">mdi-page-last</v-icon>
+                    </template>
+                  </v-pagination>
+                </div>
               </div>
             </div>
           </template>
@@ -764,7 +777,7 @@ const auth = useAuthStore()
 
 // Variables para la paginación
 const currentPage = ref(1)
-const totalPages = computed(() => Math.ceil(totalUsers.value / itemsPerPage.value))
+
 
 // Variable para las pestañas
 const activeTab = ref('general')
@@ -857,6 +870,20 @@ const onPageChange = (page) => {
   loadUsersWithPagination()
 }
 
+// Salta a la primera página y recarga
+const jumpToFirst = () => {
+  if (currentPage.value === 1) return
+  currentPage.value = 1
+  loadUsersWithPagination()
+}
+
+// Salta a la última página y recarga
+const jumpToLast = () => {
+  if (currentPage.value === totalPages.value) return
+  currentPage.value = totalPages.value
+  loadUsersWithPagination()
+}
+
 // Función para manejar cambio de items por página
 const onItemsPerPageChange = () => {
   currentPage.value = 1 // Reset to first page when items per page changes
@@ -892,6 +919,13 @@ watch(itemsPerPage, (newVal, oldVal) => {
     currentPage.value = 1
     loadUsersWithPagination()
   }
+})
+
+// Computed para el total de páginas (necesario para la paginación)
+const totalPages = computed(() => {
+  const total = Number(totalUsers.value || 0)
+  const perPage = Number(itemsPerPage.value || 1)
+  return Math.max(1, Math.ceil(total / perPage))
 })
 
 // Computed para verificar si puede gestionar permisos
@@ -1085,6 +1119,15 @@ const enhancedOnFilterChange = () => {
 // Inicialización
 onMounted(() => {
   initializeUsers()
+})
+
+// Mostrar/ocultar botones de primera/ultima según estado
+const showFirstButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value === totalPages.value
+})
+
+const showLastButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value < totalPages.value
 })
 </script>
 

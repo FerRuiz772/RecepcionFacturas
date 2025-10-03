@@ -19,7 +19,7 @@
             <h1 class="page-title">Gestión de Facturas</h1>
             <p class="page-subtitle">Administra y revisa todas las facturas del sistema</p>
           </div>
-          <div v-if="authStore.canCreateInvoices" class="header-actions">
+          <div v-if="authStore.isProveedor" class="header-actions">
             <v-btn 
               color="primary" 
               @click="$router.push('/invoices/new')"
@@ -175,13 +175,14 @@
           </div>
         </v-card-title>
         
-        <v-data-table-server
+          <v-data-table-server
+          v-model:page="currentPage"
           v-model:items-per-page="itemsPerPage"
           :headers="headers"
           :items="invoices"
           :items-length="totalInvoices"
           :loading="loading"
-          @update:options="loadInvoices"
+          @update:options="onOptionsUpdate"
           class="invoices-table"
           :items-per-page-options="[
             { value: 10, title: '10' },
@@ -314,29 +315,41 @@
             </div>
           </template>
 
-          <!-- Personalización del footer de paginación -->
-          <template v-slot:footer="{ pagination, options }">
+          <!-- Personalización del footer de paginación (reemplaza la predeterminada) -->
+          <template v-slot:bottom>
             <div class="custom-footer">
               <div class="footer-info">
-                Mostrando {{ getDisplayedItems(pagination) }} de {{ totalInvoices }} facturas
+                Mostrando {{ ((currentPage - 1) * itemsPerPage) + 1 }} a {{ Math.min(currentPage * itemsPerPage, totalInvoices) }} de {{ totalInvoices }} facturas
               </div>
               <div class="footer-pagination">
                 <v-select
-                  :model-value="itemsPerPage"
-                  @update:model-value="handleItemsPerPageChange"
+                  v-model="itemsPerPage"
                   :items="[10, 25, 50, 100]"
+                  label="Por página"
                   density="compact"
                   variant="outlined"
                   hide-details
                   class="items-per-page-select"
+                  @update:model-value="onItemsPerPageChange"
                 ></v-select>
+
                 <v-pagination
-                  :model-value="options.page"
-                  @update:model-value="handlePageChange"
-                  :length="Math.ceil(totalInvoices / itemsPerPage)"
-                  :total-visible="5"
-                  class="pagination-controls"
-                ></v-pagination>
+                  v-model="currentPage"
+                  :length="totalPages"
+                  :total-visible="7"
+                  show-first-last-page
+                  :class="{ 'pagination-controls': true, 'show-first': showFirstButton, 'show-last': showLastButton }"
+                  @update:model-value="onPageChange"
+                >
+                  <template #first>
+                    <v-icon size="18" class="mr-1">mdi-page-first</v-icon>
+                    IR AL PRIMERO
+                  </template>
+                  <template #last>
+                    IR A LA ÚLTIMA
+                    <v-icon size="18" class="ml-1">mdi-page-last</v-icon>
+                  </template>
+                </v-pagination>
               </div>
             </div>
           </template>
@@ -347,14 +360,14 @@
 </template>
 
 <script setup>
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { useInvoices } from '../scripts/invoices.js'
 
 const authStore = useAuthStore()
 
+// Import data/functions from composable
 const {
-  // Estados y funciones existentes...
   loading,
   invoices,
   suppliers,
@@ -399,23 +412,64 @@ const {
   initializeInvoices
 } = useInvoices()
 
-// Función para calcular los elementos mostrados
-const getDisplayedItems = (pagination) => {
-  const start = (pagination.page - 1) * pagination.itemsPerPage + 1
-  const end = Math.min(pagination.page * pagination.itemsPerPage, totalInvoices.value)
-  return `${start}-${end}`
+// Pagination state (copiado de UsersView)
+const currentPage = ref(1)
+
+const loadInvoicesWithPagination = async (options = {}) => {
+  const paginationOptions = {
+    page: currentPage.value,
+    itemsPerPage: itemsPerPage.value,
+    ...options
+  }
+  await loadInvoices(paginationOptions)
 }
 
-const handleItemsPerPageChange = (newValue) => {
-  itemsPerPage.value = newValue
-  loadInvoices()
+const onPageChange = (page) => {
+  currentPage.value = page
+  loadInvoicesWithPagination()
 }
 
-const handlePageChange = (newPage) => {
-
+const onItemsPerPageChange = () => {
+  currentPage.value = 1
+  loadInvoicesWithPagination()
 }
 
-onMounted(initializeInvoices)
+const onOptionsUpdate = (newOptions) => {
+  const { page, itemsPerPage: newItemsPerPage } = newOptions
+  if (page !== undefined) {
+    currentPage.value = page
+  }
+  if (newItemsPerPage !== undefined && newItemsPerPage !== itemsPerPage.value) {
+    itemsPerPage.value = newItemsPerPage
+    currentPage.value = 1
+  }
+  loadInvoicesWithPagination()
+}
+
+watch(itemsPerPage, (newVal, oldVal) => {
+  if (newVal !== oldVal) {
+    currentPage.value = 1
+    loadInvoicesWithPagination()
+  }
+})
+
+const totalPages = computed(() => {
+  const total = Number(totalInvoices.value || 0)
+  const perPage = Number(itemsPerPage.value || 1)
+  return Math.max(1, Math.ceil(total / perPage))
+})
+
+const showFirstButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value > 1
+})
+
+const showLastButton = computed(() => {
+  return totalPages.value > 1 && currentPage.value < totalPages.value
+})
+
+onMounted(() => {
+  initializeInvoices()
+})
 </script>
 
 <style src="../styles/invoices.css" scoped></style>

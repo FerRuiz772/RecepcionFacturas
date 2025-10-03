@@ -311,6 +311,11 @@
   min-width: 100px;
 }
 
+.pagination-controls .v-pagination__prev,
+.pagination-controls .v-pagination__next {
+  display: none !important;
+}
+
 /* PAGINACIÓN - OCULTAR CÍRCULOS Y MOSTRAR SOLO NÚMEROS */
 .pagination-controls .v-pagination__list {
   gap: 4px;
@@ -329,12 +334,33 @@
   border-color: #2d7a5f !important;
 }
 
-/* Ocultar botones de primera y última página (los círculos) */
-.pagination-controls button[aria-label="Go to first page"],
-.pagination-controls button[aria-label="Go to last page"],
-.pagination-controls button[aria-label="Ir a la primera página"],
-.pagination-controls button[aria-label="Ir a la última página"] {
+/* Nota: no ocultamos los botones de primera/última aquí para evitar conflictos
+   con otras vistas que requieran mostrarlos (UsersView manejará la visibilidad). */
+
+/* Style first/last buttons so they match UsersView pagination look. Visibility
+   will be controlled by the .show-first / .show-last classes applied on the
+   pagination container in the template. */
+.pagination-controls .v-pagination__first,
+.pagination-controls .v-pagination__last {
   display: none !important;
+  align-items: center;
+  justify-content: center;
+  min-width: 120px !important;
+  height: 36px !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 6px !important;
+  background: white !important;
+  color: #64748b !important;
+  font-weight: 600 !important;
+  padding: 0 12px !important;
+}
+
+.pagination-controls.show-first .v-pagination__first {
+  display: inline-flex !important;
+}
+
+.pagination-controls.show-last .v-pagination__last {
+  display: inline-flex !important;
 }
 
 /* No data state */
