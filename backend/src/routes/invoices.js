@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const invoiceController = require('../controllers/invoiceController');
+const invoiceExcelController = require('../controllers/invoiceExcelController.js');
 const { authenticate, validateInvoiceAccess, requirePermission } = require('../middleware/auth');
 const { readRateLimit, writeRateLimit } = require('../middleware/rateLimiting');
 const { body } = require('express-validator');
@@ -138,7 +139,10 @@ router.post('/:id/upload-document', writeRateLimit, requirePermission(['invoices
     invoiceController.uploadDocument
 );
 
+
+
 // ===== Descargas =====
+router.get('/export/excel', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), invoiceExcelController.exportToExcel);
 router.get('/:id/download-invoice', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
 router.get('/:id/download-all-files', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadInvoiceFiles);
 router.get('/:id/download-retention-isr', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.downloadRetentionISR);
@@ -155,21 +159,6 @@ router.put('/:id/replace-document/:type', writeRateLimit, requirePermission(['in
     upload.single('file'),
     validateInvoiceAccess,
     invoiceController.replaceDocument
-);
-
-// Ruta para que el proveedor reemplace el/los archivos originales que subió
-// No requerimos permisos de contaduría; validateInvoiceAccess permitirá al proveedor operar sobre su propia factura
-router.put('/:id/replace-original', writeRateLimit,
-    upload.single('file'),
-    validateInvoiceAccess,
-    invoiceController.replaceOriginalFile
-);
-
-// POST alias: algunos proxies o configuraciones bloquean PUT multipart; aceptar POST como fallback
-router.post('/:id/replace-original', writeRateLimit,
-    upload.single('file'),
-    validateInvoiceAccess,
-    invoiceController.replaceOriginalFile
 );
 
 module.exports = router;

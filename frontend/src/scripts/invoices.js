@@ -8,6 +8,50 @@ export function useInvoices() {
   const router = useRouter()
   const authStore = useAuthStore()
   const toast = useToast()
+  const exportToExcel = async () => {
+  try {
+    loading.value = true;
+    
+    // Construir query params con los filtros actuales
+    const params = new URLSearchParams();
+    if (filters.value.status) params.append('status', filters.value.status);
+    if (filters.value.supplier_id) params.append('supplier_id', filters.value.supplier_id);
+    if (filters.value.assigned_to) params.append('assigned_to', filters.value.assigned_to);
+    if (filters.value.search) params.append('search', filters.value.search);
+    if (filters.value.start_date) params.append('date_from', filters.value.start_date);
+    if (filters.value.end_date) params.append('date_to', filters.value.end_date);
+
+    const response = await fetch(`/api/invoices/export/excel?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Error al exportar');
+    }
+
+    // Descargar el archivo
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `facturas_${new Date().toISOString().split('T')[0]}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
+    console.log('✅ Archivo Excel descargado exitosamente');
+  } catch (error) {
+    console.error('❌ Error exportando a Excel:', error);
+    alert('Error al exportar a Excel: ' + error.message);
+  } finally {
+    loading.value = false;
+  }
+};
 
   // Estados reactivos
   const loading = ref(false)
@@ -323,11 +367,7 @@ export function useInvoices() {
   }
 
   const formatDate = (dateString) => {
-    try {
-      return new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString))
-    } catch (e) {
-      return new Date(dateString).toLocaleDateString('es-GT')
-    }
+    return new Date(dateString).toLocaleDateString('es-GT')
   }
 
   const getStatusText = (status) => {
@@ -395,6 +435,7 @@ export function useInvoices() {
     formatNumber,
     formatDate,
     getStatusText,
+    exportToExcel,
     initializeInvoices
   }
 }

@@ -14,6 +14,9 @@ RUN if [ "$NODE_ENV" = "production" ] ; then \
         npm ci ; \
     fi && npm cache clean --force
 
+# Instalar exceljs de forma explícita
+RUN npm install exceljs
+
 COPY --chown=nodeuser:nodejs . .
 
 # Crear TODOS los directorios necesarios incluyendo src/uploads

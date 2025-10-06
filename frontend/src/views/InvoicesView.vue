@@ -146,6 +146,19 @@
               >
                 Limpiar Filtros
               </v-btn>
+
+              <!-- NUEVO BOTÓN DE EXPORTAR -->
+              <v-btn
+                color="success"
+                variant="flat"
+                @click="exportToExcel"
+                prepend-icon="mdi-file-excel"
+                class="export-btn"
+                size="small"
+                :loading="loading"
+              >
+                Exportar a Excel
+              </v-btn>
               
               <v-chip
                 v-if="totalInvoices > 0"
@@ -197,10 +210,6 @@
 
           <template v-slot:item.number="{ item }">
             <div class="invoice-number">{{ item.number }}</div>
-            <div v-if="item.payment && item.payment.password_generated" class="invoice-password" style="margin-top:6px;font-size:13px;color:#0f172a;">
-              <small style="color:#64748b">Contraseña:</small>
-              <div style="font-weight:600">{{ item.payment.password_generated }}</div>
-            </div>
           </template>
 
           <template v-slot:item.supplier="{ item }">
@@ -413,6 +422,7 @@ const {
   formatNumber,
   formatDate,
   getStatusText,
+  exportToExcel,
   initializeInvoices
 } = useInvoices()
 
