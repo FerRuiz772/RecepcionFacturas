@@ -20,6 +20,7 @@ services:
       - ./database/004_add_password_file_column.sql:/docker-entrypoint-initdb.d/004_add_password_file_column.sql
       - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
       - ./database/006_add_regimen_isr_and_documentos.sql:/docker-entrypoint-initdb.d/006_add_regimen_isr_and_documentos.sql
+      - ./database/007_create_invoice_comments.sql:/docker-entrypoint-initdb.d/007_create_invoice_comments.sql
       - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
       
     networks:

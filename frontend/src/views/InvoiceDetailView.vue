@@ -175,7 +175,7 @@ Redirección a la vista de gestión -->
         <!-- Archivos y documentos -->
         <v-row class="mb-6">
           <!-- Archivos originales -->
-          <v-col cols="12" lg="6">
+          <v-col cols="12" lg="8">
             <v-card class="files-card" elevation="2">
               <v-card-title class="card-title-bg">
                 <v-icon class="mr-2">mdi-file-multiple</v-icon>
@@ -232,7 +232,7 @@ Redirección a la vista de gestión -->
           </v-col>
 
           <!-- Documentos generados -->
-          <v-col cols="12" lg="6">
+          <v-col cols="12" lg="4">
             <v-card class="documents-card" elevation="2">
               <v-card-title class="card-title-bg">
                 <v-icon class="mr-2">mdi-file-document-multiple</v-icon>
@@ -398,6 +398,13 @@ Redirección a la vista de gestión -->
           </v-col>
         </v-row>
 
+        <!-- Comentarios (chat) -->
+        <v-row class="mb-6">
+          <v-col cols="12">
+            <InvoiceComments :invoice-id="invoice.id" />
+          </v-col>
+        </v-row>
+
         <!-- Historial de estados -->
         <v-row>
           <v-col cols="12">
@@ -450,6 +457,7 @@ Redirección a la vista de gestión -->
 <script setup>
 import { onMounted } from 'vue'
 import { useInvoiceDetail } from '../scripts/invoice-detail.js'
+import InvoiceComments from '../components/InvoiceComments.vue'
 
 const {
   // Reactive state

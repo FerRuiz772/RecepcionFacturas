@@ -49,6 +49,7 @@ const Payment = require('./Payment');
 const SystemLog = require('./SystemLog');
 const PasswordResetToken = require('./PasswordResetToken')(sequelize);
 const UserPermission = require('./UserPermission');
+const InvoiceComment = require('./InvoiceComment');
 
 // ========== DEFINICIÓN DE RELACIONES ENTRE ENTIDADES ==========
 
@@ -107,6 +108,22 @@ InvoiceState.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: fal
  */
 Invoice.hasOne(Payment, { foreignKey: 'invoice_id', as: 'payment', onDelete: 'CASCADE' });
 Payment.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'Invoice', allowNull: false });
+
+/**
+ * Relaciones Invoice - InvoiceComment (comentarios/chat)
+ * Una factura puede tener múltiples comentarios
+ * Cada comentario pertenece a una factura específica
+ */
+Invoice.hasMany(InvoiceComment, { foreignKey: 'invoice_id', as: 'comments', onDelete: 'CASCADE' });
+InvoiceComment.belongsTo(Invoice, { foreignKey: 'invoice_id', as: 'invoice', allowNull: false });
+
+/**
+ * Relaciones User - InvoiceComment (autoría de comentarios)
+ * Un usuario puede crear múltiples comentarios
+ * Cada comentario es creado por un usuario específico
+ */
+User.hasMany(InvoiceComment, { foreignKey: 'user_id', as: 'comments', onDelete: 'CASCADE' });
+InvoiceComment.belongsTo(User, { foreignKey: 'user_id', as: 'user', allowNull: false });
 
 /**
  * Relaciones User - SystemLog (auditoría del sistema)
@@ -262,6 +279,7 @@ const syncDatabase = async (force = false) => {
     await SystemLog.sync({ force });
     await PasswordResetToken.sync({ force });
     await UserPermission.sync({ force });
+    await InvoiceComment.sync({ force });
 };
 
 // ========== EXPORTACIÓN CENTRALIZADA ==========
@@ -279,6 +297,7 @@ module.exports = {
     SystemLog,
     PasswordResetToken,
     UserPermission,
+    InvoiceComment,
     
     // Utilidades
     syncDatabase
