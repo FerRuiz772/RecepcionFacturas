@@ -270,8 +270,18 @@ export function useNewInvoice() {
 
   // Función de inicialización
   const initializeNewInvoice = () => {
-    // Inicializar fecha actual
-    form.value.date = new Date().toISOString().split('T')[0]
+    // Inicializar fecha actual con zona horaria de Guatemala
+    try {
+      const parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guatemala', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date()).split('-')
+      // en-CA produces YYYY-MM-DD, split by '-'
+      if (parts.length === 3) {
+        form.value.date = parts.join('-')
+      } else {
+        form.value.date = new Date().toISOString().split('T')[0]
+      }
+    } catch (err) {
+      form.value.date = new Date().toISOString().split('T')[0]
+    }
     // Intentar cargar una factura existente si se pasó invoiceId
     loadExistingInvoice()
     // Si el usuario es admin, precargar lista de proveedores

@@ -34,6 +34,25 @@ const sharp = require('sharp');
 const zlib = require('zlib');
 const { Op } = require('sequelize');
 
+/**
+ * Devuelve las partes de fecha según la zona horaria de Guatemala (America/Guatemala)
+ * @param {Date} date
+ * @returns {{year: string, month: string, day: string}}
+ */
+const getGuatemalaDateParts = (date = new Date()) => {
+    const fmt = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'America/Guatemala',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    });
+    const parts = fmt.formatToParts(date);
+    const year = parts.find(p => p.type === 'year').value;
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    return { year, month, day };
+};
+
 // ========== FUNCIONES DE LIMPIEZA Y MANTENIMIENTO ==========
 
 /**
@@ -697,10 +716,25 @@ const invoiceController = {
                 return res.status(400).json({ error: 'Personal de contaduría debe incluir datos de la factura' });
             } else {
                 // Proveedor solo sube archivos - generar número de referencia
-                const currentYear = new Date().getFullYear();
-                const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
-                const timestamp = Date.now().toString().slice(-6); // Últimos 6 dígitos del timestamp
-                const refNumber = `REF-${currentYear}${currentMonth}-${req.user.userId}-${timestamp}`;
+                // Nuevo formato solicitado: REF-AÑOMESDIA-SEQ (orden de entrada del día)
+                const parts = getGuatemalaDateParts();
+                const dateStr = `${parts.year}${parts.month}${parts.day}`; // YYYYMMDD
+
+                // Contar cuántas facturas se han creado en este día para generar un consecutivo
+                // Contar facturas creadas el mismo día según zona horaria de Guatemala
+                const startOfDay = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 0, 0, 0));
+                const endOfDay = new Date(Date.UTC(Number(parts.year), Number(parts.month) - 1, Number(parts.day), 23, 59, 59, 999));
+                // Ajustar rango para comparar en UTC (DB almacena timestamps en UTC normalmente)
+                const invoicesTodayCount = await Invoice.count({
+                    where: {
+                        created_at: {
+                            [Op.between]: [startOfDay, endOfDay]
+                        }
+                    }
+                });
+
+                const seq = String(invoicesTodayCount + 1).padStart(4, '0'); // 0001, 0002, ...
+                const refNumber = `REF-${dateStr}-${seq}`;
                 invoiceData = {
                     ...invoiceData,
                     number: refNumber,
@@ -721,7 +755,8 @@ const invoiceController = {
 
                 // Crear estructura de directorios
                 const providerName = supplier.business_name.replace(/[^a-zA-Z0-9]/g, '_'); // Limpiar nombre
-                const currentDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+                    const gp = getGuatemalaDateParts();
+                    const currentDate = `${gp.year}-${gp.month}-${gp.day}`; // YYYY-MM-DD (Guatemala)
                 const invoiceNumber = invoiceData.number.replace(/[^a-zA-Z0-9-]/g, '_'); // Limpiar número
                 
                 const providerDir = path.join(__dirname, '../uploads', providerName);
@@ -806,7 +841,8 @@ const invoiceController = {
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
                     { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] },
-                    { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false }
+                    { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false },
+                    { model: Payment, as: 'payment', required: false }
                 ],
                 transaction
             });
@@ -1200,8 +1236,14 @@ const invoiceController = {
                 });
             }
 
-            // Generar contraseña única
-            const password = crypto.randomBytes(4).toString('hex').toUpperCase();
+            // Generar contraseña única con formato solicitado: CONTRA-AÑOMESDIA-#####
+            // Usar la zona horaria de Guatemala para la parte de fecha
+            const { year: yyyy, month: mm, day: dd } = getGuatemalaDateParts();
+            const dateStr = `${yyyy}${mm}${dd}`;
+
+            // Generar código numérico de 5 dígitos
+            const randomFive = Math.floor(10000 + Math.random() * 90000); // 10000-99999
+            const password = `CONTRA-${dateStr}-${randomFive}`;
 
             // Crear o actualizar registro de pago
             let payment = await Payment.findOne({ 
@@ -1232,6 +1274,18 @@ const invoiceController = {
 
             await transaction.commit();
             
+            // Enviar notificación al proveedor y a contaduría sobre la contraseña generada
+            try {
+                const invoiceWithSupplier = await Invoice.findByPk(id, { include: [{ model: Supplier, as: 'supplier' }] });
+                const proveedorUser = await User.findOne({ where: { supplier_id: invoiceWithSupplier.supplier_id } });
+                const generatedBy = await User.findByPk(req.user.userId);
+                if (proveedorUser) {
+                    await invoiceNotificationService.notifyPasswordGenerated(invoiceWithSupplier, proveedorUser, generatedBy, password);
+                }
+            } catch (err) {
+                console.error('❌ Error enviando notificación de contraseña generada:', err);
+            }
+
             res.json({ 
                 message: 'Contraseña generada exitosamente', 
                 password,
@@ -1289,7 +1343,8 @@ const invoiceController = {
             
             // Generar nombre con formato: proveedor_fecha_tipoDocumento
             const today = new Date();
-            const dateStr = today.toISOString().split('T')[0].replace(/-/g, ''); // YYYYMMDD
+            const gp2 = getGuatemalaDateParts();
+            const dateStr = `${gp2.year}${gp2.month}${gp2.day}`; // YYYYMMDD (Guatemala)
             const supplierName = invoiceWithSupplier.supplier.business_name
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '') // Remover acentos
@@ -2214,6 +2269,139 @@ const invoiceController = {
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },
+
+    // Permite al proveedor reemplazar uno de los archivos originales que subió
+    async replaceOriginalFile(req, res, next) {
+        try {
+            const { id } = req.params;
+            const file = req.file;
+            const originalFilename = req.body.original_filename; // opcional: nombre del archivo a reemplazar
+
+            console.log('🔄 replaceOriginalFile request:', { invoiceId: id, hasFile: !!file, originalFilename });
+
+            if (!file) {
+                return res.status(400).json({ error: 'No se ha proporcionado ningún archivo', code: 'NO_FILE_PROVIDED' });
+            }
+
+            const invoice = await Invoice.findByPk(parseInt(id), { include: [{ model: Supplier, as: 'supplier' }] });
+            if (!invoice) return res.status(404).json({ error: 'Factura no encontrada', code: 'INVOICE_NOT_FOUND' });
+
+            // Si el usuario es proveedor, verificar que pertenece al supplier
+            if (req.user.role === 'proveedor') {
+                const user = await User.findByPk(req.user.userId);
+                if (invoice.supplier_id !== user.supplier_id) {
+                    return res.status(403).json({ error: 'Acceso denegado', code: 'ACCESS_DENIED' });
+                }
+            }
+
+            // Asegurarse de tener la carpeta de la factura
+            const invoiceDir = await createInvoiceFolder(invoice.supplier.business_name, invoice.number);
+
+            // Si proporcionaron originalFilename, buscar y reemplazar ese archivo
+            let replacedFileRecord = null;
+            if (originalFilename && invoice.uploaded_files && invoice.uploaded_files.length > 0) {
+                replacedFileRecord = invoice.uploaded_files.find(f => f.filename === originalFilename || f.originalName === originalFilename);
+            }
+
+            // Si no encontraron el archivo a reemplazar, reemplazar el primero si existe
+            if (!replacedFileRecord && invoice.uploaded_files && invoice.uploaded_files.length > 0) {
+                replacedFileRecord = invoice.uploaded_files[0];
+            }
+
+            // Si no hay archivos originales en BD, añadiremos el nuevo como nuevo uploaded_file
+            const extension = path.extname(file.originalname) || '.pdf';
+            const uniqueName = `${invoice.supplier.business_name.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}_${Math.round(Math.random()*1e6)}${extension}`;
+            const destinationPath = path.join(invoiceDir, uniqueName);
+
+            const sourceFilePath = path.isAbsolute(file.path) ? file.path : path.join(process.cwd(), file.path);
+            await fs.rename(sourceFilePath, destinationPath);
+
+            if (replacedFileRecord) {
+                // Eliminar archivo anterior si existe en FS
+                try {
+                    const oldFilePath = path.join(invoiceDir, replacedFileRecord.filename);
+                    await fs.unlink(oldFilePath);
+                    console.log('🗑️ Archivo original anterior eliminado:', oldFilePath);
+                } catch (err) {
+                    console.log('⚠️ No se pudo eliminar archivo anterior (puede que no exista):', err.message);
+                }
+
+                // Actualizar el registro en uploaded_files
+                const newUploadedFiles = invoice.uploaded_files.map(f => {
+                    if (f.filename === replacedFileRecord.filename) {
+                        return {
+                            ...f,
+                            originalName: file.originalname,
+                            filename: uniqueName,
+                            path: path.relative(path.join(__dirname, '..'), destinationPath),
+                            size: file.size,
+                            mimetype: file.mimetype,
+                            uploadedAt: new Date()
+                        };
+                    }
+                    return f;
+                });
+
+                await invoice.update({ uploaded_files: newUploadedFiles });
+
+                // Log y notificación
+                await SystemLog.create({
+                    action: 'ORIGINAL_FILE_REPLACE',
+                    userId: req.user.userId,
+                    details: JSON.stringify({ invoiceId: id, oldFile: replacedFileRecord.filename, newFile: uniqueName })
+                });
+
+                // Notificar proveedor del reemplazo (reutiliza notifyDocumentReplaced con tipo 'original')
+                try {
+                    const proveedorUser = await User.findOne({ where: { supplier_id: invoice.supplier_id } });
+                    if (proveedorUser) {
+                        await invoiceNotificationService.notifyDocumentReplaced(
+                            invoice,
+                            proveedorUser,
+                            await User.findByPk(req.user.userId),
+                            'original',
+                            'Factura Original',
+                            replacedFileRecord.filename,
+                            uniqueName
+                        );
+                    }
+                } catch (notifyErr) {
+                    console.error('❌ Error enviando notificación de reemplazo original:', notifyErr);
+                }
+
+                return res.json({ message: 'Archivo original reemplazado', filename: uniqueName, invoice: await invoice.reload() });
+            } else {
+                // No había archivo previo, añade como nuevo
+                const newFileRecord = {
+                    originalName: file.originalname,
+                    filename: uniqueName,
+                    path: path.relative(path.join(__dirname, '..'), destinationPath),
+                    size: file.size,
+                    mimetype: file.mimetype,
+                    docType: 'factura',
+                    uploadedAt: new Date()
+                };
+
+                const newUploadedFiles = (invoice.uploaded_files || []).concat([newFileRecord]);
+                await invoice.update({ uploaded_files: newUploadedFiles });
+
+                await SystemLog.create({
+                    action: 'ORIGINAL_FILE_ADD',
+                    userId: req.user.userId,
+                    details: JSON.stringify({ invoiceId: id, newFile: uniqueName })
+                });
+
+                return res.json({ message: 'Archivo original añadido', filename: uniqueName, invoice: await invoice.reload() });
+            }
+
+        } catch (error) {
+            // limpieza
+            if (req.file && req.file.path) {
+                try { await fs.unlink(req.file.path) } catch (e) {}
+            }
+            next(error);
+        }
+    },
     
     // ================== RUTAS DE DASHBOARD ==================
     
@@ -2971,7 +3159,14 @@ const invoiceController = {
                 supplier: invoice.supplier.business_name,
                 amount: parseFloat(invoice.amount),
                 status: formatStatus(invoice.status),
-                date: invoice.created_at.toISOString().split('T')[0],
+                date: (function(dt){
+                    try {
+                        const fmt = new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: '2-digit', day: '2-digit' });
+                        return fmt.format(new Date(dt));
+                    } catch (e) {
+                        return new Date(dt).toISOString().split('T')[0];
+                    }
+                })(invoice.created_at),
                 rawStatus: invoice.status,
                 assigned_to: invoice.assignedUser?.name || 'Sin asignar',
                 canEdit: role === 'proveedor' && invoice.status === 'factura_subida',

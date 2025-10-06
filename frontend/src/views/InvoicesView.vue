@@ -197,6 +197,10 @@
 
           <template v-slot:item.number="{ item }">
             <div class="invoice-number">{{ item.number }}</div>
+            <div v-if="item.payment && item.payment.password_generated" class="invoice-password" style="margin-top:6px;font-size:13px;color:#0f172a;">
+              <small style="color:#64748b">Contraseña:</small>
+              <div style="font-weight:600">{{ item.payment.password_generated }}</div>
+            </div>
           </template>
 
           <template v-slot:item.supplier="{ item }">

@@ -323,7 +323,11 @@ export function useInvoices() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-GT')
+    try {
+      return new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString))
+    } catch (e) {
+      return new Date(dateString).toLocaleDateString('es-GT')
+    }
   }
 
   const getStatusText = (status) => {

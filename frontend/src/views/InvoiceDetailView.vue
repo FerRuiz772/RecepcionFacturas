@@ -91,6 +91,12 @@ Redirección a la vista de gestión -->
                       <div class="info-value">{{ invoice.number }}</div>
                     </div>
                   </v-col>
+                  <v-col cols="12" md="6" v-if="invoice.payment && invoice.payment.password_generated">
+                    <div class="info-field">
+                      <label>Contraseña</label>
+                      <div class="info-value">{{ invoice.payment.password_generated }}</div>
+                    </div>
+                  </v-col>
                   <v-col cols="12" md="6">
                     <div class="info-field">
                       <label>Monto Total</label>
@@ -192,18 +198,35 @@ Redirección a la vista de gestión -->
                     <v-list-item-title>{{ file.originalName }}</v-list-item-title>
                     <v-list-item-subtitle>{{ formatFileSize(file.size) }}</v-list-item-subtitle>
                     <template v-slot:append>
-                      <v-btn
-                        variant="outlined"
-                        size="small"
-                        color="primary"
-                        @click="downloadOriginalFile(file)"
-                      >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
+                      <div class="d-flex gap-2 align-center">
+                        <v-btn
+                          variant="outlined"
+                          size="small"
+                          color="primary"
+                          @click="downloadOriginalFile(file)"
+                        >
+                          <v-icon class="mr-1">mdi-download</v-icon>
+                          Descargar
+                        </v-btn>
+
+                        <!-- Reemplazar: botón por cada archivo, en la misma línea -->
+                        <div v-if="authStore.isProveedor && invoice.supplier_id === authStore.user?.supplier_id">
+                          <v-btn
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            @click.prevent="triggerReplaceOriginal(index)"
+                          >
+                            <v-icon small class="mr-1">mdi-file-replace</v-icon>
+                            Reemplazar
+                          </v-btn>
+                          <input :id="'replace-original-input-' + index" type="file" accept="application/pdf" style="display:none" @change="handleReplaceOriginal($event, file.filename)" />
+                        </div>
+                      </div>
                     </template>
                   </v-list-item>
                 </v-list>
+                <!-- Fin lista de archivos originales -->
               </v-card-text>
             </v-card>
           </v-col>
@@ -225,15 +248,31 @@ Redirección a la vista de gestión -->
                     <v-list-item-title>Retención ISR</v-list-item-title>
                     <v-list-item-subtitle>Constancia de retención del impuesto</v-list-item-subtitle>
                     <template v-slot:append>
-                      <v-btn
-                        variant="outlined"
-                        size="small"
-                        color="blue"
-                        @click="downloadISR"
-                      >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
+                      <div class="d-flex gap-2">
+                        <v-btn
+                          variant="outlined"
+                          size="small"
+                          color="blue"
+                          @click="downloadISR"
+                        >
+                          <v-icon class="mr-1">mdi-download</v-icon>
+                          Descargar
+                        </v-btn>
+
+                        <!-- Reemplazar ISR: solo visible para el proveedor dueño de la factura -->
+                        <div v-if="authStore.isProveedor && invoice.supplier_id === authStore.user?.supplier_id">
+                          <v-btn
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            @click.prevent="triggerReplaceISR"
+                          >
+                            <v-icon class="mr-1">mdi-file-replace</v-icon>
+                            Reemplazar
+                          </v-btn>
+                          <input id="replace-isr-input" type="file" accept="application/pdf" style="display:none" @change="replaceISR" />
+                        </div>
+                      </div>
                     </template>
                   </v-list-item>
 
@@ -245,15 +284,31 @@ Redirección a la vista de gestión -->
                     <v-list-item-title>Retención IVA</v-list-item-title>
                     <v-list-item-subtitle>Constancia de retención del IVA</v-list-item-subtitle>
                     <template v-slot:append>
-                      <v-btn
-                        variant="outlined"
-                        size="small"
-                        color="cyan"
-                        @click="downloadIVA"
-                      >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
+                      <div class="d-flex gap-2">
+                        <v-btn
+                          variant="outlined"
+                          size="small"
+                          color="cyan"
+                          @click="downloadIVA"
+                        >
+                          <v-icon class="mr-1">mdi-download</v-icon>
+                          Descargar
+                        </v-btn>
+
+                        <!-- Reemplazar IVA: solo visible para el proveedor dueño de la factura -->
+                        <div v-if="authStore.isProveedor && invoice.supplier_id === authStore.user?.supplier_id">
+                          <v-btn
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            @click.prevent="triggerReplaceIVA"
+                          >
+                            <v-icon class="mr-1">mdi-file-replace</v-icon>
+                            Reemplazar
+                          </v-btn>
+                          <input id="replace-iva-input" type="file" accept="application/pdf" style="display:none" @change="replaceIVA" />
+                        </div>
+                      </div>
                     </template>
                   </v-list-item>
 
@@ -265,15 +320,31 @@ Redirección a la vista de gestión -->
                     <v-list-item-title>Comprobante de Pago</v-list-item-title>
                     <v-list-item-subtitle>Comprobante final del pago</v-list-item-subtitle>
                     <template v-slot:append>
-                      <v-btn
-                        variant="outlined"
-                        size="small"
-                        color="green"
-                        @click="downloadProof"
-                      >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
+                      <div class="d-flex gap-2">
+                        <v-btn
+                          variant="outlined"
+                          size="small"
+                          color="green"
+                          @click="downloadProof"
+                        >
+                          <v-icon class="mr-1">mdi-download</v-icon>
+                          Descargar
+                        </v-btn>
+
+                        <!-- Reemplazar comprobante: solo visible para el proveedor dueño de la factura -->
+                        <div v-if="authStore.isProveedor && invoice.supplier_id === authStore.user?.supplier_id">
+                          <v-btn
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            @click.prevent="triggerReplaceProof"
+                          >
+                            <v-icon class="mr-1">mdi-file-replace</v-icon>
+                            Reemplazar
+                          </v-btn>
+                          <input id="replace-proof-input" type="file" accept="application/pdf" style="display:none" @change="replaceProof" />
+                        </div>
+                      </div>
                     </template>
                   </v-list-item>
 
@@ -285,15 +356,31 @@ Redirección a la vista de gestión -->
                     <v-list-item-title>Archivo de Contraseña</v-list-item-title>
                     <v-list-item-subtitle>Documento con información de acceso</v-list-item-subtitle>
                     <template v-slot:append>
-                      <v-btn
-                        variant="outlined"
-                        size="small"
-                        color="purple"
-                        @click="downloadPassword"
-                      >
-                        <v-icon class="mr-1">mdi-download</v-icon>
-                        Descargar
-                      </v-btn>
+                      <div class="d-flex gap-2">
+                        <v-btn
+                          variant="outlined"
+                          size="small"
+                          color="purple"
+                          @click="downloadPassword"
+                        >
+                          <v-icon class="mr-1">mdi-download</v-icon>
+                          Descargar
+                        </v-btn>
+
+                        <!-- Reemplazar contraseña: solo visible para el proveedor dueño de la factura -->
+                        <div v-if="authStore.isProveedor && invoice.supplier_id === authStore.user?.supplier_id">
+                          <v-btn
+                            variant="outlined"
+                            size="small"
+                            color="warning"
+                            @click.prevent="triggerReplacePassword"
+                          >
+                            <v-icon class="mr-1">mdi-file-replace</v-icon>
+                            Reemplazar
+                          </v-btn>
+                          <input id="replace-password-input" type="file" accept="application/pdf" style="display:none" @change="replacePassword" />
+                        </div>
+                      </div>
                     </template>
                   </v-list-item>
 
@@ -393,10 +480,44 @@ const {
   formatDate,
   formatDateTime,
   formatFileSize,
-  initializeInvoiceDetail
+  initializeInvoiceDetail,
+  replacingFile,
+  triggerReplaceISR,
+  triggerReplaceIVA,
+  triggerReplaceProof,
+  triggerReplacePassword,
+  replaceISR,
+  replaceIVA,
+  replaceProof,
+  replacePassword
+  ,replaceOriginal
 } = useInvoiceDetail()
 
 onMounted(initializeInvoiceDetail)
+
+// Handler para el input de reemplazo original
+const handleReplaceOriginal = async (event, originalFilename) => {
+  const file = event.target.files[0]
+  if (!file) return
+  try {
+    await replaceOriginal(file, originalFilename)
+  } catch (err) {
+    // ya manejado en composable
+  } finally {
+    event.target.value = ''
+  }
+}
+
+// Trigger para abrir el selector de archivo original de forma segura
+const triggerReplaceOriginal = (index) => {
+  try {
+    const el = document.getElementById('replace-original-input-' + index)
+    if (el) el.click()
+  } catch (err) {
+    // En entornos muy aislados document podría no estar disponible; mostrar aviso en consola
+    console.error('No se pudo abrir el selector de archivos:', err)
+  }
+}
 </script>
 
 <style src="../styles/invoice-detail.css" scoped></style>

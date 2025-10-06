@@ -141,6 +141,123 @@ export function useInvoiceDetail() {
     }
   }
 
+  // Reemplazo de documentos (para proveedores)
+  const replacingFile = ref(false)
+
+  const triggerReplaceISR = () => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.getElementById('replace-isr-input')
+        if (input) input.click()
+      }
+    } catch (err) {
+      console.error('Error al abrir selector ISR:', err)
+    }
+  }
+
+  const triggerReplaceIVA = () => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.getElementById('replace-iva-input')
+        if (input) input.click()
+      }
+    } catch (err) {
+      console.error('Error al abrir selector IVA:', err)
+    }
+  }
+
+  const triggerReplaceProof = () => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.getElementById('replace-proof-input')
+        if (input) input.click()
+      }
+    } catch (err) {
+      console.error('Error al abrir selector comprobante:', err)
+    }
+  }
+
+  const triggerReplacePassword = () => {
+    try {
+      if (typeof document !== 'undefined') {
+        const input = document.getElementById('replace-password-input')
+        if (input) input.click()
+      }
+    } catch (err) {
+      console.error('Error al abrir selector de contraseña:', err)
+    }
+  }
+
+  const replaceGeneric = async (event, type) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    replacingFile.value = true
+    const formData = new FormData()
+    formData.append('file', file)
+
+    try {
+      const response = await axios.put(`/api/invoices/${route.params.id}/replace-document/${type}`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      })
+
+      // Recargar datos
+      await loadInvoice()
+      toast.success('Documento reemplazado exitosamente')
+      return response.data
+    } catch (error) {
+      console.error('Error reemplazando documento:', error)
+      toast.error('Error al reemplazar el documento')
+      throw error
+    } finally {
+      replacingFile.value = false
+      // limpiar input
+      if (event && event.target) event.target.value = ''
+    }
+  }
+
+  const replaceISR = async (event) => replaceGeneric(event, 'retention_isr')
+  const replaceIVA = async (event) => replaceGeneric(event, 'retention_iva')
+  const replaceProof = async (event) => replaceGeneric(event, 'payment_proof')
+  const replacePassword = async (event) => replaceGeneric(event, 'password_file')
+
+  // Reemplazar archivo original (proveedor)
+  const replaceOriginal = async (fileObj, originalFilename = null) => {
+    if (!fileObj) return
+    replacingFile.value = true
+    const formData = new FormData()
+    formData.append('file', fileObj)
+    if (originalFilename) formData.append('original_filename', originalFilename)
+
+    try {
+      let response
+      try {
+        response = await axios.put(`/api/invoices/${route.params.id}/replace-original`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        })
+      } catch (err) {
+        // Si el servidor/proxy no soporta PUT para multipart, intentar POST como fallback
+        if (err?.response?.status === 404) {
+          console.warn('PUT not found for replace-original, trying POST as fallback');
+          response = await axios.post(`/api/invoices/${route.params.id}/replace-original`, formData, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+          })
+        } else {
+          throw err
+        }
+      }
+      await loadInvoice()
+      toast.success(response.data.message || 'Archivo reemplazado')
+      return response.data
+    } catch (error) {
+      console.error('Error reemplazando archivo original:', error)
+      toast.error('Error al reemplazar archivo original')
+      throw error
+    } finally {
+      replacingFile.value = false
+    }
+  }
+
   // Funciones de utilidad
   const getStatusColor = (status) => {
     const colors = {
@@ -203,21 +320,29 @@ export function useInvoiceDetail() {
   }
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('es-GT', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
+    try {
+      return new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString))
+    } catch (e) {
+      return new Date(dateString).toLocaleDateString('es-GT', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      })
+    }
   }
 
   const formatDateTime = (dateString) => {
-    return new Date(dateString).toLocaleString('es-GT', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    })
+    try {
+      return new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(dateString))
+    } catch (e) {
+      return new Date(dateString).toLocaleString('es-GT', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    }
   }
 
   const formatFileSize = (bytes) => {
@@ -252,6 +377,18 @@ export function useInvoiceDetail() {
     downloadIVA,
     downloadProof,
     downloadPassword,
+  // Replace handlers for suppliers
+  replacingFile,
+  triggerReplaceISR,
+  triggerReplaceIVA,
+  triggerReplaceProof,
+  triggerReplacePassword,
+  replaceISR,
+  replaceIVA,
+  replaceProof,
+  replacePassword,
+  // Original replacement
+  replaceOriginal,
     getStatusColor,
     getStatusText,
     getPriorityColor,

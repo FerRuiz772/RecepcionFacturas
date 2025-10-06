@@ -28,6 +28,16 @@ function isLocalIp(ip) {
 function keyGenerator(req) {
   try {
     if (req.user && req.user.userId) return `user_${req.user.userId}`;
+    // Use express-rate-limit helper to normalize IPv4/IPv6 addresses
+    try {
+      if (typeof rateLimit.ipKeyGenerator === 'function') {
+        const normalized = rateLimit.ipKeyGenerator(req);
+        return `ip_${normalized || (req.ip || req.connection?.remoteAddress || 'unknown')}`;
+      }
+    } catch (e) {
+      // fallthrough to basic ip
+    }
+
     // req.ip respetará trust proxy si está configurado
     return `ip_${req.ip || req.connection?.remoteAddress || 'unknown'}`;
   } catch (err) {

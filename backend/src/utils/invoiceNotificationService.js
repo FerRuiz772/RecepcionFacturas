@@ -34,6 +34,16 @@ class InvoiceNotificationService {
     console.log('🔧 InvoiceNotificationService initialized with base URL:', this.baseUrl);
   }
 
+  // Formatea fechas usando la zona horaria de Guatemala
+  formatGuatemalaDateTime(date = new Date(), opts = {}) {
+    const options = Object.assign({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }, opts);
+    try {
+      return new Intl.DateTimeFormat('es-GT', Object.assign({ timeZone: 'America/Guatemala' }, options)).format(new Date(date));
+    } catch (e) {
+      return new Date(date).toLocaleString();
+    }
+  }
+
   /**
    * Notifica cuando se sube una nueva factura al sistema
    * Envía confirmación al proveedor y alerta a la contaduría asignada
@@ -181,6 +191,16 @@ class InvoiceNotificationService {
    * @param {Object} proveedorUser - Usuario del proveedor para personalización
    */
   async sendInvoiceReceivedNotification(supplier, invoice, proveedorUser) {
+    // Asegurarse de que tenga el Payment relacionado para incluir la contraseña si existe
+    try {
+      if (!invoice.payment) {
+        const { Payment } = require('../models');
+        const payment = await Payment.findOne({ where: { invoice_id: invoice.id } });
+        if (payment) invoice.payment = payment;
+      }
+    } catch (e) {
+      console.warn('⚠️ No se pudo cargar Payment para la factura en el email de recepción:', e.message || e);
+    }
     const subject = `✅ Factura ${invoice.number} recibida correctamente`;
     
     const htmlContent = `
@@ -207,10 +227,12 @@ class InvoiceNotificationService {
                 <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Proveedor:</td>
                 <td style="padding: 8px 0; color: #0f172a;">${supplier.business_name}</td>
               </tr>
+              ${invoice.payment && invoice.payment.password_generated ? `
               <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Monto:</td>
-                <td style="padding: 8px 0; color: #0f172a;">Q${parseFloat(invoice.amount || 0).toLocaleString('es-GT', {minimumFractionDigits: 2})}</td>
+                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Contraseña:</td>
+                <td style="padding: 8px 0; color: #0f172a;"><strong style="background:#eef2ff;padding:6px 10px;border-radius:6px;">${invoice.payment.password_generated}</strong></td>
               </tr>
+              ` : ''}
               <tr>
                 <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado:</td>
                 <td style="padding: 8px 0;">
@@ -219,9 +241,9 @@ class InvoiceNotificationService {
                   </span>
                 </td>
               </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha de subida:</td>
-                <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-GT')}</td>
+                <tr>
+                  <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha de subida:</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.formatGuatemalaDateTime(new Date(), { year: 'numeric', month: 'long', day: 'numeric' })}</td>
               </tr>
             </table>
           </div>
@@ -415,7 +437,7 @@ class InvoiceNotificationService {
                 <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;width:40%">Número:</td><td style="padding:6px 0;color:#0f172a">${invoice.number}</td></tr>
                 <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Proveedor:</td><td style="padding:6px 0;color:#0f172a">${supplier.business_name}</td></tr>
                 <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Actualizado por:</td><td style="padding:6px 0;color:#0f172a">${changedBy?.name || 'Sistema'}</td></tr>
-                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Fecha:</td><td style="padding:6px 0;color:#0f172a">${new Date().toLocaleDateString('es-GT')} ${new Date().toLocaleTimeString('es-GT')}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Fecha:</td><td style="padding:6px 0;color:#0f172a">${this.formatGuatemalaDateTime(new Date())}</td></tr>
               </table>
             </div>
             <div style="text-align:center;margin-top:18px;">
@@ -452,7 +474,7 @@ class InvoiceNotificationService {
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha:</td>
-                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-GT')} ${new Date().toLocaleTimeString('es-GT')}</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.formatGuatemalaDateTime(new Date())}</td>
                 </tr>
               </table>
             </div>
@@ -482,6 +504,102 @@ class InvoiceNotificationService {
       return result;
     } catch (error) {
       console.error(`❌ Error enviando notificación de cambio de estado al proveedor ${supplier.business_name} (${proveedorUser.email}):`, error);
+      throw error;
+    }
+  }
+
+  /**
+   * Notifica la generación de contraseña para descarga de factura
+   * Incluye en el correo tanto la referencia de la factura (REF-...) como la contraseña (CONTRA-...)
+   * Envía al proveedor, al usuario que generó la contraseña y a los admins de contaduría
+   *
+   * @param {Object} invoice - Datos de la factura
+   * @param {Object} proveedorUser - Usuario del proveedor
+   * @param {Object} generatedByUser - Usuario que generó la contraseña
+   * @param {string} password - Contraseña generada (formato CONTRA-YYYYMMDD-#####)
+   */
+  async notifyPasswordGenerated(invoice, proveedorUser, generatedByUser, password) {
+    try {
+      console.log(`📧 notifyPasswordGenerated iniciado para factura: ${invoice.number}`);
+      if (!proveedorUser?.email) {
+        console.log('⚠️ Proveedor no tiene email configurado');
+        return { success: false, message: 'No email address' };
+      }
+
+      const subject = `🔐 Contraseña generada para factura ${invoice.number}`;
+
+      const htmlContent = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9f9f9;">
+          <div style="background-color: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h1 style="color: #0f172a; margin: 0;">🔐 Contraseña Generada</h1>
+              <div style="width: 60px; height: 3px; background-color: #8b5cf6; margin: 10px auto;"></div>
+            </div>
+
+            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+              <h3 style="color: #0f172a; margin: 0 0 10px 0;">📋 Detalles</h3>
+              <table style="width:100%;border-collapse:collapse;">
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold;width:40%">Número:</td><td style="padding:6px 0;color:#0f172a">${invoice.number}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Contraseña:</td><td style="padding:6px 0;color:#0f172a"><strong style="background:#eef2ff;padding:6px 10px;border-radius:6px;">${password}</strong></td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Generada por:</td><td style="padding:6px 0;color:#0f172a">${generatedByUser?.name || 'Sistema'}</td></tr>
+                <tr><td style="padding:6px 0;color:#64748b;font-weight:bold">Fecha:</td><td style="padding:6px 0;color:#0f172a">${this.formatGuatemalaDateTime(new Date())}</td></tr>
+              </table>
+            </div>
+
+            <div style="text-align:center;margin-top:18px;">
+              <a href="${this.baseUrl}/invoices/${invoice.id}" style="background-color:#8b5cf6;color:white;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;">Ver Factura</a>
+            </div>
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; color: #64748b; font-size: 12px;">
+              <p>© ${new Date().getFullYear()} Sistema de Recepción de Facturas. Todos los derechos reservados.</p>
+              <p>Este es un mensaje automático, por favor no respondas a este correo.</p>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const results = [];
+      try {
+        const r = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+        console.log(`✅ Notificación de contraseña enviada al proveedor ${proveedorUser.email}`);
+        results.push({ to: proveedorUser.email, result: r });
+      } catch (err) {
+        console.error(`❌ Error enviando notificación al proveedor ${proveedorUser.email}:`, err);
+        results.push({ to: proveedorUser.email, error: err.message || err });
+      }
+
+      // Notificar al usuario que generó la contraseña
+      if (generatedByUser && generatedByUser.email) {
+        try {
+          const r = await emailService.sendEmail(generatedByUser.email, subject, htmlContent);
+          console.log(`✅ Notificación de contraseña enviada al generador: ${generatedByUser.email}`);
+          results.push({ to: generatedByUser.email, result: r });
+        } catch (err) {
+          console.error(`❌ Error enviando notificación al generador ${generatedByUser.email}:`, err);
+          results.push({ to: generatedByUser.email, error: err.message || err });
+        }
+      }
+
+      // Notificar a admins de contaduría
+      try {
+        const adminsContaduria = await User.findAll({ where: { role: 'admin_contaduria', is_active: true } });
+        for (const admin of adminsContaduria) {
+          try {
+            const r = await emailService.sendEmail(admin.email, `[SUPERVISIÓN] ${subject}`, htmlContent);
+            console.log(`✅ Notificación de contraseña enviada a admin: ${admin.email}`);
+            results.push({ to: admin.email, result: r });
+          } catch (err) {
+            console.error(`❌ Error enviando a admin ${admin.email}:`, err);
+            results.push({ to: admin.email, error: err.message || err });
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo admins de contaduría para notificar contraseña:', err);
+      }
+
+      return results;
+    } catch (error) {
+      console.error('❌ Error en notifyPasswordGenerated:', error);
       throw error;
     }
   }
@@ -543,7 +661,7 @@ class InvoiceNotificationService {
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha:</td>
-                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-ES')}</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.formatGuatemalaDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' })}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado:</td>
@@ -644,7 +762,7 @@ class InvoiceNotificationService {
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Fecha del reemplazo:</td>
-                  <td style="padding: 8px 0; color: #0f172a;">${new Date().toLocaleDateString('es-ES')}</td>
+                  <td style="padding: 8px 0; color: #0f172a;">${this.formatGuatemalaDateTime(new Date(), { year: 'numeric', month: '2-digit', day: '2-digit' })}</td>
                 </tr>
                 <tr>
                   <td style="padding: 8px 0; color: #64748b; font-weight: bold;">Estado actual:</td>
@@ -687,9 +805,48 @@ class InvoiceNotificationService {
         </div>
       `;
 
-      const result = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
-      console.log(`✅ Notificación de documento reemplazado enviada exitosamente al proveedor ${proveedorUser.email}:`, result);
-      return result;
+      // Enviar al proveedor principal
+      const results = [];
+      try {
+        const r = await emailService.sendEmail(proveedorUser.email, subject, htmlContent);
+        console.log(`✅ Notificación de documento reemplazado enviada exitosamente al proveedor ${proveedorUser.email}:`, r);
+        results.push({ to: proveedorUser.email, result: r });
+      } catch (err) {
+        console.error(`❌ Error enviando notificación al proveedor ${proveedorUser.email}:`, err);
+        results.push({ to: proveedorUser.email, error: err.message || err });
+      }
+
+      // Intentar notificar al usuario que realizó el reemplazo (uploader)
+      if (uploaderUser && uploaderUser.email) {
+        try {
+          const r = await emailService.sendEmail(uploaderUser.email, subject, htmlContent);
+          console.log(`✅ Notificación de documento reemplazado enviada al usuario que reemplazó: ${uploaderUser.email}`);
+          results.push({ to: uploaderUser.email, result: r });
+        } catch (err) {
+          console.error(`❌ Error enviando notificación al uploader ${uploaderUser.email}:`, err);
+          results.push({ to: uploaderUser.email, error: err.message || err });
+        }
+      }
+
+      // Notificar a todos los admins de contaduría activos
+      try {
+        const adminsContaduria = await User.findAll({ where: { role: 'admin_contaduria', is_active: true } });
+        console.log(`🔍 Administradores de contaduría a notificar: ${adminsContaduria.length}`);
+        for (const admin of adminsContaduria) {
+          try {
+            const r = await emailService.sendEmail(admin.email, `[SUPERVISIÓN] ${subject}`, htmlContent);
+            console.log(`✅ Notificación enviada a admin contaduría: ${admin.email}`);
+            results.push({ to: admin.email, result: r });
+          } catch (err) {
+            console.error(`❌ Error enviando notificación a admin ${admin.email}:`, err);
+            results.push({ to: admin.email, error: err.message || err });
+          }
+        }
+      } catch (err) {
+        console.error('❌ Error obteniendo admins de contaduría para notificación:', err);
+      }
+
+      return results;
     } catch (error) {
       console.error(`❌ Error enviando notificación de documento reemplazado al proveedor:`, error);
       throw error;

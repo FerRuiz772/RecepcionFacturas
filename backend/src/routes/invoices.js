@@ -157,4 +157,19 @@ router.put('/:id/replace-document/:type', writeRateLimit, requirePermission(['in
     invoiceController.replaceDocument
 );
 
+// Ruta para que el proveedor reemplace el/los archivos originales que subió
+// No requerimos permisos de contaduría; validateInvoiceAccess permitirá al proveedor operar sobre su propia factura
+router.put('/:id/replace-original', writeRateLimit,
+    upload.single('file'),
+    validateInvoiceAccess,
+    invoiceController.replaceOriginalFile
+);
+
+// POST alias: algunos proxies o configuraciones bloquean PUT multipart; aceptar POST como fallback
+router.post('/:id/replace-original', writeRateLimit,
+    upload.single('file'),
+    validateInvoiceAccess,
+    invoiceController.replaceOriginalFile
+);
+
 module.exports = router;
