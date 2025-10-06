@@ -36,6 +36,12 @@ const Supplier = sequelize.define('Supplier', {
         defaultValue: {},
         comment: 'Información bancaria del proveedor (cuenta, banco, etc.) en formato JSON'
     },
+    regimen_isr: {
+        type: DataTypes.TINYINT(1),
+        defaultValue: 0,
+        allowNull: false,
+        comment: 'Indica si el proveedor está sujeto a retención definitiva ISR (1) o no (0)'
+    },
     is_active: { 
         type: DataTypes.BOOLEAN, 
         defaultValue: true,

@@ -385,8 +385,8 @@ Rechazo de facturas (para contaduría/administradores) -->
                     Documentos Obligatorios
                   </h3>
 
-                  <!-- Retención ISR -->
-                  <div class="document-upload-item mb-4">
+                  <!-- Retención ISR - CONDICIONAL -->
+                  <div v-if="invoice?.supplier?.regimen_isr" class="document-upload-item mb-4">
                     <div class="document-header d-flex justify-space-between align-center mb-2">
                       <div class="document-info d-flex align-center">
                         <v-icon color="indigo" class="mr-3">mdi-file-percent</v-icon>

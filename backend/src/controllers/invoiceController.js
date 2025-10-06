@@ -380,7 +380,7 @@ const VALID_STATE_TRANSITIONS = {
     'retencion_isr_generada': ['retencion_iva_generada', 'pago_realizado', 'proceso_completado', 'rechazada'],
     'retencion_iva_generada': ['pago_realizado', 'proceso_completado', 'rechazada'],
     'pago_realizado': ['proceso_completado', 'rechazada'],
-    'proceso_completado': [],
+    'proceso_completado': ['rechazada'],
     'rechazada': ['factura_subida']
 };
 
@@ -461,7 +461,7 @@ const invoiceController = {
                 {
                     model: Supplier,
                     as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit']
+                    attributes: ['id', 'business_name', 'nit', 'regimen_isr']
                 },
                 {
                     model: Payment,
@@ -521,7 +521,7 @@ const invoiceController = {
                 {
                     model: Supplier,
                     as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit', 'contact_phone']
+                    attributes: ['id', 'business_name', 'nit', 'contact_phone', 'regimen_isr']
                 },
                 {
                     model: InvoiceState,
@@ -840,7 +840,7 @@ const invoiceController = {
             // Obtener factura completa para respuesta ANTES del commit
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit'] },
+                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'regimen_isr'] },
                     { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false },
                     { model: Payment, as: 'payment', required: false }
                 ],
@@ -1078,7 +1078,7 @@ const invoiceController = {
             try {
                 const invoiceWithDetails = await Invoice.findByPk(id, {
                     include: [
-                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name'] }
+                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'regimen_isr'] }
                     ]
                 });
                 
@@ -1154,8 +1154,9 @@ const invoiceController = {
                 return res.status(403).json({ error: 'Solo puede rechazar facturas asignadas a usted', code: 'ACCESS_DENIED' });
             }
 
-            // No permitir rechazar si ya está en proceso_completado o ya rechazada
-            if (['proceso_completado', 'rechazada'].includes(invoice.status)) {
+            // Permitir rechazar facturas incluso si están en 'proceso_completado'.
+            // Solo bloquear si ya están en 'rechazada'.
+            if (invoice.status === 'rechazada') {
                 await transaction.rollback();
                 return res.status(400).json({ error: `No se puede rechazar una factura en estado '${invoice.status}'` });
             }

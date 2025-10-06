@@ -199,9 +199,9 @@ const supplierController = {
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { business_name, nit, address } = req.body;
+            const { business_name, nit, address, regimen_isr } = req.body;
 
-            console.log('📋 Datos extraídos:', { business_name, nit, address });
+            console.log('📋 Datos extraídos:', { business_name, nit, address, regimen_isr });
 
             // Verificar que el NIT no exista
             const existingSupplier = await Supplier.findOne({ where: { nit } });
@@ -214,7 +214,8 @@ const supplierController = {
             const supplier = await Supplier.create({
                 business_name,
                 nit,
-                address
+                address,
+                regimen_isr: regimen_isr || false
             });
 
             console.log('✅ Proveedor creado:', supplier.id);
@@ -250,7 +251,15 @@ const supplierController = {
     async updateSupplier(req, res) {
         try {
             const { id } = req.params;
-            const { business_name, contact_phone, address, bank_details, is_active } = req.body;
+            const { business_name, contact_phone, address, bank_details, regimen_isr, is_active } = req.body;
+
+            console.log('📝 Actualizando proveedor:', { 
+                id, 
+                business_name, 
+                regimen_isr, 
+                regimen_isr_type: typeof regimen_isr,
+                is_active 
+            });
 
             const supplier = await Supplier.findByPk(id);
             if (!supplier) {
@@ -262,11 +271,18 @@ const supplierController = {
                 contact_phone,
                 address,
                 bank_details,
+                regimen_isr,
                 is_active
+            });
+
+            console.log('✅ Proveedor actualizado:', { 
+                id: supplier.id, 
+                regimen_isr: supplier.regimen_isr 
             });
 
             res.json(supplier);
         } catch (error) {
+            console.error('❌ Error actualizando proveedor:', error);
             res.status(500).json({ error: 'Error interno del servidor' });
         }
     },

@@ -255,6 +255,16 @@
                   rows="3"
                 ></v-textarea>
               </v-col>
+              <v-col cols="12">
+                <v-switch
+                  v-model="supplierForm.regimen_isr"
+                  label="Régimen Sujeto a Definitiva ISR"
+                  color="primary"
+                  hint="Si está activo, las facturas de este proveedor requerirán documento ISR"
+                  persistent-hint
+                  class="my-3"
+                ></v-switch>
+              </v-col>
               <v-col cols="12" v-if="editMode">
                 <v-switch
                   v-model="supplierForm.is_active"

@@ -84,14 +84,22 @@ export function useInvoiceManage() {
 
   const documentsProgress = computed(() => {
     if (!invoice.value) return 0
-    let completed = 0
-    let total = 3 // ISR, IVA, Proof
     
-    if (hasDocument('isr')) completed++
+    // Base: IVA + Proof = 2 documentos
+    let required = 2
+    let completed = 0
+    
+    // Contar documentos base (IVA y Proof son siempre requeridos)
     if (hasDocument('iva')) completed++
     if (hasDocument('proof')) completed++
     
-    return Math.round((completed / total) * 100)
+    // Si tiene régimen ISR, agregar el documento ISR a requeridos
+    if (invoice.value.supplier?.regimen_isr) {
+      required = 3
+      if (hasDocument('isr')) completed++
+    }
+    
+    return Math.round((completed / required) * 100)
   })
 
   // Cargar datos de la factura

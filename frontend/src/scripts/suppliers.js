@@ -24,8 +24,13 @@ export function useSuppliers() {
     business_name: '',
     nit: '',
     address: '',
+    regimen_isr: false,
     is_active: true
   })
+
+  // Campos nuevos para régimen y archivos
+  // File input (File object) separate from stored metadata
+  supplierForm.value.documento_isr_file = null
 
   // Reglas de validación (coinciden con las del backend)
   const nitRules = [
@@ -105,14 +110,21 @@ export function useSuppliers() {
       business_name: '',
       nit: '',
       address: '',
-      is_active: true
+      regimen_isr: false,
+      is_active: true,
+      documento_isr_file: null
     }
     supplierDialog.value = true
   }
 
   const editSupplier = (supplier) => {
     editMode.value = true
-    supplierForm.value = { ...supplier }
+    // Copy supplier data into the form.
+    supplierForm.value = { 
+      ...supplier, 
+      regimen_isr: Boolean(supplier.regimen_isr), // Convert 0/1 to false/true
+      documento_isr_file: null 
+    }
     supplierDialog.value = true
   }
 
@@ -122,7 +134,9 @@ export function useSuppliers() {
       business_name: '',
       nit: '',
       address: '',
-      is_active: true
+      regimen_isr: false,
+      is_active: true,
+      documento_isr_file: null
     }
   }
 
@@ -132,10 +146,28 @@ export function useSuppliers() {
     saving.value = true
     try {
       if (editMode.value) {
-        await axios.put(`/api/suppliers/${supplierForm.value.id}`, supplierForm.value)
+        // Editing - send only the fields that can be updated
+        const payload = {
+          business_name: supplierForm.value.business_name,
+          nit: supplierForm.value.nit,
+          address: supplierForm.value.address,
+          contact_phone: supplierForm.value.contact_phone,
+          regimen_isr: supplierForm.value.regimen_isr ? 1 : 0,
+          is_active: supplierForm.value.is_active
+        }
+        console.log('📤 Actualizando proveedor:', payload)
+        await axios.put(`/api/suppliers/${supplierForm.value.id}`, payload)
         toast.success('Proveedor actualizado exitosamente')
       } else {
-        await axios.post('/api/suppliers', supplierForm.value)
+        // Creation: send plain JSON
+        const payload = { 
+          business_name: supplierForm.value.business_name,
+          nit: supplierForm.value.nit,
+          address: supplierForm.value.address,
+          regimen_isr: supplierForm.value.regimen_isr ? 1 : 0
+        }
+        console.log('📤 Creando proveedor:', payload)
+        await axios.post('/api/suppliers', payload)
         toast.success('Proveedor creado exitosamente')
       }
 
