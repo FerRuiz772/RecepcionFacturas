@@ -61,53 +61,71 @@ const userController = {
      * @param {Object} res - Response con lista paginada de usuarios
      * @returns {Object} Lista de usuarios con información de paginación
      */
-    async getAllUsers(req, res) {
+        async getAllUsers(req, res) {
         try {
-            // Extraer parámetros de query con valores por defecto
-            const { page = 1, limit = 10, search = '', role } = req.query;
-            const offset = (page - 1) * limit;
-            
-            // Construir filtros dinámicos para la consulta
-            const where = {};
-            if (role) {
+                // Extraer parámetros de query con valores por defecto
+                const { page = 1, limit = 10, search = '', role, supplier } = req.query;
+                const offset = (page - 1) * limit;
+        
+                // Construir filtros dinámicos para la consulta
+                const where = {};
+                if (role) {
                 // Soportar múltiples roles separados por comas
                 const roles = role.split(',').map(r => r.trim());
                 where.role = { [Op.in]: roles };
-            }
-            if (search) {
+                }
+                if (search) {
                 // Búsqueda por nombre usando LIKE
                 where.name = { [Op.like]: `%${search}%` };
-            }
-            // Filtro opcional por estado activo/inactivo
-            if (typeof req.query.is_active !== 'undefined') {
+                }
+                // Filtro opcional por estado activo/inactivo
+                if (typeof req.query.is_active !== 'undefined') {
                 where.is_active = req.query.is_active === 'true';
-            }
+                }
 
-            // Consulta con paginación e inclusión de datos del proveedor
-            const users = await User.findAndCountAll({
-                where,
-                attributes: { exclude: ['password_hash'] }, // Excluir datos sensibles
-                include: [{
+                // Preparar include para Supplier; por defecto LEFT JOIN (required: false)
+                let supplierInclude = {
                     model: Supplier,
                     as: 'supplier',
                     attributes: ['id', 'business_name', 'nit'],
-                    required: false // LEFT JOIN para incluir usuarios sin proveedor
-                }],
-                order: [['created_at', 'DESC']], // Más recientes primero
+                    required: false
+                };
+
+                // Nuevo filtro por empresa/proveedor: aceptamos ID (numérico) o parte del nombre (texto)
+                if (supplier) {
+                    // si es numérico, filtramos por supplier_id
+                    if (/^\d+$/.test(String(supplier))) {
+                        where.supplier_id = parseInt(supplier);
+                    } else {
+                        // si es texto, filtramos por business_name usando LIKE y convertimos el JOIN en INNER
+                        supplierInclude = {
+                            ...supplierInclude,
+                            required: true,
+                            where: { business_name: { [Op.like]: `%${supplier}%` } }
+                        };
+                    }
+                }
+
+                // Consulta con paginación e inclusión de datos del proveedor
+                const users = await User.findAndCountAll({
+                where,
+                attributes: { exclude: ['password_hash'] },
+                include: [supplierInclude],
+                order: [['created_at', 'DESC']],
                 limit: parseInt(limit),
                 offset: parseInt(offset)
-            });
+                });
 
-            res.json(createResponse(true, 'Usuarios obtenidos exitosamente', {
-                users: users.rows,
-                total: users.count,
-                page: parseInt(page),
-                totalPages: Math.ceil(users.count / limit)
-            }));
-        } catch (error) {
-            console.error('Error al obtener usuarios:', error);
-            res.status(500).json(createResponse(false, 'Error interno del servidor', null));
-        }
+        res.json(createResponse(true, 'Usuarios obtenidos exitosamente', {
+        users: users.rows,
+        total: users.count,
+        page: parseInt(page),
+        totalPages: Math.ceil(users.count / limit)
+        }));
+    } catch (error) {
+        console.error('Error al obtener usuarios:', error);
+        res.status(500).json(createResponse(false, 'Error interno del servidor', null));
+    }
     },
 
     /**

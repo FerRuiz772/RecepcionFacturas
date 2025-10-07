@@ -16,6 +16,7 @@ export function useUsers() {
   const searchQuery = ref('')
   const roleFilter = ref(null)
   const activeFilter = ref(null)
+  const supplierFilter = ref(null)
   const userDialog = ref(false)
   const editMode = ref(false)
   const saving = ref(false)
@@ -63,6 +64,7 @@ export function useUsers() {
         limit: options.itemsPerPage || itemsPerPage.value,
         search: searchQuery.value,
         role: roleFilter.value,
+        supplier: supplierFilter.value, // Nuevo filtro
       }
 
       // Solo enviar is_active si no es null/undefined
@@ -307,6 +309,7 @@ export function useUsers() {
     searchQuery.value = ''
     roleFilter.value = null
     activeFilter.value = null
+    supplierFilter.value = null
     loadUsers()
   }
 
@@ -324,6 +327,7 @@ export function useUsers() {
     editMode,
     saving,
     formValid,
+    supplierFilter,
     userFormRef,
     userForm,
     permissionsDialog,
