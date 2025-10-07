@@ -93,20 +93,16 @@
               <div style="width:100%; display:flex; align-items:center">
                 <v-select
                   v-model="supplierFilter"
-                  :items="filteredSuppliers"
+                  :items="suppliers"
                   item-title="business_name"
                   item-value="id"
                   label="Empresa"
                   variant="outlined"
                   density="comfortable"
                   clearable
-                  searchable
-                  @update:search-input="supplierSearchInput = $event"
                   @update:model-value="enhancedOnFilterChange"
                   style="width:100%; min-height:48px"
                   hide-details
-                  no-data-text="Escribe para buscar empresas"
-                  :no-filter="!supplierSearchInput"
                 ></v-select>
               </div>
             </v-col>
@@ -798,7 +794,6 @@ const auth = useAuthStore()
 
 // Variables para la paginación
 const currentPage = ref(1)
-const supplierSearchInput = ref('')
 
 // Variable para las pestañas
 const activeTab = ref('general')
@@ -843,6 +838,7 @@ const {
   searchQuery,
   roleFilter,
   activeFilter,
+  supplierFilter,
   userDialog,
   editMode,
   saving,
@@ -947,15 +943,6 @@ const totalPages = computed(() => {
   const total = Number(totalUsers.value || 0)
   const perPage = Number(itemsPerPage.value || 1)
   return Math.max(1, Math.ceil(total / perPage))
-})
-
-const filteredSuppliers = computed(() => {
-  if (!supplierSearchInput.value) return suppliers.value
-  
-  return suppliers.value.filter(supplier =>
-    supplier.business_name.toLowerCase()
-      .includes(supplierSearchInput.value.toLowerCase())
-  )
 })
 
 // Computed para verificar si puede gestionar permisos

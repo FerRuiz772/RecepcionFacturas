@@ -72,6 +72,8 @@ export function useUsers() {
         params.is_active = activeFilter.value
       }
 
+      console.log('🔍 Filtros enviados al backend:', params)
+
       const response = await axios.get('/api/users', { params })
       
       // Manejar diferentes estructuras de respuesta del API
@@ -323,11 +325,11 @@ export function useUsers() {
     searchQuery,
     roleFilter,
     activeFilter,
+    supplierFilter,
     userDialog,
     editMode,
     saving,
     formValid,
-    supplierFilter,
     userFormRef,
     userForm,
     permissionsDialog,
