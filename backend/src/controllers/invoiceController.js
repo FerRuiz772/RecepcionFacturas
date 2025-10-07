@@ -708,7 +708,9 @@ const invoiceController = {
                     number,
                     amount: parseFloat(amount),
                     description,
-                    due_date
+                    due_date,
+                    serie: req.body.serie || null,
+                    numero_dte: req.body.numero_dte || null
                 };
             } else if (role !== 'proveedor') {
                 // Si es contaduría pero no envió datos, es un error
@@ -895,7 +897,7 @@ const invoiceController = {
         
         try {
             const { id } = req.params;
-            const { amount, description, due_date, priority } = req.body;
+            const { amount, description, due_date, priority, serie, numero_dte } = req.body;
 
             const invoice = await Invoice.findByPk(parseInt(id), { transaction });
             if (!invoice) {
@@ -931,6 +933,8 @@ const invoiceController = {
             if (description !== undefined) updateData.description = description;
             if (due_date !== undefined) updateData.due_date = due_date;
             if (priority !== undefined) updateData.priority = priority;
+            if (serie !== undefined) updateData.serie = serie || null;
+            if (numero_dte !== undefined) updateData.numero_dte = numero_dte || null;
 
             // Determinar si necesita cambio de estado
             let newStatus = invoice.status;

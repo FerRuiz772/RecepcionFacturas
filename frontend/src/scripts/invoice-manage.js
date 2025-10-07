@@ -114,7 +114,9 @@ export function useInvoiceManage() {
         amount: invoice.value.amount,
         description: invoice.value.description,
         priority: invoice.value.priority,
-        due_date: invoice.value.due_date ? invoice.value.due_date.split('T')[0] : ''
+        due_date: invoice.value.due_date ? invoice.value.due_date.split('T')[0] : '',
+        serie: invoice.value.serie || '',
+        numero_dte: invoice.value.numero_dte || ''
       }
     } catch (error) {
       console.error('Error loading invoice:', error)

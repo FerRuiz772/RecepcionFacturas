@@ -115,6 +115,18 @@ Redirección a la vista de gestión -->
                       <div class="info-value">{{ invoice.due_date ? formatDate(invoice.due_date) : 'No especificada' }}</div>
                     </div>
                   </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="info-field">
+                      <label>Número de Serie</label>
+                      <div class="info-value">{{ invoice.serie || 'No especificado' }}</div>
+                    </div>
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <div class="info-field">
+                      <label>Número de DTE</label>
+                      <div class="info-value">{{ invoice.numero_dte || 'No especificado' }}</div>
+                    </div>
+                  </v-col>
                   <v-col cols="12">
                     <div class="info-field">
                       <label>Descripción</label>

@@ -77,6 +77,16 @@ const Invoice = sequelize.define('Invoice', {
         type: DataTypes.JSON, 
         defaultValue: {},
         comment: 'Datos adicionales del procesamiento (observaciones, pasos completados, etc.)'
+    },
+    serie: {
+        type: DataTypes.STRING(50),
+        allowNull: true,
+        comment: 'Número de serie de la factura'
+    },
+    numero_dte: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        comment: 'Número de DTE (Documento Tributario Electrónico)'
     }
 }, {
     tableName: 'invoices',

@@ -214,6 +214,30 @@ Rechazo de facturas (para contaduría/administradores) -->
                       :disabled="saving"
                     />
                   </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="editForm.serie"
+                      label="Número de Serie"
+                      variant="outlined"
+                      density="compact"
+                      :disabled="saving"
+                      hint="Ejemplo: A001, Serie-2024, etc."
+                      persistent-hint
+                      clearable
+                    />
+                  </v-col>
+                  <v-col cols="12" md="6">
+                    <v-text-field
+                      v-model="editForm.numero_dte"
+                      label="Número de DTE"
+                      variant="outlined"
+                      density="compact"
+                      :disabled="saving"
+                      hint="Documento Tributario Electrónico"
+                      persistent-hint
+                      clearable
+                    />
+                  </v-col>
                   <v-col cols="12">
                     <v-alert
                       type="info"
