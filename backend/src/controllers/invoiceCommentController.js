@@ -1,6 +1,7 @@
-const { InvoiceComment, User, Invoice } = require('../models');
+const { InvoiceComment, User, Invoice, Supplier } = require('../models');
 const { sendSuccess, sendError } = require('../utils/response');
 const logger = require('../utils/logger');
+const { sendCommentNotification } = require('../utils/commentNotificationService');
 
 /**
  * Obtener comentarios de una factura
@@ -100,6 +101,28 @@ exports.createComment = async (req, res) => {
     logger.info(`Comentario creado en factura ${invoiceId}`, {
       userId: user.id,
       commentId: newComment.id
+    });
+
+    // Enviar notificaciones por email (asíncrono, no bloqueante)
+    setImmediate(async () => {
+      try {
+        // Obtener factura completa con supplier
+        const fullInvoice = await Invoice.findByPk(invoiceId, {
+          include: [
+            {
+              model: Supplier,
+              as: 'supplier',
+              attributes: ['id', 'business_name']
+            }
+          ]
+        });
+
+        if (fullInvoice) {
+          await sendCommentNotification(newComment, fullInvoice, user);
+        }
+      } catch (error) {
+        logger.error('Error al enviar notificaciones de comentario:', error);
+      }
     });
 
     return sendSuccess(res, commentWithUser, 'Comentario creado exitosamente', 201);

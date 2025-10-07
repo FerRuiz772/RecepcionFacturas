@@ -26,6 +26,7 @@ const requestLogger = require('./src/middleware/requestLogger');
 const logger = require('./src/utils/logger');
 const bcrypt = require('bcrypt');
 const emailService = require('./src/utils/emailService');
+const { initializeCommentNotificationService } = require('./src/utils/commentNotificationService');
 
 const app = express();
 
@@ -157,6 +158,10 @@ app.listen(PORT, async () => {
     console.log(`🌐 API disponible en: http://localhost:${PORT}`);
     console.log(`❤️ Health check: http://localhost:${PORT}/health`);
     console.log(`🧪 Test endpoint: http://localhost:${PORT}/api/test`);
+    
+    // Inicializar servicio de notificaciones de comentarios
+    initializeCommentNotificationService();
+    
     // Verificar configuración SMTP para facilitar debugging de envios de email
     try {
         const ok = await emailService.verifyConfiguration();
