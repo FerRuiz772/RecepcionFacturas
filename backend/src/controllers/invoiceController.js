@@ -26,6 +26,7 @@ const { validationResult } = require('express-validator');
 const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
 const invoiceNotificationService = require('../utils/invoiceNotificationService');
 const statusNotificationService = require('../utils/statusNotificationService');
+const invoiceDocumentService = require('../services/invoiceDocumentService');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs').promises;
@@ -461,7 +462,7 @@ const invoiceController = {
                 {
                     model: Supplier,
                     as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit', 'regimen_isr']
+                    attributes: ['id', 'business_name', 'nit', 'tipo_proveedor']
                 },
                 {
                     model: Payment,
@@ -521,7 +522,7 @@ const invoiceController = {
                 {
                     model: Supplier,
                     as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit', 'contact_phone', 'regimen_isr']
+                    attributes: ['id', 'business_name', 'nit', 'contact_phone', 'tipo_proveedor']
                 },
                 {
                     model: InvoiceState,
@@ -842,7 +843,7 @@ const invoiceController = {
             // Obtener factura completa para respuesta ANTES del commit
             const createdInvoice = await Invoice.findByPk(invoice.id, {
                 include: [
-                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'regimen_isr'] },
+                    { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'nit', 'tipo_proveedor'] },
                     { model: User, as: 'assignedUser', attributes: ['id', 'name', 'email'], required: false },
                     { model: Payment, as: 'payment', required: false }
                 ],
@@ -1082,7 +1083,7 @@ const invoiceController = {
             try {
                 const invoiceWithDetails = await Invoice.findByPk(id, {
                     include: [
-                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'regimen_isr'] }
+                        { model: Supplier, as: 'supplier', attributes: ['id', 'business_name', 'tipo_proveedor'] }
                     ]
                 });
                 
@@ -1337,6 +1338,33 @@ const invoiceController = {
                 });
             }
 
+            // VALIDAR QUE EL DOCUMENTO SEA REQUERIDO SEGÚN EL TIPO DE PROVEEDOR
+            const fieldMapping = {
+                'retention_isr': 'isr_retention_file',
+                'retention_iva': 'iva_retention_file',
+                'payment_proof': 'payment_proof_file',
+                'password_file': 'password_file'
+            };
+
+            const tipoProveedor = invoiceWithSupplier.supplier.tipo_proveedor;
+            const documentField = fieldMapping[type];
+
+            if (!invoiceDocumentService.isDocumentRequired(documentField, tipoProveedor)) {
+                const tipoLabels = {
+                    'definitiva': 'Régimen Definitiva ISR',
+                    'pagos_trimestrales': 'Pagos Trimestrales',
+                    'pequeno_contribuyente': 'Pequeño Contribuyente',
+                    'pagos_trimestrales_retencion': 'Pagos Trimestrales - Agente Retención'
+                };
+
+                return res.status(400).json({
+                    error: `Este tipo de proveedor (${tipoLabels[tipoProveedor]}) no requiere este documento`,
+                    code: 'DOCUMENT_NOT_REQUIRED',
+                    tipoProveedor: tipoProveedor,
+                    documentType: type
+                });
+            }
+
             // Crear directorio de uploads si no existe
             const invoiceDir = await createInvoiceFolder(
                 invoiceWithSupplier.supplier.business_name,
@@ -1393,14 +1421,7 @@ const invoiceController = {
                 defaults: { invoice_id: invoice.id }
             });
 
-            // Mapear los tipos a los campos correctos de la base de datos
-            const fieldMapping = {
-                'retention_isr': 'isr_retention_file',
-                'retention_iva': 'iva_retention_file',
-                'payment_proof': 'payment_proof_file',
-                'password_file': 'password_file'
-            };
-
+            // Usar el mismo mapeo definido arriba
             const updateData = {
                 [fieldMapping[type]]: newFileName
             };
@@ -3367,13 +3388,34 @@ const invoiceController = {
             // Recargar payment con datos actualizados
             await payment.reload();
 
-            // Verificar si todos los documentos están completos
-            const allDocumentsComplete = payment.password_file && 
-                                       payment.isr_retention_file && 
-                                       payment.iva_retention_file && 
-                                       payment.payment_proof_file;
+            // Obtener información del supplier con su tipo de proveedor
+            const invoiceWithSupplier = await Invoice.findByPk(invoice.id, {
+                include: [{ model: Supplier, as: 'supplier' }]
+            });
+
+            if (!invoiceWithSupplier || !invoiceWithSupplier.supplier) {
+                console.error('⚠️ No se pudo obtener información del proveedor');
+                return;
+            }
+
+            const tipoProveedor = invoiceWithSupplier.supplier.tipo_proveedor;
+            
+            console.log('📋 Verificando documentos para tipo de proveedor:', {
+                tipoProveedor,
+                documentType,
+                invoiceId: invoice.id
+            });
+
+            // Verificar si todos los documentos REQUERIDOS están completos según el tipo de proveedor
+            const allDocumentsComplete = invoiceDocumentService.isInvoiceComplete(payment, tipoProveedor);
+
+            const requiredDocs = invoiceDocumentService.getRequiredDocuments(tipoProveedor);
+            const missingDocs = invoiceDocumentService.getMissingDocuments(payment, tipoProveedor);
 
             console.log('📋 Estado de documentos:', {
+                tipoProveedor,
+                requiredDocs,
+                missingDocs,
                 password_file: !!payment.password_file,
                 isr_retention_file: !!payment.isr_retention_file,
                 iva_retention_file: !!payment.iva_retention_file,
@@ -3382,7 +3424,7 @@ const invoiceController = {
                 currentStatus: invoice.status
             });
 
-            // Si todos los documentos están completos, siempre ir a proceso_completado
+            // Si todos los documentos REQUERIDOS están completos, ir a proceso_completado
             if (allDocumentsComplete) {
                 // Validar que la factura tenga un monto válido antes de completar
                 if (!invoice.amount || parseFloat(invoice.amount) <= 0) {
@@ -3391,29 +3433,13 @@ const invoiceController = {
                         amount: invoice.amount
                     });
                     
-                    // Si todos los documentos están pero falta monto, ir al estado según documento subido
-                    switch (documentType) {
-                        case 'retention_isr':
-                            newStatus = 'retencion_isr_generada';
-                            statusNotes = 'Retención ISR subida - Pendiente: definir monto de factura';
-                            break;
-                        case 'retention_iva':
-                            newStatus = 'retencion_iva_generada';
-                            statusNotes = 'Retención IVA subida - Pendiente: definir monto de factura';
-                            break;
-                        case 'password_file':
-                            newStatus = 'contrasena_generada';
-                            statusNotes = 'Archivo de contraseña subido - Pendiente: definir monto de factura';
-                            break;
-                        case 'payment_proof':
-                            newStatus = 'pago_realizado';
-                            statusNotes = 'Comprobante de pago subido - Pendiente: definir monto de factura';
-                            break;
-                    }
+                    // Determinar estado basado en documentos subidos y tipo de proveedor
+                    newStatus = invoiceDocumentService.determineNextState(payment, tipoProveedor);
+                    statusNotes = `Documentos completos para ${tipoProveedor} - Pendiente: definir monto de factura`;
                 } else {
                     // Todos los documentos completos Y monto válido = proceso completado
                     newStatus = 'proceso_completado';
-                    statusNotes = 'Proceso completado automáticamente - todos los documentos subidos';
+                    statusNotes = `Proceso completado automáticamente - todos los documentos de ${tipoProveedor} subidos`;
                     
                     // Actualizar la fecha de completado
                     await payment.update({
@@ -3421,25 +3447,18 @@ const invoiceController = {
                     });
                 }
             } else {
-                // No todos los documentos están completos, avanzar estado por estado
-                switch (documentType) {
-                    case 'retention_isr':
-                        newStatus = 'retencion_isr_generada';
-                        statusNotes = 'Retención ISR subida automáticamente';
-                        break;
-                    case 'retention_iva':
-                        newStatus = 'retencion_iva_generada';
-                        statusNotes = 'Retención IVA subida automáticamente';
-                        break;
-                    case 'password_file':
-                        newStatus = 'contrasena_generada';
-                        statusNotes = 'Archivo de contraseña subido automáticamente';
-                        break;
-                    case 'payment_proof':
-                        newStatus = 'pago_realizado';
-                        statusNotes = 'Comprobante de pago subido';
-                        break;
-                }
+                // No todos los documentos están completos, determinar siguiente estado según tipo de proveedor
+                newStatus = invoiceDocumentService.determineNextState(payment, tipoProveedor);
+                
+                // Generar nota según documento subido
+                const docNames = {
+                    'retention_isr': 'Retención ISR',
+                    'retention_iva': 'Retención IVA',
+                    'password_file': 'Archivo de contraseña',
+                    'payment_proof': 'Comprobante de pago'
+                };
+                
+                statusNotes = `${docNames[documentType] || 'Documento'} subido - Tipo proveedor: ${tipoProveedor}`;
             }
 
             if (newStatus && newStatus !== invoice.status) {
@@ -3447,6 +3466,7 @@ const invoiceController = {
                     invoiceId: invoice.id,
                     oldStatus: invoice.status,
                     newStatus: newStatus,
+                    tipoProveedor: tipoProveedor,
                     reason: statusNotes
                 });
 
@@ -3702,6 +3722,51 @@ const invoiceController = {
                 error: 'Error ejecutando corrección de estados',
                 details: error.message
             });
+        }
+    },
+
+    /**
+     * Obtener información de documentos requeridos según tipo de proveedor
+     */
+    async getRequiredDocuments(req, res, next) {
+        try {
+            const { id } = req.params;
+            
+            const invoice = await Invoice.findByPk(id, {
+                include: [
+                    { model: Supplier, as: 'supplier' },
+                    { model: Payment, as: 'payment' }
+                ]
+            });
+
+            if (!invoice) {
+                return res.status(404).json({ error: 'Factura no encontrada' });
+            }
+
+            if (!invoice.supplier) {
+                return res.status(400).json({ error: 'Proveedor no encontrado' });
+            }
+
+            const tipoProveedor = invoice.supplier.tipo_proveedor;
+            const required = invoiceDocumentService.getRequiredDocuments(tipoProveedor);
+            const missing = invoiceDocumentService.getMissingDocuments(invoice.payment, tipoProveedor);
+            const progress = invoiceDocumentService.calculateProgress(invoice.payment, tipoProveedor);
+
+            return res.json({
+                tipo_proveedor: tipoProveedor,
+                required,
+                missing,
+                progress,
+                isComplete: missing.length === 0,
+                documents: {
+                    password_file: !!invoice.payment?.password_file,
+                    isr_retention_file: !!invoice.payment?.isr_retention_file,
+                    iva_retention_file: !!invoice.payment?.iva_retention_file,
+                    payment_proof_file: !!invoice.payment?.payment_proof_file
+                }
+            });
+        } catch (error) {
+            next(error);
         }
     }
 };

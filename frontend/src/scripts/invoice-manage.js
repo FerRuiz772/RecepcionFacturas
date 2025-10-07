@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from 'vue-toastification'
+import { useInvoiceDocuments } from '../composables/useInvoiceDocuments.js'
 import axios from 'axios'
 
 export function useInvoiceManage() {
@@ -9,6 +10,9 @@ export function useInvoiceManage() {
   const router = useRouter()
   const authStore = useAuthStore()
   const toast = useToast()
+  
+  // Composable para manejo de documentos dinámicos
+  const { calculateProgress: calculateDocumentProgress } = useInvoiceDocuments()
 
   // Estados reactivos
   const loading = ref(false)
@@ -85,21 +89,11 @@ export function useInvoiceManage() {
   const documentsProgress = computed(() => {
     if (!invoice.value) return 0
     
-    // Base: IVA + Proof = 2 documentos
-    let required = 2
-    let completed = 0
+    // Usar el servicio de documentos para calcular el progreso según el tipo de proveedor
+    const tipoProveedor = invoice.value.supplier?.tipo_proveedor || 'definitiva'
+    const payment = invoice.value.payment || {}
     
-    // Contar documentos base (IVA y Proof son siempre requeridos)
-    if (hasDocument('iva')) completed++
-    if (hasDocument('proof')) completed++
-    
-    // Si tiene régimen ISR, agregar el documento ISR a requeridos
-    if (invoice.value.supplier?.regimen_isr) {
-      required = 3
-      if (hasDocument('isr')) completed++
-    }
-    
-    return Math.round((completed / required) * 100)
+    return calculateDocumentProgress(payment, tipoProveedor)
   })
 
   // Cargar datos de la factura

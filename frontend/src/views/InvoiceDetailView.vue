@@ -251,9 +251,25 @@ Redirección a la vista de gestión -->
                 Documentos Generados
               </v-card-title>
               <v-card-text class="pa-6">
+                <!-- Información del tipo de proveedor -->
+                <v-alert 
+                  v-if="invoice.supplier?.tipo_proveedor" 
+                  type="info" 
+                  variant="tonal" 
+                  density="compact" 
+                  class="mb-4"
+                >
+                  <div class="text-body-2">
+                    <strong>Tipo de Proveedor:</strong> {{ getTipoProveedorLabel(invoice.supplier.tipo_proveedor) }}
+                  </div>
+                </v-alert>
+
                 <v-list>
                   <!-- Retención ISR -->
-                  <v-list-item v-if="hasDocument('isr')" class="document-item">
+                  <v-list-item 
+                    v-if="hasDocument('isr') && isDocumentRequired('isr_retention_file', invoice.supplier?.tipo_proveedor)" 
+                    class="document-item"
+                  >
                     <template v-slot:prepend>
                       <v-icon color="blue">mdi-file-document</v-icon>
                     </template>
@@ -289,7 +305,10 @@ Redirección a la vista de gestión -->
                   </v-list-item>
 
                   <!-- Retención IVA -->
-                  <v-list-item v-if="hasDocument('iva')" class="document-item">
+                  <v-list-item 
+                    v-if="hasDocument('iva') && isDocumentRequired('iva_retention_file', invoice.supplier?.tipo_proveedor)" 
+                    class="document-item"
+                  >
                     <template v-slot:prepend>
                       <v-icon color="cyan">mdi-file-certificate</v-icon>
                     </template>
@@ -469,6 +488,7 @@ Redirección a la vista de gestión -->
 <script setup>
 import { onMounted } from 'vue'
 import { useInvoiceDetail } from '../scripts/invoice-detail.js'
+import { useInvoiceDocuments } from '../composables/useInvoiceDocuments.js'
 import InvoiceComments from '../components/InvoiceComments.vue'
 
 const {
@@ -512,6 +532,9 @@ const {
   replacePassword
   ,replaceOriginal
 } = useInvoiceDetail()
+
+// Composable para manejo de documentos dinámicos según tipo de proveedor
+const { isDocumentRequired, getTipoProveedorLabel } = useInvoiceDocuments()
 
 onMounted(initializeInvoiceDetail)
 

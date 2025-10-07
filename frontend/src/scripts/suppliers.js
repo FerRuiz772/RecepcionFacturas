@@ -24,7 +24,7 @@ export function useSuppliers() {
     business_name: '',
     nit: '',
     address: '',
-    regimen_isr: false,
+    tipo_proveedor: 'definitiva', // Default
     is_active: true
   })
 
@@ -110,7 +110,7 @@ export function useSuppliers() {
       business_name: '',
       nit: '',
       address: '',
-      regimen_isr: false,
+      tipo_proveedor: 'definitiva', // Default
       is_active: true,
       documento_isr_file: null
     }
@@ -122,7 +122,7 @@ export function useSuppliers() {
     // Copy supplier data into the form.
     supplierForm.value = { 
       ...supplier, 
-      regimen_isr: Boolean(supplier.regimen_isr), // Convert 0/1 to false/true
+      tipo_proveedor: supplier.tipo_proveedor || 'definitiva',
       documento_isr_file: null 
     }
     supplierDialog.value = true
@@ -134,7 +134,7 @@ export function useSuppliers() {
       business_name: '',
       nit: '',
       address: '',
-      regimen_isr: false,
+      tipo_proveedor: 'definitiva',
       is_active: true,
       documento_isr_file: null
     }
@@ -152,7 +152,7 @@ export function useSuppliers() {
           nit: supplierForm.value.nit,
           address: supplierForm.value.address,
           contact_phone: supplierForm.value.contact_phone,
-          regimen_isr: supplierForm.value.regimen_isr ? 1 : 0,
+          tipo_proveedor: supplierForm.value.tipo_proveedor,
           is_active: supplierForm.value.is_active
         }
         console.log('📤 Actualizando proveedor:', payload)
@@ -164,7 +164,7 @@ export function useSuppliers() {
           business_name: supplierForm.value.business_name,
           nit: supplierForm.value.nit,
           address: supplierForm.value.address,
-          regimen_isr: supplierForm.value.regimen_isr ? 1 : 0
+          tipo_proveedor: supplierForm.value.tipo_proveedor
         }
         console.log('📤 Creando proveedor:', payload)
         await axios.post('/api/suppliers', payload)

@@ -93,6 +93,9 @@ router.post('/', writeRateLimit, requirePermission(['invoices.create']),
 // ===== Rutas con parámetros dinámicos AL FINAL =====
 router.get('/:id', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.getInvoiceById);
 
+// ===== Info de documentos requeridos según tipo de proveedor =====
+router.get('/:id/required-documents', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), validateInvoiceAccess, invoiceController.getRequiredDocuments);
+
 // ===== COMENTARIOS (chat por factura) =====
 router.get('/:invoiceId/comments', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), invoiceCommentController.getComments);
 router.post('/:invoiceId/comments', writeRateLimit, requirePermission(['invoices.view'], { requireAll: false }), [

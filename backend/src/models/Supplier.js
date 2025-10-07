@@ -36,11 +36,16 @@ const Supplier = sequelize.define('Supplier', {
         defaultValue: {},
         comment: 'Información bancaria del proveedor (cuenta, banco, etc.) en formato JSON'
     },
-    regimen_isr: {
-        type: DataTypes.TINYINT(1),
-        defaultValue: 0,
+    tipo_proveedor: {
+        type: DataTypes.ENUM(
+            'definitiva',
+            'pagos_trimestrales',
+            'pequeno_contribuyente',
+            'pagos_trimestrales_retencion'
+        ),
         allowNull: false,
-        comment: 'Indica si el proveedor está sujeto a retención definitiva ISR (1) o no (0)'
+        defaultValue: 'definitiva',
+        comment: 'Tipo fiscal del proveedor que determina qué documentos debe subir en sus facturas'
     },
     is_active: { 
         type: DataTypes.BOOLEAN, 

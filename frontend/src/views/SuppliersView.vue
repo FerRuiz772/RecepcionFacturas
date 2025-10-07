@@ -256,14 +256,44 @@
                 ></v-textarea>
               </v-col>
               <v-col cols="12">
-                <v-switch
-                  v-model="supplierForm.regimen_isr"
-                  label="Régimen Sujeto a Definitiva ISR"
-                  color="primary"
-                  hint="Si está activo, las facturas de este proveedor requerirán documento ISR"
+                <v-select
+                  v-model="supplierForm.tipo_proveedor"
+                  :items="[
+                    { 
+                      value: 'definitiva', 
+                      title: 'Régimen Definitiva ISR',
+                      subtitle: 'Requiere: ISR + IVA + Contraseña + Comprobante'
+                    },
+                    { 
+                      value: 'pagos_trimestrales', 
+                      title: 'Pagos Trimestrales',
+                      subtitle: 'Requiere: IVA + Contraseña + Comprobante'
+                    },
+                    { 
+                      value: 'pequeno_contribuyente', 
+                      title: 'Pequeño Contribuyente',
+                      subtitle: 'Requiere: IVA + Contraseña + Comprobante'
+                    },
+                    { 
+                      value: 'pagos_trimestrales_retencion', 
+                      title: 'Pagos Trimestrales - Agente Retención',
+                      subtitle: 'Requiere: Contraseña + Comprobante'
+                    }
+                  ]"
+                  item-title="title"
+                  item-value="value"
+                  label="Tipo de Proveedor Fiscal"
+                  variant="outlined"
+                  hint="Determina qué documentos debe subir en sus facturas"
                   persistent-hint
-                  class="my-3"
-                ></v-switch>
+                  required
+                  :rules="[v => !!v || 'Tipo de proveedor requerido']"
+                >
+                  <template v-slot:item="{ item, props }">
+                    <v-list-item v-bind="props" :title="item.raw.title" :subtitle="item.raw.subtitle">
+                    </v-list-item>
+                  </template>
+                </v-select>
               </v-col>
               <v-col cols="12" v-if="editMode">
                 <v-switch

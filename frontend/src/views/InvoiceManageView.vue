@@ -149,6 +149,11 @@ Rechazo de facturas (para contaduría/administradores) -->
                       <label>Proveedor</label>
                       <div class="info-value">{{ invoice.supplier?.business_name }}</div>
                       <div class="info-subtitle">NIT: {{ invoice.supplier?.nit }}</div>
+                      <div class="info-subtitle" v-if="invoice.supplier?.tipo_proveedor">
+                        <v-chip size="x-small" variant="tonal" color="info" class="mt-1">
+                          {{ getTipoProveedorLabel(invoice.supplier.tipo_proveedor) }}
+                        </v-chip>
+                      </div>
                     </div>
                   </v-col>
                   <v-col cols="12">
@@ -410,7 +415,7 @@ Rechazo de facturas (para contaduría/administradores) -->
                   </h3>
 
                   <!-- Retención ISR - CONDICIONAL -->
-                  <div v-if="invoice?.supplier?.regimen_isr" class="document-upload-item mb-4">
+                  <div v-if="isDocumentRequired('isr_retention_file', invoice?.supplier?.tipo_proveedor)" class="document-upload-item mb-4">
                     <div class="document-header d-flex justify-space-between align-center mb-2">
                       <div class="document-info d-flex align-center">
                         <v-icon color="indigo" class="mr-3">mdi-file-percent</v-icon>
@@ -482,7 +487,7 @@ Rechazo de facturas (para contaduría/administradores) -->
                   </div>
 
                   <!-- Retención IVA -->
-                  <div class="document-upload-item mb-4">
+                  <div v-if="isDocumentRequired('iva_retention_file', invoice?.supplier?.tipo_proveedor)" class="document-upload-item mb-4">
                     <div class="document-header d-flex justify-space-between align-center mb-2">
                       <div class="document-info d-flex align-center">
                         <v-icon color="teal" class="mr-3">mdi-file-percent</v-icon>
@@ -797,7 +802,11 @@ import { onMounted, ref } from 'vue'
 import axios from 'axios'
 import { useToast } from 'vue-toastification'
 import { useInvoiceManage } from '../scripts/invoice-manage.js'
+import { useInvoiceDocuments } from '../composables/useInvoiceDocuments.js'
 import { useAuthStore } from '../stores/auth.js'
+
+// Composable para labels de tipo de proveedor
+const { getTipoProveedorLabel, isDocumentRequired } = useInvoiceDocuments()
 
 const {
   // Estado reactivo

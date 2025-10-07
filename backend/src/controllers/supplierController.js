@@ -199,9 +199,9 @@ const supplierController = {
                 return res.status(400).json({ errors: errors.array() });
             }
 
-            const { business_name, nit, address, regimen_isr } = req.body;
+            const { business_name, nit, address, tipo_proveedor } = req.body;
 
-            console.log('📋 Datos extraídos:', { business_name, nit, address, regimen_isr });
+            console.log('📋 Datos extraídos:', { business_name, nit, address, tipo_proveedor });
 
             // Verificar que el NIT no exista
             const existingSupplier = await Supplier.findOne({ where: { nit } });
@@ -215,7 +215,7 @@ const supplierController = {
                 business_name,
                 nit,
                 address,
-                regimen_isr: regimen_isr || false
+                tipo_proveedor: tipo_proveedor || 'definitiva'
             });
 
             console.log('✅ Proveedor creado:', supplier.id);
@@ -245,19 +245,20 @@ const supplierController = {
      * @param {string} req.body.contact_phone - Teléfono de contacto
      * @param {string} req.body.address - Dirección física
      * @param {Object} req.body.bank_details - Información bancaria en JSON
+     * @param {string} req.body.tipo_proveedor - Tipo fiscal del proveedor
      * @param {boolean} req.body.is_active - Estado activo/inactivo
      * @returns {Object} Proveedor actualizado
      */
     async updateSupplier(req, res) {
         try {
             const { id } = req.params;
-            const { business_name, contact_phone, address, bank_details, regimen_isr, is_active } = req.body;
+            const { business_name, contact_phone, address, bank_details, tipo_proveedor, is_active } = req.body;
 
             console.log('📝 Actualizando proveedor:', { 
                 id, 
                 business_name, 
-                regimen_isr, 
-                regimen_isr_type: typeof regimen_isr,
+                tipo_proveedor, 
+                tipo_proveedor_type: typeof tipo_proveedor,
                 is_active 
             });
 
@@ -271,13 +272,13 @@ const supplierController = {
                 contact_phone,
                 address,
                 bank_details,
-                regimen_isr,
+                tipo_proveedor,
                 is_active
             });
 
             console.log('✅ Proveedor actualizado:', { 
                 id: supplier.id, 
-                regimen_isr: supplier.regimen_isr 
+                tipo_proveedor: supplier.tipo_proveedor 
             });
 
             res.json(supplier);
