@@ -62,6 +62,9 @@ router.post('/fix-states', writeRateLimit, (req, res, next) => {
 // ===== Rutas básicas =====
 router.get('/', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), invoiceController.getAllInvoices);
 
+// ===== Exportación a Excel =====
+router.get('/export/excel', readRateLimit, requirePermission(['invoices.view'], { requireAll: false }), invoiceExcelController.exportToExcel);
+
 // Crear factura (proveedores solo suben archivos, contaduría incluye datos)
 router.post('/', writeRateLimit, requirePermission(['invoices.create']),
     invoiceController.uploadMiddleware,

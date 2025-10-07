@@ -1,5 +1,5 @@
 /**
- * Controlador para generación de reportes Excel de facturas
+ * Controlador para generaciÃ³n de reportes Excel de facturas
  * Sistema PayQuetzal
  */
 
@@ -14,10 +14,10 @@ const invoiceExcelController = {
      */
     async exportToExcel(req, res) {
         try {
-            const { status, supplier_id, assigned_to, tipo_proveedor, search, date_from, date_to } = req.query;
+            const { status, supplier_id, assigned_to, search, date_from, date_to } = req.query;
             
-            console.log('📊 Iniciando exportación a Excel con filtros:', {
-                status, supplier_id, assigned_to, tipo_proveedor, search, date_from, date_to
+            console.log('ðŸ“Š Iniciando exportaciÃ³n a Excel con filtros:', {
+                status, supplier_id, assigned_to, search, date_from, date_to
             });
 
             // Construir whereClause igual que en getAllInvoices
@@ -39,7 +39,7 @@ const invoiceExcelController = {
                 }
             }
 
-            // Búsqueda por número de factura o descripción
+            // BÃºsqueda por nÃºmero de factura o descripciÃ³n
             if (search) {
                 where[Op.or] = [
                     { number: { [Op.like]: `%${search}%` } },
@@ -55,14 +55,14 @@ const invoiceExcelController = {
                 where.assigned_to = req.user.userId;
             }
 
-            console.log('🔍 Where clause para exportación:', where);
+            console.log('ðŸ” Where clause para exportaciÃ³n:', where);
 
             // Configurar includes basado en el rol del usuario
             const includes = [
                 {
                     model: Supplier,
                     as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit', 'contact_phone', 'tipo_proveedor']
+                    attributes: ['id', 'business_name', 'nit', 'contact_phone']
                 },
                 {
                     model: Payment,
@@ -71,7 +71,7 @@ const invoiceExcelController = {
                 }
             ];
 
-            // Solo incluir información del usuario asignado si NO es proveedor
+            // Solo incluir informaciÃ³n del usuario asignado si NO es proveedor
             if (req.user.role !== 'proveedor') {
                 includes.push({
                     model: User,
@@ -88,7 +88,7 @@ const invoiceExcelController = {
                 order: [['created_at', 'DESC']]
             });
 
-            console.log(`✅ ${invoices.length} facturas encontradas para exportar`);
+            console.log(`âœ… ${invoices.length} facturas encontradas para exportar`);
 
             if (invoices.length === 0) {
                 return res.status(404).json({ 
@@ -106,29 +106,35 @@ const invoiceExcelController = {
                 properties: { tabColor: { argb: 'FF1976D2' } }
             });
 
-            // Definir columnas
+            // Definir columnas segÃºn el rol
             const columns = [
                 { header: 'ID', key: 'id', width: 10 },
                 { header: 'No. Factura', key: 'number', width: 20 },
                 { header: 'Proveedor', key: 'supplier', width: 30 },
-                { header: 'Tipo DTE', key: 'tipo_dte', width: 15 },
-                { header: 'Serie', key: 'serie', width: 15 },
-                { header: 'Número de DTE', key: 'numero_dte', width: 20 },
-                { header: 'NIT Empresa', key: 'nit', width: 15 },
+                { header: 'NIT', key: 'nit', width: 15 },
                 { header: 'Monto', key: 'amount', width: 15 },
-                { header: 'Descripción', key: 'description', width: 40 },
+                { header: 'DescripciÃ³n', key: 'description', width: 40 },
                 { header: 'Estado', key: 'status', width: 20 },
                 { header: 'Prioridad', key: 'priority', width: 12 },
-                { header: 'Fecha Creación', key: 'created_at', width: 18 },
-                { header: 'Fecha Vencimiento', key: 'due_date', width: 18 },
-                { header: 'Cancelado', key: 'cancelado', width: 12 },
-                { header: 'Fecha de Cancelación', key: 'fecha_cancelacion', width: 20 },
-                { header: 'Régimen', key: 'regimen', width: 30 },
-                { header: 'Tiene Contraseña', key: 'has_password', width: 15 },
+                { header: 'Fecha CreaciÃ³n', key: 'created_at', width: 18 },
+                { header: 'Fecha Vencimiento', key: 'due_date', width: 18 }
+            ];
+
+            // Agregar columnas especÃ­ficas segÃºn rol
+            if (req.user.role !== 'proveedor') {
+                columns.push(
+                    { header: 'Asignado a', key: 'assigned_to', width: 25 },
+                    { header: 'Email Asignado', key: 'assigned_email', width: 30 }
+                );
+            }
+
+            // Columnas de documentos
+            columns.push(
+                { header: 'Tiene ContraseÃ±a', key: 'has_password', width: 15 },
                 { header: 'Tiene ISR', key: 'has_isr', width: 12 },
                 { header: 'Tiene IVA', key: 'has_iva', width: 12 },
                 { header: 'Tiene Comprobante', key: 'has_payment_proof', width: 18 }
-            ];
+            );
 
             worksheet.columns = columns;
 
@@ -147,7 +153,7 @@ const invoiceExcelController = {
                 'factura_subida': 'Factura Subida',
                 'asignada_contaduria': 'Asignada',
                 'en_proceso': 'En Proceso',
-                'contrasena_generada': 'Contraseña Generada',
+                'contrasena_generada': 'ContraseÃ±a Generada',
                 'retencion_isr_generada': 'ISR Generado',
                 'retencion_iva_generada': 'IVA Generado',
                 'pago_realizado': 'Pago Realizado',
@@ -161,38 +167,32 @@ const invoiceExcelController = {
                 'baja': 'Baja'
             };
 
-            // Mapeo de tipo_proveedor a régimen
-            const regimenMap = {
-                'definitiva': 'Régimen Definitiva ISR',
-                'pagos_trimestrales': 'Pagos Trimestrales',
-                'pequeno_contribuyente': 'Pequeño Contribuyente',
-                'pagos_trimestrales_retencion': 'Pagos Trimestrales - Agente Retención'
-            };
-
             // Agregar datos de facturas
             invoices.forEach((invoice, index) => {
                 const rowData = {
                     id: invoice.id,
                     number: invoice.number || 'N/A',
                     supplier: invoice.supplier?.business_name || 'N/A',
-                    tipo_dte: 'FACT',
-                    serie: invoice.serie || 'N/A',
-                    numero_dte: invoice.numero_dte || 'N/A',
                     nit: invoice.supplier?.nit || 'N/A',
                     amount: parseFloat(invoice.amount) || 0,
-                    description: invoice.description || 'Sin descripción',
+                    description: invoice.description || 'Sin descripciÃ³n',
                     status: statusMap[invoice.status] || invoice.status,
                     priority: priorityMap[invoice.priority] || invoice.priority,
                     created_at: invoice.created_at ? new Date(invoice.created_at) : null,
-                    due_date: invoice.due_date ? new Date(invoice.due_date) : null,
-                    cancelado: invoice.status === 'rechazada' ? 'Sí' : 'No',
-                    fecha_cancelacion: invoice.status === 'rechazada' && invoice.updated_at ? new Date(invoice.updated_at) : null,
-                    regimen: regimenMap[invoice.supplier?.tipo_proveedor] || invoice.supplier?.tipo_proveedor || 'No especificado',
-                    has_password: invoice.payment?.password_generated ? 'Sí' : 'No',
-                    has_isr: invoice.payment?.isr_retention_file ? 'Sí' : 'No',
-                    has_iva: invoice.payment?.iva_retention_file ? 'Sí' : 'No',
-                    has_payment_proof: invoice.payment?.payment_proof_file ? 'Sí' : 'No'
+                    due_date: invoice.due_date ? new Date(invoice.due_date) : null
                 };
+
+                // Agregar datos especÃ­ficos segÃºn rol
+                if (req.user.role !== 'proveedor') {
+                    rowData.assigned_to = invoice.assignedUser?.name || 'Sin asignar';
+                    rowData.assigned_email = invoice.assignedUser?.email || 'N/A';
+                }
+
+                // Estado de documentos
+                rowData.has_password = invoice.payment?.password_generated ? 'SÃ­' : 'No';
+                rowData.has_isr = invoice.payment?.isr_retention_file ? 'SÃ­' : 'No';
+                rowData.has_iva = invoice.payment?.iva_retention_file ? 'SÃ­' : 'No';
+                rowData.has_payment_proof = invoice.payment?.payment_proof_file ? 'SÃ­' : 'No';
 
                 const row = worksheet.addRow(rowData);
 
@@ -216,7 +216,7 @@ const invoiceExcelController = {
                     };
                 }
 
-                // Color según estado
+                // Color segÃºn estado
                 const statusCell = row.getCell('status');
                 switch (invoice.status) {
                     case 'proceso_completado':
@@ -230,7 +230,7 @@ const invoiceExcelController = {
                         break;
                 }
 
-                // Alineación
+                // AlineaciÃ³n
                 row.alignment = { vertical: 'middle', wrapText: true };
             });
 
@@ -287,11 +287,11 @@ const invoiceExcelController = {
             // Enviar archivo
             await workbook.xlsx.write(res);
             
-            console.log(`✅ Archivo Excel generado exitosamente: ${filename}`);
+            console.log(`âœ… Archivo Excel generado exitosamente: ${filename}`);
             res.end();
 
         } catch (error) {
-            console.error('❌ Error generando Excel:', error);
+            console.error('âŒ Error generando Excel:', error);
             res.status(500).json({ 
                 error: 'Error generando archivo Excel',
                 details: error.message 
