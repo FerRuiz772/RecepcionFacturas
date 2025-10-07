@@ -43,13 +43,28 @@ export function useSuppliers() {
     { title: 'Inactivos', value: false }
   ]
 
+  // Headers actualizados con la nueva columna "Régimen"
   const headers = [
     { title: 'Empresa', key: 'business_name', width: '250px' },
     { title: 'NIT', key: 'nit', width: '150px' },
     { title: 'Estado', key: 'is_active', width: '100px' },
     { title: 'Registrado', key: 'created_at', width: '120px' },
+    { title: 'Régimen', key: 'tipo_proveedor', width: '180px' },
     { title: 'Acciones', key: 'actions', sortable: false, width: '280px' }
   ]
+
+  // Mapeo de tipos de proveedor a nombres legibles
+  const tipoProveedorLabels = {
+    'definitiva': 'Régimen Definitiva ISR',
+    'pagos_trimestrales': 'Pagos Trimestrales',
+    'pequeno_contribuyente': 'Pequeño Contribuyente',
+    'pagos_trimestrales_retencion': 'Pagos Trimestrales - Agente Retención'
+  }
+
+  // Función para formatear el tipo de proveedor
+  const formatTipoProveedor = (tipo) => {
+    return tipoProveedorLabels[tipo] || tipo || 'No especificado'
+  }
 
   const loadSuppliers = async (options = {}) => {
     loading.value = true
@@ -67,9 +82,9 @@ export function useSuppliers() {
         is_active: activeFilter.value !== null ? activeFilter.value : undefined
       }
 
-  console.log('📡 GET /api/suppliers params ->', params)
-  const response = await axios.get('/api/suppliers', { params })
-  console.log('📥 Response from /api/suppliers:', { status: response.status, keys: Object.keys(response.data || {}) })
+      console.log('📡 GET /api/suppliers params ->', params)
+      const response = await axios.get('/api/suppliers', { params })
+      console.log('📥 Response from /api/suppliers:', { status: response.status, keys: Object.keys(response.data || {}) })
       
       // Manejar diferentes estructuras de respuesta del API
       if (response.data.success && response.data.data) {
@@ -204,8 +219,6 @@ export function useSuppliers() {
     }
   }
 
-
-
   const formatDate = (dateString) => {
     try {
       return new Intl.DateTimeFormat('es-GT', { timeZone: 'America/Guatemala', year: 'numeric', month: 'long', day: 'numeric' }).format(new Date(dateString))
@@ -233,7 +246,7 @@ export function useSuppliers() {
     formValid,
     supplierFormRef,
     supplierForm,
-  nitRules,
+    nitRules,
     
     // Static data
     statusOptions,
@@ -249,6 +262,7 @@ export function useSuppliers() {
     saveSupplier,
     toggleSupplier,
     formatDate,
+    formatTipoProveedor,
     initializeSuppliers
   }
 }

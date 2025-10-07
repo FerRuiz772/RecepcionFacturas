@@ -132,6 +132,20 @@
             <div class="date-cell">{{ formatDate(item.created_at) }}</div>
           </template>
 
+          <!-- Nueva columna de Régimen -->
+          <template v-slot:item.tipo_proveedor="{ item }">
+            <div class="regimen-cell">
+              <v-chip 
+                :color="getRegimenColor(item.tipo_proveedor)" 
+                variant="flat" 
+                size="small"
+                class="regimen-chip"
+              >
+                {{ formatTipoProveedor(item.tipo_proveedor) }}
+              </v-chip>
+            </div>
+          </template>
+
           <template v-slot:item.actions="{ item }">
             <div class="actions-cell">
               <v-btn
@@ -358,10 +372,22 @@ const {
   saveSupplier,
   toggleSupplier,
   formatDate,
+  formatTipoProveedor,
   initializeSuppliers
 } = useSuppliers()
 
 onMounted(initializeSuppliers)
+
+// Función para asignar colores a cada tipo de régimen
+const getRegimenColor = (tipo) => {
+  const colorMap = {
+    'definitiva': 'blue',
+    'pagos_trimestrales': 'green',
+    'pequeno_contribuyente': 'orange',
+    'pagos_trimestrales_retencion': 'purple'
+  }
+  return colorMap[tipo] || 'grey'
+}
 
 // Handlers para la paginación del footer
 // Pagination state
@@ -442,4 +468,3 @@ const showLastButton = computed(() => {
 </script>
 
 <style src="../styles/suppliers.css" scoped></style>
-
