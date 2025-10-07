@@ -81,22 +81,22 @@
                 hide-details
               ></v-select>
             </v-col>
-            <v-col cols="12" sm="6" md="3" lg="2" v-if="authStore.isAdmin">
-              <v-select
-                v-model="filters.assigned_to"
-                :items="users"
-                item-title="name"
-                item-value="id"
-                label="Asignado a"
-                variant="outlined"
-                density="comfortable"
-                clearable
-                @update:model-value="applyFilters"
-                prepend-inner-icon="mdi-account"
-                hide-details
-                class="assigned-filter"
-              ></v-select>
-            </v-col>
+                      <!-- Filtro de Régimen (solo admin) -->
+          <v-col cols="12" sm="6" md="3" lg="2" v-if="authStore.isAdmin">
+            <v-select
+              v-model="filters.tipo_proveedor"
+              :items="regimenOptions"
+              item-title="title"
+              item-value="value"
+              label="Régimen"
+              variant="outlined"
+              density="comfortable"
+              clearable
+              @update:model-value="applyFilters"
+              prepend-inner-icon="mdi-briefcase-outline"
+              hide-details
+            ></v-select>
+          </v-col>
             <v-col cols="12" sm="6" md="3" lg="2">
               <v-text-field
                 v-model="filters.search"
@@ -237,14 +237,22 @@
             <div class="date-cell">{{ formatDate(item.created_at) }}</div>
           </template>
 
-          <template v-slot:item.assigned_to="{ item }">
-            <div v-if="item.assignedUser" class="assigned-info">
-              <div class="assigned-name">{{ item.assignedUser.name }}</div>
-              <div class="assigned-email">{{ item.assignedUser.email }}</div>
+          <!-- Columna de Régimen -->
+          <template v-slot:item.tipo_proveedor="{ item }">
+            <div class="regimen-cell">
+              <v-chip
+                v-if="item.supplier?.tipo_proveedor"
+                size="small"
+                :color="getRegimenColor(item.supplier.tipo_proveedor)"
+                variant="flat"
+                class="regimen-chip"
+              >
+                <span class="status-text">{{ tipoProveedorLabels[item.supplier.tipo_proveedor] || item.supplier.tipo_proveedor }}</span>
+              </v-chip>
+              <v-chip v-else size="small" color="grey" variant="flat" class="regimen-chip">
+                <span class="status-text">No especificado</span>
+              </v-chip>
             </div>
-            <v-chip v-else size="small" color="orange" variant="flat" class="unassigned-chip">
-              <span class="status-text">Sin asignar</span>
-            </v-chip>
           </template>
 
           <template v-slot:item.actions="{ item }">
@@ -393,6 +401,8 @@ const {
   statusNotes,
   filters,
   statusOptions,
+  regimenOptions,  // ✅ Agregado
+  tipoProveedorLabels,  // ✅ Agregado
   headers,
   availableStatuses,
   hasActiveFilters,
@@ -480,6 +490,17 @@ const showFirstButton = computed(() => {
 const showLastButton = computed(() => {
   return totalPages.value > 1 && currentPage.value < totalPages.value
 })
+
+// Función para asignar colores a cada tipo de régimen
+const getRegimenColor = (tipo) => {
+  const colors = {
+    'definitiva': 'blue',
+    'pagos_trimestrales': 'green',
+    'pequeno_contribuyente': 'orange',
+    'pagos_trimestrales_retencion': 'purple'
+  }
+  return colors[tipo] || 'grey'
+}
 
 onMounted(() => {
   initializeInvoices()

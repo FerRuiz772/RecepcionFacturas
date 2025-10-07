@@ -16,7 +16,7 @@ export function useInvoices() {
     const params = new URLSearchParams();
     if (filters.value.status) params.append('status', filters.value.status);
     if (filters.value.supplier_id) params.append('supplier_id', filters.value.supplier_id);
-    if (filters.value.assigned_to) params.append('assigned_to', filters.value.assigned_to);
+    if (filters.value.tipo_proveedor) params.append('tipo_proveedor', filters.value.tipo_proveedor);  // ✅ Cambiado
     if (filters.value.search) params.append('search', filters.value.search);
     if (filters.value.start_date) params.append('date_from', filters.value.start_date);
     if (filters.value.end_date) params.append('date_to', filters.value.end_date);
@@ -64,13 +64,25 @@ export function useInvoices() {
   const filters = ref({
     status: null,
     supplier_id: null,
-    assigned_to: null,
+    tipo_proveedor: null,  // ✅ Cambiado de assigned_to a tipo_proveedor
     search: '',
     start_date: '',
     end_date: ''
   })
 
+  const regimenOptions = [
+    { title: 'Régimen Definitiva ISR', value: 'definitiva' },
+    { title: 'Pagos Trimestrales', value: 'pagos_trimestrales' },
+    { title: 'Pequeño Contribuyente', value: 'pequeno_contribuyente' },
+    { title: 'Pagos Trimestrales - Agente Retención', value: 'pagos_trimestrales_retencion' }
+  ]
 
+  const tipoProveedorLabels = {
+    'definitiva': 'Régimen Definitiva ISR',
+    'pagos_trimestrales': 'Pagos Trimestrales',
+    'pequeno_contribuyente': 'Pequeño Contribuyente',
+    'pagos_trimestrales_retencion': 'Pagos Trimestrales - Agente Retención'
+  }
 
   const statusOptions = [
     { title: 'Factura Subida', value: 'factura_subida' },
@@ -96,7 +108,7 @@ export function useInvoices() {
 
     if (!authStore.isProveedor) {
       baseHeaders.splice(2, 0, { title: 'Proveedor', key: 'supplier', width: '200px' })
-      baseHeaders.splice(-1, 0, { title: 'Asignado a', key: 'assigned_to', width: '150px' })
+      baseHeaders.splice(-1, 0, { title: 'Régimen', key: 'tipo_proveedor', width: '150px' })  // ✅ Cambiado de 'Asignado a' a 'Régimen'
     }
 
     return baseHeaders
@@ -119,7 +131,7 @@ export function useInvoices() {
   const hasActiveFilters = computed(() => {
     return !!(filters.value.status || 
              filters.value.supplier_id || 
-             filters.value.assigned_to || 
+             filters.value.tipo_proveedor ||  // ✅ Cambiado de assigned_to
              filters.value.search || 
              filters.value.start_date || 
              filters.value.end_date)
@@ -404,6 +416,8 @@ export function useInvoices() {
     itemsPerPage,
     filters,
     statusOptions,
+    regimenOptions,  // ✅ Agregado
+    tipoProveedorLabels,  // ✅ Agregado
     
     // Computed
     headers,

@@ -497,3 +497,48 @@
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   transform: translateY(-1px);
 }
+
+/* Estilos para la columna y filtro de Régimen */
+.regimen-cell {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+}
+
+.regimen-chip {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-transform: none;
+  padding: 4px 8px;
+  white-space: nowrap;
+}
+
+/* Colores específicos para cada tipo de régimen */
+.regimen-chip.v-chip--variant-flat {
+  color: white !important;
+}
+
+.regimen-chip .status-text {
+  color: white !important;
+}
+
+/* Ajustes responsive para la tabla con la nueva columna */
+@media (max-width: 1200px) {
+  .regimen-cell {
+    font-size: 0.7rem;
+  }
+  
+  .regimen-chip {
+    font-size: 0.65rem;
+    padding: 2px 6px;
+  }
+}
+
+/* Asegurar que la columna de régimen sea visible en dispositivos más pequeños */
+@media (max-width: 960px) {
+  .invoices-table :deep(th),
+  .invoices-table :deep(td) {
+    font-size: 0.75rem;
+    padding: 8px 4px;
+  }
+}

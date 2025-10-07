@@ -401,6 +401,7 @@ const invoiceController = {
      * @param {string} req.query.status - Filtrar por estado de factura
      * @param {number} req.query.supplier_id - Filtrar por ID de proveedor
      * @param {number} req.query.assigned_to - Filtrar por contador asignado
+     * @param {string} req.query.tipo_proveedor - Filtrar por tipo de proveedor/régimen
      * @param {number} req.query.page - Número de página (default: 1)
      * @param {number} req.query.limit - Elementos por página (default: 10)
      * @param {string} req.query.search - Búsqueda en número y descripción
@@ -410,10 +411,10 @@ const invoiceController = {
      */
     async getAllInvoices(req, res) {
         try {
-            const { status, supplier_id, assigned_to, page = 1, limit = 10, search, date_from, date_to } = req.query;
+            const { status, supplier_id, assigned_to, tipo_proveedor, page = 1, limit = 10, search, date_from, date_to } = req.query;
             const offset = (page - 1) * limit;
 
-            console.log('🔍 Filtros recibidos:', { status, supplier_id, assigned_to, search, date_from, date_to });
+            console.log('🔍 Filtros recibidos:', { status, supplier_id, assigned_to, tipo_proveedor, search, date_from, date_to });
 
             const where = {};
             if (status) where.status = status;
@@ -458,12 +459,20 @@ const invoiceController = {
             console.log('👤 Usuario rol:', req.user.role);
 
             // Configurar includes basado en el rol del usuario
+            const supplierInclude = {
+                model: Supplier,
+                as: 'supplier',
+                attributes: ['id', 'business_name', 'nit', 'tipo_proveedor']
+            };
+
+            // Si hay filtro de tipo_proveedor, agregar where al include
+            if (tipo_proveedor) {
+                supplierInclude.where = { tipo_proveedor };
+                supplierInclude.required = true; // Hacer INNER JOIN para filtrar
+            }
+
             const includes = [
-                {
-                    model: Supplier,
-                    as: 'supplier',
-                    attributes: ['id', 'business_name', 'nit', 'tipo_proveedor']
-                },
+                supplierInclude,
                 {
                     model: Payment,
                     as: 'payment',
