@@ -65,10 +65,20 @@ web_modules/
 
 # dotenv environment variable files
 .env
-.env.development.local
-.env.test.local
-.env.production.local
+.env.*
 .env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+*.env
+
+# EXCEPCIÓN: Mantener archivos de ejemplo
+!.env.example
+!**/.env.example
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -188,9 +198,7 @@ storybook-static
 tmp/
 temp/
 
-# Environment files
+# Docker override files
 docker-compose.override.yml
-.env.local
-.env.production
 Dockerfile.dev
 frontend\src\utils\axios.js
