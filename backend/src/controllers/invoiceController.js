@@ -1433,13 +1433,17 @@ const invoiceController = {
             try {
                 console.log('📧 Enviando notificación de documento subido...');
                 
-                // Obtener el usuario proveedor de la factura
-                const proveedorUser = await User.findOne({
-                    where: { supplier_id: updatedInvoice.supplier_id },
+                // Obtener TODOS los usuarios proveedores ACTIVOS de la factura
+                const proveedorUsers = await User.findAll({
+                    where: { 
+                        supplier_id: updatedInvoice.supplier_id,
+                        role: 'proveedor',
+                        is_active: true  // ✅ Solo usuarios activos
+                    },
                     include: [{ model: Supplier, as: 'supplier' }]
                 });
 
-                if (proveedorUser) {
+                if (proveedorUsers.length > 0) {
                     const StatusNotificationService = require('../utils/statusNotificationService');
                     const statusService = new StatusNotificationService();
                     
@@ -1454,18 +1458,24 @@ const invoiceController = {
                         'password_file': 'Documento de Contraseña'
                     };
 
-                    // Notificar al proveedor que se subió un documento
-                    await invoiceNotificationService.notifyDocumentUploaded(
-                        updatedInvoice, 
-                        proveedorUser, 
-                        uploaderUser, 
-                        type, 
-                        documentTypeNames[type] || type
-                    );
-                    
-                    console.log('✅ Notificación enviada al proveedor:', proveedorUser.email);
+                    // Notificar a TODOS los proveedores activos que se subió un documento
+                    console.log(`📧 Enviando notificaciones a ${proveedorUsers.length} proveedores activos...`);
+                    for (const proveedorUser of proveedorUsers) {
+                        try {
+                            await invoiceNotificationService.notifyDocumentUploaded(
+                                updatedInvoice, 
+                                proveedorUser, 
+                                uploaderUser, 
+                                type, 
+                                documentTypeNames[type] || type
+                            );
+                            console.log('✅ Notificación enviada al proveedor:', proveedorUser.email);
+                        } catch (error) {
+                            console.error(`❌ Error enviando notificación a ${proveedorUser.email}:`, error);
+                        }
+                    }
                 } else {
-                    console.log('⚠️ No se encontró usuario proveedor para enviar notificación');
+                    console.log('⚠️ No se encontraron usuarios proveedores activos para enviar notificación');
                 }
             } catch (notificationError) {
                 console.error('❌ Error enviando notificación de documento subido:', notificationError);

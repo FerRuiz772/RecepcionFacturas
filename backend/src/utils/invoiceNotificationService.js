@@ -58,13 +58,20 @@ class InvoiceNotificationService {
       console.log(`🔍 Datos del supplier:`, supplier);
       console.log(`🔍 Datos del assignedUser:`, assignedUser);
       
-      // Buscar al usuario proveedor que subió la factura
+      // Buscar TODOS los usuarios proveedores ACTIVOS de este supplier
       const { User } = require('../models');
-      const proveedorUser = await User.findOne({
-        where: { supplier_id: supplier.id, role: 'proveedor' }
+      const proveedorUsers = await User.findAll({
+        where: { 
+          supplier_id: supplier.id, 
+          role: 'proveedor',
+          is_active: true  // ✅ Solo usuarios activos
+        }
       });
 
-      console.log(`🔍 Usuario proveedor encontrado:`, proveedorUser ? proveedorUser.email : 'No encontrado');
+      console.log(`🔍 Usuarios proveedores activos encontrados: ${proveedorUsers.length} para supplier_id: ${supplier.id}`);
+      proveedorUsers.forEach(user => {
+        console.log(`   - ${user.email} (${user.name})`);
+      });
 
       // Buscar TODOS los admin de contaduría para notificación
       const adminsContaduria = await User.findAll({
@@ -76,13 +83,20 @@ class InvoiceNotificationService {
         console.log(`   - ${admin.email} (${admin.name})`);
       });
 
-      // Notificar al proveedor que su factura fue recibida
-      if (proveedorUser?.email) {
-        console.log(`📧 Enviando notificación al proveedor: ${proveedorUser.email}`);
-        await this.sendInvoiceReceivedNotification(supplier, invoice, proveedorUser);
-        console.log(`✅ Notificación al proveedor enviada exitosamente`);
+      // Notificar a TODOS los usuarios proveedores activos que su factura fue recibida
+      if (proveedorUsers.length > 0) {
+        console.log(`📧 Enviando notificaciones a ${proveedorUsers.length} usuarios proveedores activos...`);
+        for (const proveedorUser of proveedorUsers) {
+          try {
+            console.log(`📧 Enviando notificación al proveedor: ${proveedorUser.email}`);
+            await this.sendInvoiceReceivedNotification(supplier, invoice, proveedorUser);
+            console.log(`✅ Notificación al proveedor ${proveedorUser.email} enviada exitosamente`);
+          } catch (error) {
+            console.error(`❌ Error al enviar notificación al proveedor ${proveedorUser.email}:`, error);
+          }
+        }
       } else {
-        console.log(`⚠️ No se encontró usuario proveedor para supplier_id: ${supplier.id}`);
+        console.log(`⚠️ No se encontraron usuarios proveedores activos para supplier_id: ${supplier.id}`);
       }
 
       // Notificar al usuario asignado que tiene una nueva factura pendiente
@@ -153,20 +167,35 @@ class InvoiceNotificationService {
       const message = statusMessages[toStatus];
       
       if (message) {
-        // Buscar al usuario proveedor que debe recibir la notificación
+        // Buscar TODOS los usuarios proveedores ACTIVOS de este supplier
         const { User } = require('../models');
-        const proveedorUser = await User.findOne({
-          where: { supplier_id: supplier.id, role: 'proveedor' }
+        const proveedorUsers = await User.findAll({
+          where: { 
+            supplier_id: supplier.id, 
+            role: 'proveedor',
+            is_active: true  // ✅ Solo usuarios activos
+          }
         });
 
-        console.log(`🔍 Usuario proveedor para notificación:`, proveedorUser ? proveedorUser.email : 'No encontrado');
+        console.log(`🔍 Usuarios proveedores activos para notificación: ${proveedorUsers.length}`);
+        proveedorUsers.forEach(user => {
+          console.log(`   - ${user.email} (${user.name})`);
+        });
 
-        if (proveedorUser?.email) {
-          console.log(`📧 Enviando notificación de cambio de estado a: ${proveedorUser.email}`);
-          await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy, proveedorUser, notes);
-          console.log(`✅ Notificación de cambio de estado enviada exitosamente`);
+        // Notificar a TODOS los usuarios proveedores activos
+        if (proveedorUsers.length > 0) {
+          console.log(`📧 Enviando notificaciones de cambio de estado a ${proveedorUsers.length} proveedores activos...`);
+          for (const proveedorUser of proveedorUsers) {
+            try {
+              console.log(`📧 Enviando notificación de cambio de estado a: ${proveedorUser.email}`);
+              await this.sendStatusChangeNotification(supplier, invoice, toStatus, message, changedBy, proveedorUser, notes);
+              console.log(`✅ Notificación de cambio de estado enviada exitosamente a ${proveedorUser.email}`);
+            } catch (error) {
+              console.error(`❌ Error al enviar notificación a ${proveedorUser.email}:`, error);
+            }
+          }
         } else {
-          console.log(`⚠️ No se encontró usuario proveedor para supplier_id: ${supplier.id}`);
+          console.log(`⚠️ No se encontraron usuarios proveedores activos para supplier_id: ${supplier.id}`);
         }
       } else {
         console.log(`⚠️ No hay mensaje definido para el estado: ${toStatus}`);
