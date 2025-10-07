@@ -44,7 +44,7 @@
         </v-card-title>
         <v-card-text class="pa-6">
           <v-row align="center">
-            <v-col cols="12" md="4" class="d-flex align-center">
+            <v-col cols="12" md="3" class="d-flex align-center">
               <div style="width:100%; display:flex; align-items:center">
                 <v-text-field
                   v-model="searchQuery"
@@ -59,7 +59,7 @@
                 ></v-text-field>
               </div>
             </v-col>
-            <v-col cols="12" md="4" class="d-flex align-center">
+            <v-col cols="12" md="3" class="d-flex align-center">
               <div style="width:100%; display:flex; align-items:center">
                 <v-select
                   v-model="activeFilter"
@@ -74,7 +74,22 @@
                 ></v-select>
               </div>
             </v-col>
-            <v-col cols="12" md="4" class="d-flex align-center justify-end">
+            <v-col cols="12" md="3" class="d-flex align-center">
+              <div style="width:100%; display:flex; align-items:center">
+                <v-select
+                  v-model="regimenFilter"
+                  :items="regimenOptions"
+                  label="Régimen"
+                  variant="outlined"
+                  density="comfortable"
+                  clearable
+                  @update:model-value="onFilterChange"
+                  style="width:100%; min-height:48px"
+                  hide-details
+                ></v-select>
+              </div>
+            </v-col>
+            <v-col cols="12" md="3" class="d-flex align-center justify-end">
               <v-btn
                 @click="enhancedResetFilters"
                 variant="outlined"
@@ -350,6 +365,7 @@ const {
   itemsPerPage,
   searchQuery,
   activeFilter,
+  regimenFilter,
   supplierDialog,
   editMode,
   saving,
@@ -359,6 +375,7 @@ const {
   
   // Static data
   statusOptions,
+  regimenOptions,
   headers,
   nitRules,
   

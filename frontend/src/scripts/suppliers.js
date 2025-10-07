@@ -14,6 +14,7 @@ export function useSuppliers() {
   const itemsPerPage = ref(10)
   const searchQuery = ref('')
   const activeFilter = ref(null)
+  const regimenFilter = ref(null)
   const supplierDialog = ref(false)
   const editMode = ref(false)
   const saving = ref(false)
@@ -41,6 +42,13 @@ export function useSuppliers() {
   const statusOptions = [
     { title: 'Activos', value: true },
     { title: 'Inactivos', value: false }
+  ]
+
+  const regimenOptions = [
+  { title: 'Régimen Definitiva ISR', value: 'definitiva' },
+  { title: 'Pagos Trimestrales', value: 'pagos_trimestrales' },
+  { title: 'Pequeño Contribuyente', value: 'pequeno_contribuyente' },
+  { title: 'Pagos Trimestrales - Agente Retención', value: 'pagos_trimestrales_retencion' }
   ]
 
   // Headers actualizados con la nueva columna "Régimen"
@@ -79,7 +87,8 @@ export function useSuppliers() {
         page: options.page || 1,
         limit: options.itemsPerPage || itemsPerPage.value,
         search: normalizedSearch,
-        is_active: activeFilter.value !== null ? activeFilter.value : undefined
+        is_active: activeFilter.value !== null ? activeFilter.value : undefined,
+        tipo_proveedor: regimenFilter.value || undefined  // ✅ Moverlo aquí dentro de params
       }
 
       console.log('📡 GET /api/suppliers params ->', params)
@@ -114,6 +123,7 @@ export function useSuppliers() {
   const resetFilters = () => {
     searchQuery.value = ''
     activeFilter.value = null
+    regimenFilter.value = null
     // resetear paginación a por defecto
     itemsPerPage.value = 10
     loadSuppliers()
@@ -245,12 +255,14 @@ export function useSuppliers() {
     saving,
     formValid,
     supplierFormRef,
+    regimenFilter,
     supplierForm,
     nitRules,
     
     // Static data
     statusOptions,
     headers,
+    regimenOptions,
     
     // Functions
     loadSuppliers,

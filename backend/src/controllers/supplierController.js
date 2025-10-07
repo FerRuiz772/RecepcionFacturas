@@ -87,6 +87,12 @@ const supplierController = {
                 console.log('🔎 Applied search filter for suppliers (business_name LIKE):', raw);
             }
 
+            // Filtrar por tipo de régimen
+            if (req.query.tipo_proveedor) {
+                where.tipo_proveedor = req.query.tipo_proveedor;
+                console.log('🏛️ Applied regimen filter:', req.query.tipo_proveedor);
+            }
+
             // Filtrar por rol del usuario
             console.log('👤 Request user info:', { id: req.user?.userId, role: req.user?.role })
             if (req.user.role === 'proveedor') {
