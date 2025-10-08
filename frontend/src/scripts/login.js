@@ -2,6 +2,8 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from 'vue-toastification'
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png'
 
 /**
  * Composable para manejo de funcionalidad de login

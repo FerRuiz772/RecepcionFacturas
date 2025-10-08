@@ -12,8 +12,8 @@ export default defineConfig({
       autoImport: true,
     }),
   ],
-  define: { 
-    'process.env': {} 
+  define: {
+    'process.env': {}
   },
   resolve: {
     alias: {
@@ -28,6 +28,12 @@ export default defineConfig({
       '.tsx',
       '.vue',
     ],
+  },
+  publicDir: 'public',
+  build: {
+    rollupOptions: {
+      external: [],
+    }
   },
   server: {
     host: '0.0.0.0',

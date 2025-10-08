@@ -1,9 +1,8 @@
 version: '3.8'
-
 services:
-  payquetzal_db:
+  recepcion_facturas_db:
     image: mysql:8.0
-    container_name: payquetzal_db
+    container_name: recepcion_facturas_db
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
@@ -13,7 +12,7 @@ services:
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
-      - payquetzal_db_data:/var/lib/mysql
+      - recepcion_facturas_db_data:/var/lib/mysql
       - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
       - ./database/002_add_permissions_column.sql:/docker-entrypoint-initdb.d/002_add_permissions_column.sql
       - ./database/003_create_user_permissions.sql:/docker-entrypoint-initdb.d/003_create_user_permissions.sql
@@ -21,28 +20,29 @@ services:
       - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
       - ./database/006_add_regimen_isr_and_documentos.sql:/docker-entrypoint-initdb.d/006_add_regimen_isr_and_documentos.sql
       - ./database/007_create_invoice_comments.sql:/docker-entrypoint-initdb.d/007_create_invoice_comments.sql
+      - ./database/008_add_serie_and_dte_to_invoices.sql:/docker-entrypoint-initdb.d/008_add_serie_and_dte_to_invoices..sql
+      - ./database/009_add_tipo_proveedor.sql:/docker-entrypoint-initdb.d/009_add_tipo_proveedor.sql
       - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
-      
     networks:
-      - payquetzal-network
+      - recepcion_network
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1"]
       interval: 30s
       timeout: 10s
       retries: 10
 
-  payquetzal_api:
+  recepcion_facturas_api:
     build:
       context: ./backend
       dockerfile: Dockerfile.prod
-    container_name: payquetzal_api
+    container_name: recepcion_facturas_api
     restart: unless-stopped
     env_file:
       - ./.env.production
     environment:
       NODE_ENV: production
       PORT: 3000
-      DB_HOST: payquetzal_db
+      DB_HOST: recepcion_facturas_db
       DB_PORT: 3306
       DB_NAME: ${DB_NAME}
       DB_USER: ${DB_USER}
@@ -60,18 +60,18 @@ services:
       - ./uploads:/app/uploads
       - ./backend/logs:/app/logs
     depends_on:
-      payquetzal_db:
+      recepcion_facturas_db:
         condition: service_healthy
     networks:
-      - payquetzal-network
+      - recepcion_network
 
-  payquetzal_frontend:
+  recepcion_facturas_frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
       args:
         - VITE_API_URL=${VITE_API_URL}
-    container_name: payquetzal_frontend
+    container_name: recepcion_facturas_frontend
     restart: unless-stopped
     env_file:
       - ./.env.production
@@ -80,14 +80,14 @@ services:
     environment:
       - NODE_ENV=production
     depends_on:
-      - payquetzal_api
+      - recepcion_facturas_api
     networks:
-      - payquetzal-network
+      - recepcion_network
 
 volumes:
-  payquetzal_db_data:
+  recepcion_facturas_db_data:
     driver: local
 
 networks:
-  payquetzal-network:
+  recepcion_network:
     driver: bridge

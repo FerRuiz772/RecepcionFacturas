@@ -1,8 +1,11 @@
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png
+
 <template>
   <div class="reset-password-container">
     <!-- Logo de la empresa (fijo en esquina superior izquierda) -->
     <div class="empresa-logo">
-      <img src="/logo-payquetzal.png" alt="PayQuetzal" />
+      <img :src="empresaLogo" alt="Empresa Logo" />
     </div>
 
     <!-- Panel izquierdo - Formulario -->
@@ -11,7 +14,7 @@
         <!-- Marca -->
         <div class="brand-section">
           <div class="brand-logo-image">
-            <img src="/logo-payquetzal.png" alt="PayQuetzal" />
+            <img :src="payquetzalLogo" alt="PayQuetzal Logo" />
           </div>
         </div>
 

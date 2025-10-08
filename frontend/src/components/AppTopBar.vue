@@ -41,7 +41,7 @@
       variant="text"
       size="small"
     >
-      <img src="/slidemenu.png" alt="Menú" class="menu-icon-img">
+      <img :src="slidemenuImg" alt="Menú" class="menu-icon-img">
     </v-btn>
 
     <v-spacer />
@@ -144,6 +144,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useToast } from 'vue-toastification'
+import slidemenuImg from '@/assets/slidemenu.png'
 
 /**
  * Props del componente

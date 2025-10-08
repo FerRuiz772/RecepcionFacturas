@@ -2,6 +2,8 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import axios from '../utils/axios'
 import { useToast } from 'vue-toastification'
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png'
 
 export function useForgotPassword() {
   const router = useRouter()
