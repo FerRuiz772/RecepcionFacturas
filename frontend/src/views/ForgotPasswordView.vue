@@ -1,6 +1,3 @@
-import empresaLogo from '@/assets/empresa_logo.png'
-import payquetzalLogo from '@/assets/logo-payquetzal.png
-
 <template>
   <div class="forgot-password-container">
       <!-- Logo empresa arriba a la izquierda -->
@@ -159,6 +156,8 @@ import payquetzalLogo from '@/assets/logo-payquetzal.png
 <script setup>
 import { ref } from 'vue'
 import { useForgotPassword } from '../scripts/forgot-password.js'
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png'
 
 // Validaciones de Vuetify
 const emailRules = [

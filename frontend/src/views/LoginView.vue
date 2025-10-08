@@ -1,6 +1,3 @@
-import empresaLogo from '@/assets/empresa_logo.png'
-import payquetzalLogo from '@/assets/logo-payquetzal.png
-
 <template>
   <div class="login-container">
       <!-- Logo empresa arriba a la izquierda -->
@@ -156,6 +153,8 @@ import payquetzalLogo from '@/assets/logo-payquetzal.png
 
 <script setup>
 import { useLogin } from '../scripts/login.js'
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png'
 
 const {
   // Reactive state

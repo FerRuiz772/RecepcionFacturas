@@ -1,6 +1,3 @@
-import empresaLogo from '@/assets/empresa_logo.png'
-import payquetzalLogo from '@/assets/logo-payquetzal.png
-
 <template>
   <div class="reset-password-container">
     <!-- Logo de la empresa (fijo en esquina superior izquierda) -->
@@ -237,6 +234,8 @@ import payquetzalLogo from '@/assets/logo-payquetzal.png
 
 <script setup>
 import { useResetPassword } from '../scripts/reset-password.js'
+import empresaLogo from '@/assets/empresa_logo.png'
+import payquetzalLogo from '@/assets/logo-payquetzal.png'
 
 const {
   password,
