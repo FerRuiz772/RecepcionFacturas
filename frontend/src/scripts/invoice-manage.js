@@ -443,8 +443,9 @@ export function useInvoiceManage() {
     saving.value = true
     try {
       const response = await axios.put(`/api/invoices/${invoice.value.id}`, editForm.value)
-      // El servidor devuelve {message: string, invoice: object}
-      invoice.value = response.data.invoice
+      // El servidor puede devolver un objeto parcial; recargar los datos completos desde la API
+      await loadInvoice()
+      // Cerrar modo edición una vez los datos están actualizados
       editMode.value = false
       toast.success('Factura actualizada exitosamente')
     } catch (error) {
