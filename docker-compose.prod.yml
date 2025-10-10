@@ -23,6 +23,8 @@ services:
       - ./database/008_add_serie_and_dte_to_invoices.sql:/docker-entrypoint-initdb.d/008_add_serie_and_dte_to_invoices..sql
       - ./database/009_add_tipo_proveedor.sql:/docker-entrypoint-initdb.d/009_add_tipo_proveedor.sql
       - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+      - ./database/011_add_phone_to_users.sql:/docker-entrypoint-initdb.d/011_add_phone_to_users.sql
+
     networks:
       - recepcion_network
     healthcheck:
@@ -38,7 +40,7 @@ services:
     container_name: recepcion_facturas_api
     restart: unless-stopped
     env_file:
-      - ./.env.production
+      - ./backend/.env
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -48,17 +50,24 @@ services:
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       EMAIL_HOST: ${EMAIL_HOST}
       EMAIL_PORT: ${EMAIL_PORT}
       EMAIL_USER: ${EMAIL_USER}
       EMAIL_PASS: ${EMAIL_PASS}
       EMAIL_FROM: ${EMAIL_FROM}
       FRONTEND_URL: ${FRONTEND_URL}
+      WHATSAPP_ENABLED: ${WHATSAPP_ENABLED}
+      WHATSAPP_SESSION_PATH: ${WHATSAPP_SESSION_PATH}
+      WHATSAPP_COUNTRY_CODE: ${WHATSAPP_COUNTRY_CODE}
+      WHATSAPP_MAX_RETRIES: ${WHATSAPP_MAX_RETRIES}
+      WHATSAPP_RETRY_DELAY: ${WHATSAPP_RETRY_DELAY}
     ports:
       - "127.0.0.1:5001:3000"
     volumes:
       - ./uploads:/app/uploads
       - ./backend/logs:/app/logs
+      - ./backend/whatsapp_session:/app/whatsapp_session
     depends_on:
       recepcion_facturas_db:
         condition: service_healthy

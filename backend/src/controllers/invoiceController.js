@@ -25,6 +25,7 @@
 const { validationResult } = require('express-validator');
 const { Invoice, Supplier, User, InvoiceState, Payment, SystemLog, sequelize } = require('../models');
 const invoiceNotificationService = require('../utils/invoiceNotificationService');
+const invoiceWhatsAppNotificationService = require('../utils/invoiceWhatsAppNotificationService');
 const statusNotificationService = require('../utils/statusNotificationService');
 const invoiceDocumentService = require('../services/invoiceDocumentService');
 const multer = require('multer');
@@ -861,30 +862,30 @@ const invoiceController = {
 
             await transaction.commit();
 
-            // Enviar notificaciones por email (después del commit para asegurar que todo se guardó)
-            try {
-                const supplier = createdInvoice.supplier;
-                const assignedUser = createdInvoice.assignedUser;
-                
-                console.log('🔍 CREACIÓN MANUAL DE FACTURA - Iniciando notificaciones...');
-                console.log('🔍 Rol del usuario:', role);
-                console.log('🔍 Factura creada:', { id: createdInvoice.id, number: createdInvoice.number });
-                console.log('🔍 Supplier:', supplier ? { id: supplier.id, business_name: supplier.business_name } : 'No encontrado');
-                console.log('🔍 Usuario asignado:', assignedUser ? { id: assignedUser.id, name: assignedUser.name, email: assignedUser.email } : 'No asignado');
-                
-                // Usar el nuevo servicio de notificaciones
-                await statusNotificationService.processNotification('invoice_created', {
-                    invoice: createdInvoice,
-                    supplier: supplier,
-                    assignedUser: assignedUser
-                });
-                
-                console.log('✅ Notificaciones enviadas exitosamente');
-            } catch (notificationError) {
-                console.error('❌ Error enviando notificaciones:', notificationError);
-                console.error('❌ Stack trace:', notificationError.stack);
-                // No fallar la creación de factura si falla el email
-            }
+            // Enviar notificaciones por email y WhatsApp en segundo plano (no bloquear la respuesta)
+            const supplier = createdInvoice.supplier;
+            const assignedUser = createdInvoice.assignedUser;
+            
+            console.log('🔍 CREACIÓN MANUAL DE FACTURA - Iniciando notificaciones en segundo plano...');
+            console.log('🔍 Rol del usuario:', role);
+            console.log('🔍 Factura creada:', { id: createdInvoice.id, number: createdInvoice.number });
+            console.log('🔍 Supplier:', supplier ? { id: supplier.id, business_name: supplier.business_name } : 'No encontrado');
+            console.log('🔍 Usuario asignado:', assignedUser ? { id: assignedUser.id, name: assignedUser.name, email: assignedUser.email } : 'No asignado');
+            
+            // Enviar notificaciones en segundo plano sin bloquear la respuesta
+            setImmediate(async () => {
+                try {
+                    await statusNotificationService.processNotification('invoice_created', {
+                        invoice: createdInvoice,
+                        supplier: supplier,
+                        assignedUser: assignedUser
+                    });
+                    console.log('✅ Notificaciones enviadas exitosamente (en segundo plano)');
+                } catch (notificationError) {
+                    console.error('❌ Error enviando notificaciones:', notificationError);
+                    console.error('❌ Stack trace:', notificationError.stack);
+                }
+            });
 
             const message = role === 'proveedor' 
                 ? 'Archivo subido exitosamente. El personal de contaduría procesará los datos de la factura.'
@@ -1296,6 +1297,8 @@ const invoiceController = {
                 const generatedBy = await User.findByPk(req.user.userId);
                 if (proveedorUser) {
                     await invoiceNotificationService.notifyPasswordGenerated(invoiceWithSupplier, proveedorUser, generatedBy, password);
+                    // AÑADIDO: Enviar notificación por WhatsApp
+                    await invoiceWhatsAppNotificationService.notifyPasswordGenerated(invoiceWithSupplier, proveedorUser, generatedBy, password);
                 }
             } catch (err) {
                 console.error('❌ Error enviando notificación de contraseña generada:', err);
@@ -1504,6 +1507,16 @@ const invoiceController = {
                                 documentTypeNames[type] || type
                             );
                             console.log('✅ Notificación enviada al proveedor:', proveedorUser.email);
+                            
+                            // AÑADIDO: Enviar notificación por WhatsApp
+                            await invoiceWhatsAppNotificationService.notifyDocumentUploaded(
+                                updatedInvoice, 
+                                proveedorUser, 
+                                uploaderUser, 
+                                type, 
+                                documentTypeNames[type] || type
+                            );
+                            console.log('✅ Notificación por WhatsApp enviada al proveedor:', proveedorUser.phone);
                         } catch (error) {
                             console.error(`❌ Error enviando notificación a ${proveedorUser.email}:`, error);
                         }
@@ -1810,6 +1823,18 @@ const invoiceController = {
                     );
                     
                     console.log('✅ Notificación de reemplazo enviada al proveedor:', proveedorUser.email);
+                    
+                    // AÑADIDO: Enviar notificación por WhatsApp
+                    await invoiceWhatsAppNotificationService.notifyDocumentReplaced(
+                        invoiceWithSupplier, 
+                        proveedorUser, 
+                        uploaderUser, 
+                        type, 
+                        documentTypeNames[type] || type,
+                        currentFileName,
+                        newFileName
+                    );
+                    console.log('✅ Notificación de reemplazo por WhatsApp enviada al proveedor:', proveedorUser.phone);
                 } else {
                     console.log('⚠️ No se encontró usuario proveedor para enviar notificación de reemplazo');
                 }
@@ -2401,6 +2426,17 @@ const invoiceController = {
                     const proveedorUser = await User.findOne({ where: { supplier_id: invoice.supplier_id } });
                     if (proveedorUser) {
                         await invoiceNotificationService.notifyDocumentReplaced(
+                            invoice,
+                            proveedorUser,
+                            await User.findByPk(req.user.userId),
+                            'original',
+                            'Factura Original',
+                            replacedFileRecord.filename,
+                            uniqueName
+                        );
+                        
+                        // AÑADIDO: Enviar notificación por WhatsApp
+                        await invoiceWhatsAppNotificationService.notifyDocumentReplaced(
                             invoice,
                             proveedorUser,
                             await User.findByPk(req.user.userId),

@@ -26,6 +26,7 @@ const requestLogger = require('./src/middleware/requestLogger');
 const logger = require('./src/utils/logger');
 const bcrypt = require('bcrypt');
 const emailService = require('./src/utils/emailService');
+const whatsappService = require('./src/utils/whatsappService');
 const { initializeCommentNotificationService } = require('./src/utils/commentNotificationService');
 
 const app = express();
@@ -112,6 +113,7 @@ app.use('/api/users', require('./src/routes/users')); // Gestión de usuarios y 
 app.use('/api/invoices', require('./src/routes/invoices')); // Gestión de facturas y documentos
 app.use('/api/suppliers', require('./src/routes/suppliers')); // Gestión de proveedores
 app.use('/api/dashboard', require('./src/routes/dashboard')); // Métricas y dashboard principal
+app.use('/api/whatsapp', require('./src/routes/whatsapp')); // WhatsApp QR y estado
 
 /**
  * Health check endpoint para monitoreo de estado del servidor
@@ -168,6 +170,15 @@ app.listen(PORT, async () => {
         console.log(`📧 Verificación SMTP: ${ok ? 'OK' : 'FAIL'}`);
     } catch (err) {
         console.error('❌ Error verificando SMTP en el arranque:', err);
+    }
+    
+    // AÑADIDO: Inicializar WhatsApp
+    try {
+        await whatsappService.initialize();
+        console.log('✅ WhatsApp conectado y listo');
+    } catch (err) {
+        console.error('❌ Error inicializando WhatsApp en el arranque:', err);
+        console.error('⚠️ El sistema continuará sin WhatsApp');
     }
 });
 

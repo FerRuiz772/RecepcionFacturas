@@ -346,6 +346,26 @@
                       required
                     ></v-text-field>
                   </v-col>
+                  <v-col cols="12">
+                    <v-text-field
+                      v-model="userForm.phone"
+                      label="Número de Teléfono"
+                      type="tel"
+                      variant="outlined"
+                      :rules="[
+                        v => !!v || 'Número de teléfono requerido',
+                        v => /^[0-9]{8}$/.test(v) || 'Debe ser un número de 8 dígitos'
+                      ]"
+                      placeholder="12345678"
+                      hint="Ingresa 8 dígitos sin espacios ni guiones"
+                      persistent-hint
+                      required
+                    >
+                      <template v-slot:prepend-inner>
+                        <span class="text-grey">📱</span>
+                      </template>
+                    </v-text-field>
+                  </v-col>
                   <v-col cols="12" v-if="!editMode">
                     <v-text-field
                       v-model="userForm.password"

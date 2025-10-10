@@ -126,6 +126,12 @@ const menuItems = [
     icon: 'mdi-account-multiple-outline', 
     to: '/users', 
     permission: () => authStore.canViewUsers
+  },
+  { 
+    title: 'WhatsApp', 
+    icon: 'mdi-whatsapp', 
+    to: '/whatsapp', 
+    permission: () => authStore.isSuperAdmin
   }
 ]
 

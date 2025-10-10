@@ -21,7 +21,9 @@ services:
       - ./database/005_add_password_file_safe.sql:/docker-entrypoint-initdb.d/005_add_password_file_safe.sql
       - ./database/006_add_regimen_isr_and_documentos.sql:/docker-entrypoint-initdb.d/006_add_regimen_isr_and_documentos.sql
       - ./database/007_create_invoice_comments.sql:/docker-entrypoint-initdb.d/007_create_invoice_comments.sql
+      - ./database/008_add_serie_and_dte_to_invoices.sql:/docker-entrypoint-initdb.d/008_add_serie_and_dte_to_invoices.sql
       - ./database/010_seeds.sql:/docker-entrypoint-initdb.d/010_seeds.sql
+      - ./database/011_add_phone_to_users.sql:/docker-entrypoint-initdb.d/011_add_phone_to_users.sql
       
     networks:
       - recepcion_network_local
@@ -42,6 +44,7 @@ services:
     volumes:
       - ./backend:/app
       - ./backend/logs:/app/logs
+      - ./backend/whatsapp_session:/app/whatsapp_session
       - ./uploads:/app/uploads
       - /app/node_modules
     env_file:
@@ -55,12 +58,18 @@ services:
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
       - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
       - EMAIL_HOST=${EMAIL_HOST}
       - EMAIL_PORT=${EMAIL_PORT}
       - EMAIL_USER=${EMAIL_USER}
       - EMAIL_PASS=${EMAIL_PASS}
       - EMAIL_FROM=${EMAIL_FROM}
       - FRONTEND_URL=${FRONTEND_URL}
+      - WHATSAPP_ENABLED=${WHATSAPP_ENABLED}
+      - WHATSAPP_SESSION_PATH=${WHATSAPP_SESSION_PATH}
+      - WHATSAPP_COUNTRY_CODE=${WHATSAPP_COUNTRY_CODE}
+      - WHATSAPP_MAX_RETRIES=${WHATSAPP_MAX_RETRIES}
+      - WHATSAPP_RETRY_DELAY=${WHATSAPP_RETRY_DELAY}
       - LOG_LEVEL=debug
     depends_on:
       db:

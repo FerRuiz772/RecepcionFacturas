@@ -175,12 +175,18 @@ const userController = {
                 return res.status(400).json(createResponse(false, 'Datos de entrada inválidos', errors.array()));
             }
 
-            const { email, password, name, role, supplier_id } = req.body;
+            const { email, password, name, role, supplier_id, phone } = req.body;
 
             // Verificar que el email no esté ya registrado
             const existingUser = await User.findOne({ where: { email } });
             if (existingUser) {
                 return res.status(400).json(createResponse(false, 'El email ya está registrado', null));
+            }
+
+            // Preparar profile_data con el teléfono
+            const profile_data = {};
+            if (phone) {
+                profile_data.phone = phone;
             }
 
             // Crear usuario (el modelo se encarga del hash de contraseña)
@@ -189,7 +195,8 @@ const userController = {
                 password_hash: password, // Se hashea automáticamente en el modelo
                 name,
                 role,
-                supplier_id
+                supplier_id,
+                profile_data
             });
 
             // Asignar permisos por defecto según el rol
@@ -209,7 +216,7 @@ const userController = {
     async updateUser(req, res) {
         try {
             const { id } = req.params;
-            const { name, role, is_active, supplier_id } = req.body;
+            const { name, role, is_active, supplier_id, phone } = req.body;
 
             const user = await User.findByPk(id);
             if (!user) {
@@ -232,6 +239,15 @@ const userController = {
                 }
 
                 updateData.email = normalizedEmail;
+            }
+
+            // Actualizar profile_data con el teléfono si se proporciona
+            if (phone !== undefined) {
+                const currentProfileData = user.profile_data || {};
+                updateData.profile_data = {
+                    ...currentProfileData,
+                    phone: phone || null
+                };
             }
 
             await user.update(updateData);

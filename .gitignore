@@ -166,6 +166,11 @@ tmp/
 uploads/temp/
 files-*/
 
+# WhatsApp session files (Baileys)
+whatsapp_session/
+backend/whatsapp_session/
+**/whatsapp_session/
+
 # JWT secrets and certificates
 *.pem
 *.key

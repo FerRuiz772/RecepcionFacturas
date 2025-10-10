@@ -29,6 +29,7 @@ export function useUsers() {
   const userForm = ref({
     name: '',
     email: '',
+    phone: '',
     password: '',
     role: '',
     supplier_id: null,
@@ -121,6 +122,7 @@ export function useUsers() {
     userForm.value = {
       name: '',
       email: '',
+      phone: '',
       password: '',
       role: '',
       supplier_id: null,
@@ -135,8 +137,25 @@ export function useUsers() {
 
   const editUser = (user) => {
     editMode.value = true
+    
+    // Extraer el teléfono de profile_data
+    let phone = '';
+    if (user.profile_data) {
+      if (typeof user.profile_data === 'object' && user.profile_data.phone) {
+        phone = user.profile_data.phone;
+      } else if (typeof user.profile_data === 'string') {
+        try {
+          const profileData = JSON.parse(user.profile_data);
+          phone = profileData?.phone || '';
+        } catch (e) {
+          console.error('Error parsing profile_data:', e);
+        }
+      }
+    }
+    
     userForm.value = { 
       ...user,
+      phone: phone,
       password: '' // No mostrar contraseña actual
     }
     userDialog.value = true
@@ -148,6 +167,7 @@ export function useUsers() {
     userForm.value = {
       name: '',
       email: '',
+      phone: '',
       password: '',
       role: '',
       supplier_id: null,

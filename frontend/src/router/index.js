@@ -60,6 +60,13 @@ const routes = [
     component: () => import('../views/ProfileView.vue'),
     meta: { requiresAuth: true }
   },
+  // NUEVA RUTA: Configuración de WhatsApp (solo para superadmin)
+  {
+    path: '/whatsapp',
+    name: 'WhatsAppConfig',
+    component: () => import('../views/WhatsAppConfigView.vue'),
+    meta: { requiresAuth: true, requiresSuperAdmin: true }
+  },
   // NUEVA RUTA: Vista detallada de factura (para todos los roles)
   {
     path: '/invoices/:id',
@@ -110,7 +117,11 @@ router.beforeEach(async (to, from, next) => {
     else if (to.meta.requiresGuest && authStore.isAuthenticated) {
       console.log('✅ Usuario ya autenticado, redirigiendo a dashboard')
       next('/dashboard')
-    } 
+    }
+    else if (to.meta.requiresSuperAdmin && authStore.user?.role !== 'super_admin') {
+      console.log('❌ Acceso denegado: requiere rol super_admin')
+      next('/dashboard')
+    }
     else if (to.meta.permission && !authStore.hasPermission(to.meta.permission)) {
       console.log(`❌ Acceso denegado: no tiene permiso ${to.meta.permission} para ${to.path}`)
       next('/dashboard')

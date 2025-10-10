@@ -1,5 +1,6 @@
 const emailService = require('./emailService');
 const invoiceNotificationService = require('./invoiceNotificationService');
+const invoiceWhatsAppNotificationService = require('./invoiceWhatsAppNotificationService');
 const logger = require('./logger');
 
 /**
@@ -21,10 +22,15 @@ class StatusNotificationService {
       console.log('📧 Datos del proveedor:', supplier ? supplier.business_name : 'No encontrado');
       console.log('📧 Usuario asignado:', assignedUser ? assignedUser.name : 'No asignado');
       
-      // Usar el servicio existente
+      // Usar el servicio existente de email
       await invoiceNotificationService.notifyInvoiceUploaded(invoice, supplier, assignedUser);
       
       console.log('✅ invoiceNotificationService.notifyInvoiceUploaded completado exitosamente');
+      
+      // AÑADIDO: Enviar notificación por WhatsApp
+      await invoiceWhatsAppNotificationService.notifyInvoiceUploaded(invoice, supplier, assignedUser);
+      console.log('✅ invoiceWhatsAppNotificationService.notifyInvoiceUploaded completado exitosamente');
+      
       logger.info(`Notificaciones enviadas para factura creada: ${invoice.number}`);
     } catch (error) {
       console.error('❌ Error específico en handleInvoiceCreated:', error);
@@ -41,8 +47,11 @@ class StatusNotificationService {
     try {
       console.log(`📧 Procesando notificación de cambio de estado: ${fromStatus} → ${toStatus}`);
       
-      // Usar el servicio existente
+      // Usar el servicio existente de email
       await invoiceNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, notes);
+      
+      // AÑADIDO: Enviar notificación por WhatsApp
+      await invoiceWhatsAppNotificationService.notifyStatusChange(invoice, fromStatus, toStatus, changedBy, supplier, notes);
       
       logger.info(`Notificación de cambio de estado enviada para factura ${invoice.number}: ${fromStatus} → ${toStatus}`);
     } catch (error) {
@@ -63,6 +72,12 @@ class StatusNotificationService {
         await invoiceNotificationService.sendNewInvoiceAssignedNotification(assignedUser, invoice, supplier);
         
         logger.info(`Notificación de asignación enviada a: ${assignedUser.email}`);
+      }
+      
+      // AÑADIDO: Enviar notificación por WhatsApp
+      if (assignedUser?.phone) {
+        await invoiceWhatsAppNotificationService.sendNewInvoiceAssignedNotification(assignedUser, invoice, supplier);
+        logger.info(`Notificación de asignación por WhatsApp enviada a: ${assignedUser.phone}`);
       }
       
       if (previousUser && previousUser.id !== assignedUser?.id) {
